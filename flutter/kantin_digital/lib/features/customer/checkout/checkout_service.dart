@@ -22,11 +22,13 @@ class CheckoutService {
     required List<CartItemModel> items,
     required String customerName,
     required String customerPhone,
+    String paymentMethod = 'qris',
   }) async {
     final body = {
       'table_code': tableCode,
       'customer_name': customerName,
       'customer_phone': customerPhone,
+      'payment_method': paymentMethod,
       'items': items
           .map((e) => {
                 'menu_id': e.menu.id,

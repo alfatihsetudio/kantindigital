@@ -107,6 +107,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       tableCode: _selectedTable!.code,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
+      paymentMethod: _selectedPayment,
     );
     setState(() {
       _loading = false;
