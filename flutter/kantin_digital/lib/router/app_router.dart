@@ -11,6 +11,7 @@ import '../features/admin/menus/menus_page.dart';
 import '../features/admin/tables/tables_page.dart';
 import '../features/admin/toppings/toppings_page.dart';
 import '../features/admin/users/users_page.dart';
+import '../features/admin/qris/qris_setting_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
 import '../features/customer/cart/cart_page.dart';
@@ -99,6 +100,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const AdminTablesPage(), settings: settings);
       case RouteName.adminUsers:
         return MaterialPageRoute(builder: (_) => const AdminUsersPage(), settings: settings);
+      case RouteName.adminQris:
+        return MaterialPageRoute(builder: (_) => const QrisSettingPage(), settings: settings);
 
       // cashier
       case RouteName.cashierOrders:

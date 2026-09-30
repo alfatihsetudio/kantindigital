@@ -9,6 +9,11 @@ class OrderModel {
   final String? customerName;
   final String? customerPhone;
   final OrderStatus status;
+  final String paymentMethod;
+  final String? qrisPayload;
+  final String? merchantName;
+  final String? merchantCity;
+  final String? whatsappNumber;
   final TableModel table;
   final int totalAmount;
   final List<OrderItemModel> items;
@@ -20,6 +25,11 @@ class OrderModel {
     this.customerName,
     this.customerPhone,
     required this.status,
+    this.paymentMethod = 'qris',
+    this.qrisPayload,
+    this.merchantName,
+    this.merchantCity,
+    this.whatsappNumber,
     required this.table,
     required this.totalAmount,
     required this.items,
@@ -28,12 +38,19 @@ class OrderModel {
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
+    final qrisMap = json['qris'] is Map ? json['qris'] as Map : null;
+
     return OrderModel(
       id: (json['id'] as num).toInt(),
       code: (json['code'] ?? '').toString(),
       customerName: json['customer_name']?.toString(),
       customerPhone: json['customer_phone']?.toString(),
       status: OrderStatusX.fromApi((json['status'] ?? 'UNPAID').toString()),
+      paymentMethod: (json['payment_method'] ?? 'qris').toString(),
+      qrisPayload: qrisMap?['payload']?.toString(),
+      merchantName: qrisMap?['merchant_name']?.toString() ?? 'KANTIN DIGITAL',
+      merchantCity: qrisMap?['merchant_city']?.toString() ?? 'SERANG',
+      whatsappNumber: qrisMap?['whatsapp_number']?.toString() ?? '087771262100',
       table: TableModel.fromJson(json['table'] as Map<String, dynamic>),
       totalAmount: (json['total_amount'] as num).toInt(),
       items: rawItems is List
@@ -43,4 +60,3 @@ class OrderModel {
     );
   }
 }
-

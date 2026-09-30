@@ -20,6 +20,7 @@ class OrderController extends Controller
             'table_code' => ['required', 'string'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
+            'payment_method' => ['nullable', 'string', 'in:qris,cash'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.menu_id' => ['required', 'integer', 'exists:menus,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
@@ -37,6 +38,7 @@ class OrderController extends Controller
             'customer_phone' => $request->customer_phone,
             'table_id' => $table->id,
             'status' => 'UNPAID',
+            'payment_method' => $request->payment_method ?? 'qris',
             'total_amount' => 0,
         ]);
 
@@ -82,6 +84,7 @@ class OrderController extends Controller
             'message' => 'success',
             'data' => [
                 'code' => $order->code,
+                'payment_method' => $order->payment_method,
             ],
         ], 201);
     }
@@ -92,13 +95,29 @@ class OrderController extends Controller
             ->where('code', $code)
             ->firstOrFail();
 
+        $qrisSetting = \App\Models\QrisSetting::first();
+        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'KANTIN DIGITAL');
+        $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'SERANG');
+        $basePayload = $qrisSetting->base_payload ?? env('QRIS_BASE_PAYLOAD', '');
+
+        $qrisService = app(\App\Services\QrisDynamicService::class);
+        $qrisPayload = $qrisService->generatePayload($basePayload, (int) $order->total_amount);
+
         $data = [
             'id' => $order->id,
             'code' => $order->code,
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
             'status' => $order->status,
+            'payment_method' => $order->payment_method ?? 'qris',
             'total_amount' => $order->total_amount,
+            'qris' => [
+                'merchant_name' => $merchantName,
+                'merchant_city' => $merchantCity,
+                'whatsapp_number' => $qrisSetting->whatsapp_number ?? '087771262100',
+                'payload' => $qrisPayload,
+                'amount' => (int) $order->total_amount,
+            ],
             'table' => [
                 'id' => $order->table->id,
                 'code' => $order->table->code,
@@ -178,6 +197,7 @@ class OrderController extends Controller
                     'customer_name' => $order->customer_name,
                     'customer_phone' => $order->customer_phone,
                     'status' => $order->status,
+                    'payment_method' => $order->payment_method ?? 'qris',
                     'total_amount' => $order->total_amount,
                     'created_at' => $order->created_at->toIso8601String(),
                     'table' => [

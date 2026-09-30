@@ -347,6 +347,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminUsers,
                     isActive: currentRoute == RouteName.adminUsers,
                   ),
+                  _DrawerItem(
+                    icon: Icons.qr_code_2_rounded,
+                    label: 'Pengaturan QRIS',
+                    route: RouteName.adminQris,
+                    isActive: currentRoute == RouteName.adminQris,
+                  ),
                    const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

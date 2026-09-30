@@ -18,6 +18,7 @@ class CheckoutController {
     required String tableCode,
     required String customerName,
     required String customerPhone,
+    String paymentMethod = 'qris',
   }) async {
     try {
       final List<CartItemModel> items = CartController.instance.items;
@@ -26,6 +27,7 @@ class CheckoutController {
         items: items,
         customerName: customerName,
         customerPhone: customerPhone,
+        paymentMethod: paymentMethod,
       );
       return CheckoutResult.success(code);
     } catch (e) {
