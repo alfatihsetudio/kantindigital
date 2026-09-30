@@ -373,20 +373,50 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 400, // Responsive width
-        childAspectRatio: 0.85, // Taller cards for list
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        return _OrderTicketCard(
-          order: orders[index],
-          tabIndex: _selectedIndex,
-          onAction: (order, action) => _updateStatus(order, action),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 768;
+
+        if (isMobile) {
+          // 2 Kolom di Mode HP
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 100),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.58, // Taller aspect ratio for 2 compact mobile columns
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              return _OrderTicketCard(
+                order: orders[index],
+                tabIndex: _selectedIndex,
+                isCompact: true,
+                onAction: (order, action) => _updateStatus(order, action),
+              );
+            },
+          );
+        }
+
+        // Tablet / Desktop Grid
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 380,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            return _OrderTicketCard(
+              order: orders[index],
+              tabIndex: _selectedIndex,
+              isCompact: false,
+              onAction: (order, action) => _updateStatus(order, action),
+            );
+          },
         );
       },
     );
@@ -396,11 +426,13 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
 class _OrderTicketCard extends StatelessWidget {
   final CashierOrderModel order;
   final int tabIndex;
+  final bool isCompact;
   final Function(CashierOrderModel, String) onAction;
 
   const _OrderTicketCard({
     required this.order,
     required this.tabIndex,
+    this.isCompact = false,
     required this.onAction,
   });
 
@@ -413,17 +445,17 @@ class _OrderTicketCard extends StatelessWidget {
 
     if (tabIndex == 0) { // Baru
       accentColor = AppColors.warning;
-      btnLabel = 'Konfirmasi Bayar';
+      btnLabel = isCompact ? 'Bayar' : 'Konfirmasi Bayar';
       nextStatus = 'PROCESSING';
       btnIcon = Icons.payment_rounded;
     } else if (tabIndex == 1) { // Proses
       accentColor = AppColors.primary;
-      btnLabel = 'Pesanan Siap';
+      btnLabel = isCompact ? 'Siap' : 'Pesanan Siap';
       nextStatus = 'READY';
       btnIcon = Icons.dinner_dining_rounded;
     } else { // Siap
       accentColor = AppColors.info;
-      btnLabel = 'Selesai & Antar';
+      btnLabel = isCompact ? 'Selesai' : 'Selesai & Antar';
       nextStatus = 'SERVED';
       btnIcon = Icons.check_circle_outline_rounded;
     }
@@ -431,12 +463,12 @@ class _OrderTicketCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
         boxShadow: [
           BoxShadow(
             color: accentColor.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            blurRadius: isCompact ? 8 : 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -444,19 +476,25 @@ class _OrderTicketCard extends StatelessWidget {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 10 : 16,
+              vertical: isCompact ? 10 : 14,
+            ),
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(isCompact ? 16 : 20)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 6 : 10,
+                    vertical: isCompact ? 2 : 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
@@ -464,7 +502,7 @@ class _OrderTicketCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: accentColor,
-                      fontSize: 16,
+                      fontSize: isCompact ? 13 : 16,
                     ),
                   ),
                 ),
@@ -473,7 +511,7 @@ class _OrderTicketCard extends StatelessWidget {
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontSize: isCompact ? 11 : 12,
                   ),
                 ),
               ],
@@ -485,7 +523,10 @@ class _OrderTicketCard extends StatelessWidget {
               (order.customerPhone != null && order.customerPhone!.isNotEmpty))
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 10 : 16,
+                vertical: isCompact ? 6 : 8,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.background.withValues(alpha: 0.5),
                 border: Border(
@@ -494,8 +535,8 @@ class _OrderTicketCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.person_rounded, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 8),
+                  Icon(Icons.person_rounded, size: isCompact ? 14 : 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,28 +544,23 @@ class _OrderTicketCard extends StatelessWidget {
                         if (order.customerName != null && order.customerName!.isNotEmpty)
                           Text(
                             order.customerName!,
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: TextStyle(
+                              fontSize: isCompact ? 11 : 13,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         if (order.customerPhone != null && order.customerPhone!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Row(
-                              children: [
-                                Icon(Icons.phone_rounded, size: 12, color: AppColors.textMuted),
-                                const SizedBox(width: 4),
-                                Text(
-                                  order.customerPhone!,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            order.customerPhone!,
+                            style: TextStyle(
+                              fontSize: isCompact ? 10 : 12,
+                              color: AppColors.textSecondary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                       ],
                     ),
@@ -536,9 +572,9 @@ class _OrderTicketCard extends StatelessWidget {
           // List Items
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isCompact ? 10 : 16),
               itemCount: order.items.length,
-              separatorBuilder: (_, __) => const Divider(height: 16),
+              separatorBuilder: (_, __) => Divider(height: isCompact ? 10 : 16),
               itemBuilder: (context, index) {
                 final item = order.items[index];
                 return Column(
@@ -548,75 +584,65 @@ class _OrderTicketCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 5 : 8,
+                            vertical: isCompact ? 3 : 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.background,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '${item.quantity}x',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isCompact ? 11 : 13,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 item.menuName,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isCompact ? 12 : 14,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  CurrencyFormatter.rupiah(item.price),
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
+                              Text(
+                                CurrencyFormatter.rupiah(item.price),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: isCompact ? 10 : 12,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        Text(
-                          CurrencyFormatter.rupiah(item.price * item.quantity),
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       ],
                     ),
                     // Toppings if any
                     if (item.toppings.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 50),
+                        padding: EdgeInsets.only(top: 4, left: isCompact ? 28 : 40),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: item.toppings.map((topping) => Padding(
-                            padding: const EdgeInsets.only(bottom: 3),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '- ${topping.toppingName} (x${topping.quantity})',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  CurrencyFormatter.rupiah(topping.toppingPrice * topping.quantity),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              '+ ${topping.toppingName} (x${topping.quantity})',
+                              style: TextStyle(
+                                fontSize: isCompact ? 10 : 11,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           )).toList(),
                         ),
@@ -624,33 +650,16 @@ class _OrderTicketCard extends StatelessWidget {
                     // Notes if any
                     if (item.notes != null && item.notes!.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 50),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: AppColors.textMuted, width: 0.5),
+                        padding: EdgeInsets.only(top: 4, left: isCompact ? 28 : 40),
+                        child: Text(
+                          '"${item.notes!}"',
+                          style: TextStyle(
+                            fontSize: isCompact ? 10 : 11,
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic,
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.notes_rounded, size: 12, color: AppColors.textMuted),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  item.notes!,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                   ],
@@ -661,38 +670,44 @@ class _OrderTicketCard extends StatelessWidget {
 
           // Footer & Action
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isCompact ? 10 : 16),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total', style: TextStyle(color: AppColors.textSecondary)),
+                    Text('Total', style: TextStyle(color: AppColors.textSecondary, fontSize: isCompact ? 11 : 13)),
                     Text(
                       CurrencyFormatter.rupiah(order.totalAmount),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                        fontSize: isCompact ? 14 : 18,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: isCompact ? 8 : 14),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () => onAction(order, nextStatus),
-                    icon: Icon(btnIcon, size: 18),
-                    label: Text(btnLabel),
+                    icon: Icon(btnIcon, size: isCompact ? 15 : 18),
+                    label: Text(
+                      btnLabel,
+                      style: TextStyle(
+                        fontSize: isCompact ? 12 : 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(vertical: isCompact ? 10 : 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      elevation: 4,
+                      elevation: 3,
                       shadowColor: accentColor.withValues(alpha: 0.4),
                     ),
                   ),

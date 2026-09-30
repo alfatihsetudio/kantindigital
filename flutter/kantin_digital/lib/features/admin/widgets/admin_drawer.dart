@@ -509,9 +509,8 @@ class _DrawerItem extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap ?? () {
-            if (isActive) {
-              Navigator.pop(context);
-            } else {
+            Navigator.pop(context); // Close drawer first
+            if (!isActive) {
               Navigator.pushReplacementNamed(context, route);
             }
           },

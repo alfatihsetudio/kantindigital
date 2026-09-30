@@ -244,19 +244,21 @@ class _ManagerUsersPageState extends State<ManagerUsersPage>
       padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: AppTheme.shadowSm,
-              ),
-              child: const Icon(
-                Icons.menu_rounded,
-                color: AppColors.textPrimary,
-                size: 22,
+          Builder(
+            builder: (scaffoldContext) => IconButton(
+              onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: AppTheme.shadowSm,
+                ),
+                child: const Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
               ),
             ),
           ),

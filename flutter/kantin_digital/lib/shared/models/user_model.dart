@@ -21,5 +21,14 @@ class UserModel {
       role: UserRoleX.fromApi(json['role']?.toString()),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'role': role?.toApi(),
+    };
+  }
 }
 

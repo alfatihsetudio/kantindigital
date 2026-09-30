@@ -264,18 +264,76 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
             ),
           ),
           const Spacer(),
-          // Notification Icon
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: AppTheme.shadowSm,
+          // Quick Action Menu
+          Theme(
+            data: Theme.of(context).copyWith(
+              cardColor: Colors.white,
             ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              color: AppColors.textSecondary,
-              size: 22,
+            child: PopupMenuButton<String>(
+              icon: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: AppTheme.shadowSm,
+                ),
+                child: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 8,
+              offset: const Offset(0, 48),
+              onSelected: (value) {
+                if (value == 'stats') {
+                  Navigator.pushNamed(context, RouteName.managerSales);
+                } else if (value == 'drawer') {
+                  Scaffold.of(context).openDrawer();
+                } else if (value == 'logout') {
+                  AuthSession().clear();
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    RouteName.adminLogin,
+                    (route) => false,
+                  );
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem<String>(
+                  value: 'stats',
+                  child: Row(
+                    children: [
+                      Icon(Icons.bar_chart_rounded, size: 20, color: AppColors.primary),
+                      SizedBox(width: 12),
+                      Text('Grafik Penjualan', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'drawer',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline_rounded, size: 20, color: AppColors.textSecondary),
+                      SizedBox(width: 12),
+                      Text('Menu & Akun', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, size: 20, color: AppColors.danger),
+                      SizedBox(width: 12),
+                      Text('Keluar', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

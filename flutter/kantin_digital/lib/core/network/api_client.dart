@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../utils/logger.dart';
+import '../../shared/auth/auth_session.dart';
 import 'api_exception.dart';
 import 'api_interceptor.dart';
 
@@ -29,10 +30,15 @@ class ApiClient {
   }
 
   Future<Map<String, String>> _defaultHeaders() async {
-    return <String, String>{
+    final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     };
+    final token = AuthSession().token;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
   }
 
   Future<http.BaseRequest> _applyInterceptors(http.BaseRequest request) async {

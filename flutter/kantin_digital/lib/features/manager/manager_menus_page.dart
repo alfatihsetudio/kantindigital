@@ -10,7 +10,9 @@ import 'widgets/manager_drawer.dart';
 /// Read-only Menu list for Manager role
 /// Liquid Glass design with Gojek green theme
 class ManagerMenusPage extends StatefulWidget {
-  const ManagerMenusPage({super.key});
+  final String? initialCategory;
+
+  const ManagerMenusPage({super.key, this.initialCategory});
 
   @override
   State<ManagerMenusPage> createState() => _ManagerMenusPageState();
@@ -23,11 +25,12 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   String _searchQuery = '';
-  String _selectedCategory = 'Semua';
+  late String _selectedCategory;
 
   @override
   void initState() {
     super.initState();
+    _selectedCategory = widget.initialCategory ?? 'Semua';
     _future = _controller.fetchMenus();
     _animationController = AnimationController(
       vsync: this,
@@ -224,19 +227,21 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
       padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: AppTheme.shadowSm,
-              ),
-              child: const Icon(
-                Icons.menu_rounded,
-                color: AppColors.textPrimary,
-                size: 22,
+          Builder(
+            builder: (scaffoldContext) => IconButton(
+              onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: AppTheme.shadowSm,
+                ),
+                child: const Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
               ),
             ),
           ),
