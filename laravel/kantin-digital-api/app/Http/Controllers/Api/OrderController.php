@@ -1,0 +1,290 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Menu;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\OrderItemTopping;
+use App\Models\Table;
+use App\Models\Topping;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+
+class OrderController extends Controller
+{
+    public function store(Request $request)
+    {
+        $request->validate([
+            'table_code' => ['required', 'string'],
+            'customer_name' => ['nullable', 'string', 'max:100'],
+            'customer_phone' => ['nullable', 'string', 'max:20'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.menu_id' => ['required', 'integer', 'exists:menus,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.topping_ids' => ['array'],
+            'items.*.notes' => ['nullable', 'string'],
+        ]);
+
+        $table = Table::where('code', $request->table_code)->firstOrFail();
+
+        $orderCode = strtoupper(Str::random(8));
+
+        $order = Order::create([
+            'code' => $orderCode,
+            'customer_name' => $request->customer_name,
+            'customer_phone' => $request->customer_phone,
+            'table_id' => $table->id,
+            'status' => 'UNPAID',
+            'total_amount' => 0,
+        ]);
+
+        $total = 0;
+
+        foreach ($request->items as $itemData) {
+            /** @var \App\Models\Menu $menu */
+            $menu = Menu::findOrFail($itemData['menu_id']);
+            $quantity = (int) $itemData['quantity'];
+
+            $orderItem = OrderItem::create([
+                'order_id' => $order->id,
+                'menu_id' => $menu->id,
+                'menu_name' => $menu->name,
+                'price' => $menu->price,
+                'quantity' => $quantity,
+                'notes' => $itemData['notes'] ?? null,
+            ]);
+
+            $lineTotal = $menu->price * $quantity;
+
+            $toppingIds = $itemData['topping_ids'] ?? [];
+            if (is_array($toppingIds) && count($toppingIds)) {
+                $toppings = Topping::whereIn('id', $toppingIds)->get();
+                foreach ($toppings as $topping) {
+                    OrderItemTopping::create([
+                        'order_item_id' => $orderItem->id,
+                        'topping_id' => $topping->id,
+                        'topping_name' => $topping->name,
+                        'topping_price' => $topping->price,
+                    ]);
+                    $lineTotal += $topping->price;
+                }
+            }
+
+            $total += $lineTotal;
+        }
+
+        $order->update(['total_amount' => $total]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'success',
+            'data' => [
+                'code' => $order->code,
+            ],
+        ], 201);
+    }
+
+    public function show(string $code)
+    {
+        $order = Order::with(['table', 'items.toppings'])
+            ->where('code', $code)
+            ->firstOrFail();
+
+        $data = [
+            'id' => $order->id,
+            'code' => $order->code,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'status' => $order->status,
+            'total_amount' => $order->total_amount,
+            'table' => [
+                'id' => $order->table->id,
+                'code' => $order->table->code,
+                'name' => $order->table->name,
+            ],
+            'items' => $order->items->map(function (OrderItem $item) {
+                return [
+                    'id' => $item->id,
+                    'menu_id' => $item->menu_id,
+                    'menu_name' => $item->menu_name,
+                    'price' => $item->price,
+                    'quantity' => $item->quantity,
+                    'notes' => $item->notes,
+                    'toppings' => $item->toppings->map(function (OrderItemTopping $topping) {
+                        return [
+                            'id' => $topping->id,
+                            'topping_id' => $topping->topping_id,
+                            'topping_name' => $topping->topping_name,
+                            'topping_price' => $topping->topping_price,
+                        ];
+                    })->values(),
+                ];
+            })->values(),
+            'payment' => null,
+        ];
+
+        return response()->json([
+            'status' => true,
+            'message' => 'success',
+            'data' => $data,
+        ], 200);
+    }
+
+    public function indexForKitchen()
+    {
+        $orders = Order::with('table')
+            ->whereIn('status', ['PAID', 'PROCESSING'])
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'success',
+            'data' => $orders->map(function (Order $order) {
+                return [
+                    'id' => $order->id,
+                    'code' => $order->code,
+                    'status' => $order->status,
+                    'table' => [
+                        'id' => $order->table->id,
+                        'code' => $order->table->code,
+                        'name' => $order->table->name,
+                    ],
+                ];
+            }),
+        ], 200);
+    }
+
+    public function indexForCashier(Request $request)
+    {
+        $query = Order::with(['table', 'items.toppings']);
+        
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+        
+        $orders = $query->orderByDesc('created_at')->limit(100)->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'success',
+            'data' => $orders->map(function (Order $order) {
+                return [
+                    'id' => $order->id,
+                    'code' => $order->code,
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone,
+                    'status' => $order->status,
+                    'total_amount' => $order->total_amount,
+                    'created_at' => $order->created_at->toIso8601String(),
+                    'table' => [
+                        'id' => $order->table->id,
+                        'code' => $order->table->code,
+                        'name' => $order->table->name,
+                    ],
+                    'items' => $order->items->map(function (OrderItem $item) {
+                        return [
+                            'menu_name' => $item->menu_name,
+                            'quantity' => $item->quantity,
+                            'price' => $item->price,
+                            'notes' => $item->notes,
+                            'toppings' => $item->toppings->map(function (OrderItemTopping $topping) {
+                                return [
+                                    'topping_name' => $topping->topping_name,
+                                    'topping_price' => $topping->topping_price,
+                                ];
+                            })->values(),
+                        ];
+                    })->values(),
+                ];
+            }),
+        ], 200);
+    }
+
+    public function updateStatus(Request $request, Order $order)
+    {
+        $request->validate([
+            'status' => ['required', 'string', 'in:UNPAID,PAID,PROCESSING,READY,SERVED,CANCELLED'],
+        ]);
+
+        $order->status = $request->status;
+        $order->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'success',
+            'data' => [
+                'id' => $order->id,
+                'code' => $order->code,
+                'status' => $order->status,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get sales statistics for manager dashboard
+     */
+    public function salesStats()
+    {
+        // Get daily sales for the last 7 days
+        $dailySales = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $dayName = now()->subDays($i)->format('D');
+            
+            $total = Order::whereDate('created_at', $date)
+                ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+                ->sum('total_amount');
+            
+            $orderCount = Order::whereDate('created_at', $date)
+                ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+                ->count();
+            
+            $dailySales[] = [
+                'date' => $date,
+                'day' => $dayName,
+                'total' => (int) $total,
+                'orders' => $orderCount,
+            ];
+        }
+
+        // Get total stats
+        $totalRevenue = Order::whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])->sum('total_amount');
+        $totalOrders = Order::whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])->count();
+        $todayRevenue = Order::whereDate('created_at', now()->format('Y-m-d'))
+            ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+            ->sum('total_amount');
+        $todayOrders = Order::whereDate('created_at', now()->format('Y-m-d'))
+            ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+            ->count();
+
+        // Top selling menus (this month)
+        $topMenus = OrderItem::selectRaw('menu_name, SUM(quantity) as total_qty, SUM(price * quantity) as total_sales')
+            ->whereHas('order', function ($query) {
+                $query->whereMonth('created_at', now()->month)
+                    ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED']);
+            })
+            ->groupBy('menu_name')
+            ->orderByDesc('total_qty')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'daily_sales' => $dailySales,
+                'summary' => [
+                    'total_revenue' => (int) $totalRevenue,
+                    'total_orders' => $totalOrders,
+                    'today_revenue' => (int) $todayRevenue,
+                    'today_orders' => $todayOrders,
+                ],
+                'top_menus' => $topMenus,
+            ],
+        ]);
+    }
+}
+

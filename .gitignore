@@ -1,0 +1,37 @@
+# Environment & OS files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+.history
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Laravel specific
+/laravel/kantin-digital-api/.env
+/laravel/kantin-digital-api/.env.backup
+/laravel/kantin-digital-api/.env.production
+/laravel/kantin-digital-api/vendor/
+/laravel/kantin-digital-api/node_modules/
+/laravel/kantin-digital-api/public/storage
+/laravel/kantin-digital-api/storage/*.key
+/laravel/kantin-digital-api/public/hot
+/laravel/kantin-digital-api/.phpunit.result.cache
+/laravel/kantin-digital-api/.phpunit.cache
+
+# Flutter specific
+/flutter/kantin_digital/.dart_tool/
+/flutter/kantin_digital/.flutter-plugins-dependencies
+/flutter/kantin_digital/.pub-cache/
+/flutter/kantin_digital/.pub/
+/flutter/kantin_digital/build/
+/flutter/kantin_digital/coverage/
+/flutter/kantin_digital/android/app/debug
+/flutter/kantin_digital/android/app/profile
+/flutter/kantin_digital/android/app/release
