@@ -25,6 +25,7 @@ Route::apiResource('users', UserController::class);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/kitchen/orders', [OrderController::class, 'indexForKitchen']);
 Route::get('/cashier/orders', [OrderController::class, 'indexForCashier']);
+Route::get('/manager/stats', [OrderController::class, 'salesStats']);
 Route::post('/orders/{order}/status', [OrderController::class, 'updateStatus']);
 Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
 
