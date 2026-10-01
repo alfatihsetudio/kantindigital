@@ -26,26 +26,46 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _controller = CheckoutController();
   bool _loading = false;
   String _selectedPayment = 'qris';
+  String _selectedOrderType = 'pickup';
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _addressController;
+
+  bool get _isQrOrder {
+    final tableCode = CartController.instance.tableNumber;
+    return tableCode != null && tableCode.isNotEmpty;
+  }
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
-    
+    _addressController = TextEditingController();
+
     // Listen to changes to update button state
-    _nameController.addListener(() { setState(() {}); });
-    _phoneController.addListener(() { setState(() {}); });
-    
-    _fetchTables();
+    _nameController.addListener(() {
+      setState(() {});
+    });
+    _phoneController.addListener(() {
+      setState(() {});
+    });
+    _addressController.addListener(() {
+      setState(() {});
+    });
+
+    if (_isQrOrder) {
+      _fetchTables();
+    } else {
+      _tablesLoading = false;
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -91,9 +111,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
       AppSnackBar.show(context, message: 'Mohon isi nomor telepon anda');
       return;
     }
-    
-    if (_selectedTable == null) {
+
+    if (_isQrOrder && _selectedTable == null) {
       AppSnackBar.show(context, message: 'Pilih nomor meja terlebih dahulu');
+      return;
+    }
+    if (!_isQrOrder &&
+        _selectedOrderType == 'delivery' &&
+        _addressController.text.trim().isEmpty) {
+      AppSnackBar.show(context, message: 'Mohon isi alamat pengantaran');
       return;
     }
     if (CartController.instance.items.isEmpty) {
@@ -104,7 +130,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _loading = true;
     });
     final result = await _controller.createOrder(
-      tableCode: _selectedTable!.code,
+      tableCode: _isQrOrder ? _selectedTable!.code : null,
+      orderType: _isQrOrder ? 'dine_in' : _selectedOrderType,
+      deliveryAddress: !_isQrOrder && _selectedOrderType == 'delivery'
+          ? _addressController.text.trim()
+          : null,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
       paymentMethod: _selectedPayment,
@@ -122,6 +152,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
     CartController.instance.clear();
+    CartController.instance.setTableNumber(null);
     // Save order code for tracking
     await ActiveOrderStorage.instance.setOrderCode(result.orderCode!);
     Navigator.of(context).pushReplacementNamed(
@@ -160,9 +191,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         // Order Summary
                         _buildOrderSummary(cart),
                         const SizedBox(height: 20),
-                        
-                        // Table Selection
-                        _buildTableSection(),
+
+                        if (_isQrOrder) ...[
+                          _buildTableSection(),
+                        ] else ...[
+                          _buildOrderTypeSection(),
+                        ],
                         const SizedBox(height: 20),
                         
                         // Payment Method
@@ -803,6 +837,63 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  Widget _buildOrderTypeSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cara menerima pesanan',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          _PaymentOption(
+            icon: Icons.storefront_rounded,
+            label: 'Ambil sendiri',
+            description: 'Pesanan diambil di kantin',
+            isSelected: _selectedOrderType == 'pickup',
+            color: AppColors.primary,
+            onTap: () => setState(() => _selectedOrderType = 'pickup'),
+          ),
+          const SizedBox(height: 12),
+          _PaymentOption(
+            icon: Icons.delivery_dining_rounded,
+            label: 'Pengantaran',
+            description: 'Pesanan diantar ke alamat Anda',
+            isSelected: _selectedOrderType == 'delivery',
+            color: AppColors.success,
+            onTap: () => setState(() => _selectedOrderType = 'delivery'),
+          ),
+          if (_selectedOrderType == 'delivery') ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _addressController,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Alamat pengantaran *',
+                hintText: 'Masukkan alamat lengkap',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPaymentSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -868,8 +959,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     // Check if form is complete
     final isFormComplete = _nameController.text.trim().isNotEmpty &&
         _phoneController.text.trim().isNotEmpty &&
-        _selectedTable != null;
-    
+        (_isQrOrder
+            ? _selectedTable != null
+            : _selectedOrderType != 'delivery' ||
+                  _addressController.text.trim().isNotEmpty);
+
     return Positioned(
       bottom: 0,
       left: 0,

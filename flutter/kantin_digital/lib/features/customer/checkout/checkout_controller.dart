@@ -15,7 +15,9 @@ class CheckoutController {
   final CheckoutService _service = CheckoutService(ApiClient());
 
   Future<CheckoutResult> createOrder({
-    required String tableCode,
+    String? tableCode,
+    required String orderType,
+    String? deliveryAddress,
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
@@ -24,6 +26,8 @@ class CheckoutController {
       final List<CartItemModel> items = CartController.instance.items;
       final code = await _service.createOrder(
         tableCode: tableCode,
+        orderType: orderType,
+        deliveryAddress: deliveryAddress,
         items: items,
         customerName: customerName,
         customerPhone: customerPhone,
@@ -35,4 +39,3 @@ class CheckoutController {
     }
   }
 }
-

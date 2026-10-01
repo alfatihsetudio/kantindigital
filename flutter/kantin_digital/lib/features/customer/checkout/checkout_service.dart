@@ -10,7 +10,8 @@ class CheckoutService {
   /// Ekspektasi endpoint Laravel: POST /orders
   /// Body kira-kira:
   /// {
-  ///   "table_code": "T1",
+  ///   "order_type": "delivery",
+  ///   "delivery_address": "Jl. Merdeka No. 10",
   ///   "customer_name": "John Doe",
   ///   "customer_phone": "081234567890",
   ///   "items": [
@@ -18,14 +19,18 @@ class CheckoutService {
   ///   ]
   /// }
   Future<String> createOrder({
-    required String tableCode,
+    String? tableCode,
+    required String orderType,
+    String? deliveryAddress,
     required List<CartItemModel> items,
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
   }) async {
     final body = {
-      'table_code': tableCode,
+      if (tableCode != null) 'table_code': tableCode,
+      'order_type': orderType,
+      if (deliveryAddress != null) 'delivery_address': deliveryAddress,
       'customer_name': customerName,
       'customer_phone': customerPhone,
       'payment_method': paymentMethod,

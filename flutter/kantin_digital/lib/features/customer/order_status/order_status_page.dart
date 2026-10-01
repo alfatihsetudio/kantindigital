@@ -689,8 +689,12 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     final message = '''Halo Admin ${order.merchantName ?? 'Kantin Digital'}, saya ingin konfirmasi pembayaran QRIS untuk pesanan:
 *Kode Pesanan:* #${order.code}
 *Nama:* ${order.customerName ?? 'Pelanggan'}
-*Meja:* ${order.table.name ?? order.table.code}
-*Total Tagihan:* ${CurrencyFormatter.rupiah(order.totalAmount)}
+*Pesanan:* ${order.orderType == 'delivery'
+            ? 'Pengantaran'
+            : order.orderType == 'pickup'
+            ? 'Ambil sendiri'
+            : order.table?.name ?? order.table?.code ?? 'Makan di tempat'}
+${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAddress}\n'}*Total Tagihan:* ${CurrencyFormatter.rupiah(order.totalAmount)}
 
 (Berikut saya lampirkan bukti transfer QRIS nya)''';
 
@@ -784,10 +788,35 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Meja', style: TextStyle(color: AppColors.textSecondary)),
-              Text(order.table.name ?? order.table.code, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Jenis Pesanan',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              Text(
+                order.orderType == 'delivery'
+                    ? 'Pengantaran'
+                    : order.orderType == 'pickup'
+                    ? 'Ambil sendiri'
+                    : order.table?.name ??
+                          order.table?.code ??
+                          'Makan di tempat',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
+          if (order.orderType == 'delivery' &&
+              order.deliveryAddress != null) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Alamat Pengantaran',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              order.deliveryAddress!,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

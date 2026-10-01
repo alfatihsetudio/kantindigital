@@ -17,7 +17,9 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'table_code' => ['required', 'string'],
+            'table_code' => ['nullable', 'string'],
+            'order_type' => ['nullable', 'string', 'in:dine_in,pickup,delivery'],
+            'delivery_address' => ['required_if:order_type,delivery', 'nullable', 'string', 'max:1000'],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'payment_method' => ['nullable', 'string', 'in:qris,cash'],
@@ -28,7 +30,29 @@ class OrderController extends Controller
             'items.*.notes' => ['nullable', 'string'],
         ]);
 
-        $table = Table::where('code', $request->table_code)->firstOrFail();
+        // table_code opsional: pesanan online bisa tanpa meja
+        $tableId = null;
+        if ($request->filled('table_code')) {
+            $table = Table::where('code', $request->table_code)->first();
+            if (!$table) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Meja tidak ditemukan',
+                ], 404);
+            }
+            $tableId = $table->id;
+        }
+        $orderType = $request->input('order_type')
+            ?? ($tableId === null ? 'pickup' : 'dine_in');
+        if ($orderType === 'dine_in' && $tableId === null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Meja wajib dipilih untuk pesanan makan di tempat',
+            ], 422);
+        }
+        if ($orderType !== 'dine_in') {
+            $tableId = null;
+        }
 
         $orderCode = strtoupper(Str::random(8));
 
@@ -36,7 +60,11 @@ class OrderController extends Controller
             'code' => $orderCode,
             'customer_name' => $request->customer_name,
             'customer_phone' => $request->customer_phone,
-            'table_id' => $table->id,
+            'table_id' => $tableId,
+            'order_type' => $orderType,
+            'delivery_address' => $orderType === 'delivery'
+                ? $request->delivery_address
+                : null,
             'status' => 'UNPAID',
             'payment_method' => $request->payment_method ?? 'qris',
             'total_amount' => 0,
@@ -108,6 +136,8 @@ class OrderController extends Controller
             'code' => $order->code,
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
+            'order_type' => $order->order_type,
+            'delivery_address' => $order->delivery_address,
             'status' => $order->status,
             'payment_method' => $order->payment_method ?? 'qris',
             'total_amount' => $order->total_amount,
@@ -166,7 +196,9 @@ class OrderController extends Controller
                     'id' => $order->id,
                     'code' => $order->code,
                     'status' => $order->status,
-                    'table' => [
+                    'order_type' => $order->order_type,
+                    'delivery_address' => $order->delivery_address,
+                    'table' => $order->table ? [
                         'id' => $order->table->id,
                         'code' => $order->table->code,
                         'name' => $order->table->name,
@@ -200,7 +232,9 @@ class OrderController extends Controller
                     'payment_method' => $order->payment_method ?? 'qris',
                     'total_amount' => $order->total_amount,
                     'created_at' => $order->created_at->toIso8601String(),
-                    'table' => [
+                    'order_type' => $order->order_type,
+                    'delivery_address' => $order->delivery_address,
+                    'table' => $order->table ? [
                         'id' => $order->table->id,
                         'code' => $order->table->code,
                         'name' => $order->table->name,

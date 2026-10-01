@@ -14,7 +14,9 @@ class OrderModel {
   final String? merchantName;
   final String? merchantCity;
   final String? whatsappNumber;
-  final TableModel table;
+  final String orderType;
+  final String? deliveryAddress;
+  final TableModel? table;
   final int totalAmount;
   final List<OrderItemModel> items;
   final PaymentModel? payment;
@@ -30,6 +32,8 @@ class OrderModel {
     this.merchantName,
     this.merchantCity,
     this.whatsappNumber,
+    required this.orderType,
+    this.deliveryAddress,
     required this.table,
     required this.totalAmount,
     required this.items,
@@ -39,6 +43,8 @@ class OrderModel {
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
     final qrisMap = json['qris'] is Map ? json['qris'] as Map : null;
+    final rawTable = json['table'];
+    final rawOrderType = json['order_type']?.toString();
 
     return OrderModel(
       id: (json['id'] as num).toInt(),
@@ -51,7 +57,11 @@ class OrderModel {
       merchantName: qrisMap?['merchant_name']?.toString() ?? 'KANTIN DIGITAL',
       merchantCity: qrisMap?['merchant_city']?.toString() ?? 'SERANG',
       whatsappNumber: qrisMap?['whatsapp_number']?.toString() ?? '087771262100',
-      table: TableModel.fromJson(json['table'] as Map<String, dynamic>),
+      orderType: rawOrderType ?? (rawTable == null ? 'pickup' : 'dine_in'),
+      deliveryAddress: json['delivery_address']?.toString(),
+      table: rawTable is Map<String, dynamic>
+          ? TableModel.fromJson(rawTable)
+          : null,
       totalAmount: (json['total_amount'] as num).toInt(),
       items: rawItems is List
           ? rawItems.map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>)).toList()

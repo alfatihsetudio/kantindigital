@@ -498,7 +498,7 @@ class _OrderTicketCard extends StatelessWidget {
                     border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
-                    'Meja ${order.tableCode}',
+                    order.fulfillmentLabel,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: accentColor,
@@ -520,7 +520,10 @@ class _OrderTicketCard extends StatelessWidget {
           
           // Customer info
           if ((order.customerName != null && order.customerName!.isNotEmpty) ||
-              (order.customerPhone != null && order.customerPhone!.isNotEmpty))
+              (order.customerPhone != null &&
+                  order.customerPhone!.isNotEmpty) ||
+              (order.deliveryAddress != null &&
+                  order.deliveryAddress!.isNotEmpty))
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -560,6 +563,17 @@ class _OrderTicketCard extends StatelessWidget {
                               color: AppColors.textSecondary,
                             ),
                             maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        if (order.deliveryAddress != null &&
+                            order.deliveryAddress!.isNotEmpty)
+                          Text(
+                            order.deliveryAddress!,
+                            style: TextStyle(
+                              fontSize: isCompact ? 10 : 12,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                       ],

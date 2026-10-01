@@ -8,6 +8,8 @@ class CashierOrderModel {
   final String status;
   final int totalAmount;
   final String tableCode;
+  final String orderType;
+  final String? deliveryAddress;
   final String createdAt;
   final List<CashierOrderItem> items;
 
@@ -19,6 +21,8 @@ class CashierOrderModel {
     required this.status,
     required this.totalAmount,
     required this.tableCode,
+    required this.orderType,
+    this.deliveryAddress,
     required this.createdAt,
     required this.items,
   });
@@ -33,10 +37,18 @@ class CashierOrderModel {
       status: json['status'] as String,
       totalAmount: json['total_amount'] as int,
       tableCode: json['table']?['code'] ?? '-',
+      orderType: (json['order_type'] ?? 'dine_in').toString(),
+      deliveryAddress: json['delivery_address']?.toString(),
       createdAt: json['created_at'] as String,
       items: itemsList.map((e) => CashierOrderItem.fromJson(e)).toList(),
     );
   }
+
+  String get fulfillmentLabel => switch (orderType) {
+    'delivery' => 'Pengantaran',
+    'pickup' => 'Ambil sendiri',
+    _ => 'Meja $tableCode',
+  };
 }
 
 class CashierOrderItem {
