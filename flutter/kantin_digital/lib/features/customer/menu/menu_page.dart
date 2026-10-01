@@ -9,6 +9,7 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/menu_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/storage/active_order_storage.dart';
 import '../cart/cart_controller.dart';
 import 'menu_controller.dart' as local;
@@ -31,7 +32,16 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  
+  Color get _brandColor => TenantProvider.of(context).primaryColorValue;
+  LinearGradient get _brandGradient => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color.lerp(_brandColor, Colors.white, 0.2) ?? _brandColor,
+      _brandColor,
+    ],
+  );
+
   @override
   void initState() {
     super.initState();
@@ -149,7 +159,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                             _reload(animate: false);
                             await _future;
                           },
-                          color: AppColors.primary,
+                          color: _brandColor,
                           backgroundColor: Colors.white,
                           child: CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(
@@ -287,8 +297,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           shape: BoxShape.circle,
           gradient: RadialGradient(
             colors: [
-              AppColors.primaryLight.withValues(alpha: 0.5),
-              AppColors.primaryLight.withValues(alpha: 0.0),
+              _brandColor.withValues(alpha: 0.15),
+              _brandColor.withValues(alpha: 0.0),
             ],
           ),
         ),
@@ -305,55 +315,98 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           // Top Row
           Row(
             children: [
-              // Location
+              // Location & Store Info
               Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.storefront_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                child: Builder(
+                  builder: (context) {
+                    final tenant = TenantProvider.of(context);
+                    final brandColor = tenant.primaryColorValue;
+                    final hasLogo = tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty;
+
+                    return Row(
                       children: [
-                        Text(
-                          'Kantin Digital',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: brandColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: brandColor.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: hasLogo
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: Image.network(
+                                    tenant.logoUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.storefront_rounded,
+                                      color: brandColor,
+                                      size: 22,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.storefront_rounded,
+                                  color: brandColor,
+                                  size: 22,
+                                ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tenant.name,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.success,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Buka',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  if (tenant.address != null && tenant.address!.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    const Text('•', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        tenant.address!,
+                                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: AppColors.success,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Buka',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
               
@@ -392,7 +445,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 FocusScope.of(context).unfocus();
               },
               decoration: InputDecoration(
-                hintText: 'Mau makan apa hari ini?',
+                hintText: 'Mau pesan apa hari ini?',
                 hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textMuted,
                 ),
@@ -422,7 +475,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.primary, // Selalu hijau
+                          color: _brandColor,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -463,6 +516,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           return CategoryChip(
             label: cat,
             isSelected: isSelected,
+            activeColor: _brandColor,
             icon: index == 0 ? Icons.grid_view_rounded : null,
             onTap: () {
               setState(() {
@@ -486,15 +540,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           children: [
             // Gradient Background
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF00C853),
-                    Color(0xFF00AA13),
-                  ],
-                ),
+              decoration: BoxDecoration(
+                gradient: _brandGradient,
               ),
             ),
             
@@ -613,11 +660,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
+                gradient: _brandGradient,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.4),
+                    color: _brandColor.withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -662,9 +709,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_forward_rounded,
-                      color: AppColors.primary,
+                      color: _brandColor,
                       size: 18,
                     ),
                   ),
@@ -777,6 +824,16 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brandColor = TenantProvider.of(context).primaryColorValue;
+    final brandGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color.lerp(brandColor, Colors.white, 0.2) ?? brandColor,
+        brandColor,
+      ],
+    );
+
     return TapScaleContainer(
       onTap: () {
         Navigator.of(context).pushNamed(
@@ -821,10 +878,10 @@ class _MenuCard extends StatelessWidget {
                             child: Image.network(
                               menu.imageUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (ctx, err, st) => _buildPlaceholder(),
+                               errorBuilder: (ctx, err, st) => _buildPlaceholder(brandColor),
                             ),
                           )
-                        : _buildPlaceholder(),
+                        : _buildPlaceholder(brandColor),
                   ),
                 ],
               ),
@@ -864,14 +921,14 @@ class _MenuCard extends StatelessWidget {
                             CurrencyFormatter.rupiah(menu.price),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
+                              color: brandColor,
                             ),
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
+                            gradient: brandGradient,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -892,12 +949,12 @@ class _MenuCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(Color color) {
     return Center(
       child: Icon(
         Icons.fastfood_rounded,
         size: 40,
-        color: AppColors.primary.withValues(alpha: 0.2),
+        color: color.withValues(alpha: 0.2),
       ),
     );
   }

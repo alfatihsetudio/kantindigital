@@ -72,7 +72,9 @@ class CashierOrderItem {
       menuName: json['menu_name'] as String,
       quantity: json['quantity'] as int,
       price: json['price'] as int,
-      toppings: toppingsList.map((e) => CashierOrderTopping.fromJson(e)).toList(),
+      toppings: toppingsList
+          .map((e) => CashierOrderTopping.fromJson(e))
+          .toList(),
       notes: json['notes']?.toString(),
     );
   }

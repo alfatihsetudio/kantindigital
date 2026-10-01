@@ -148,11 +148,11 @@ class OrderController extends Controller
                 'payload' => $qrisPayload,
                 'amount' => (int) $order->total_amount,
             ],
-            'table' => [
+            'table' => $order->table ? [
                 'id' => $order->table->id,
                 'code' => $order->table->code,
                 'name' => $order->table->name,
-            ],
+            ] : null,
             'items' => $order->items->map(function (OrderItem $item) {
                 return [
                     'id' => $item->id,
@@ -202,7 +202,7 @@ class OrderController extends Controller
                         'id' => $order->table->id,
                         'code' => $order->table->code,
                         'name' => $order->table->name,
-                    ],
+                    ] : null,
                 ];
             }),
         ], 200);
@@ -238,7 +238,7 @@ class OrderController extends Controller
                         'id' => $order->table->id,
                         'code' => $order->table->code,
                         'name' => $order->table->name,
-                    ],
+                    ] : null,
                     'items' => $order->items->map(function (OrderItem $item) {
                         return [
                             'menu_name' => $item->menu_name,
@@ -283,6 +283,8 @@ class OrderController extends Controller
      */
     public function salesStats()
     {
+        $paidStatuses = ['PAID', 'PROCESSING', 'READY', 'SERVED'];
+
         // Get daily sales for the last 7 days
         $dailySales = [];
         for ($i = 6; $i >= 0; $i--) {
@@ -290,11 +292,11 @@ class OrderController extends Controller
             $dayName = now()->subDays($i)->format('D');
             
             $total = Order::whereDate('created_at', $date)
-                ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+                ->whereIn('status', $paidStatuses)
                 ->sum('total_amount');
             
             $orderCount = Order::whereDate('created_at', $date)
-                ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+                ->whereIn('status', $paidStatuses)
                 ->count();
             
             $dailySales[] = [
@@ -306,25 +308,67 @@ class OrderController extends Controller
         }
 
         // Get total stats
-        $totalRevenue = Order::whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])->sum('total_amount');
-        $totalOrders = Order::whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])->count();
+        $totalRevenue = Order::whereIn('status', $paidStatuses)->sum('total_amount');
+        $totalOrders = Order::whereIn('status', $paidStatuses)->count();
         $todayRevenue = Order::whereDate('created_at', now()->format('Y-m-d'))
-            ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+            ->whereIn('status', $paidStatuses)
             ->sum('total_amount');
         $todayOrders = Order::whereDate('created_at', now()->format('Y-m-d'))
-            ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED'])
+            ->whereIn('status', $paidStatuses)
             ->count();
+        $monthRevenue = Order::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->whereIn('status', $paidStatuses)
+            ->sum('total_amount');
+        $monthOrders = Order::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->whereIn('status', $paidStatuses)
+            ->count();
+        $averageOrderValue = $totalOrders > 0 ? (int) round($totalRevenue / $totalOrders) : 0;
 
-        // Top selling menus (this month)
+        // Top selling menus (last 30 days)
         $topMenus = OrderItem::selectRaw('menu_name, SUM(quantity) as total_qty, SUM(price * quantity) as total_sales')
-            ->whereHas('order', function ($query) {
-                $query->whereMonth('created_at', now()->month)
-                    ->whereIn('status', ['PAID', 'PROCESSING', 'READY', 'SERVED']);
+            ->whereHas('order', function ($query) use ($paidStatuses) {
+                $query->where('created_at', '>=', now()->subDays(30))
+                    ->whereIn('status', $paidStatuses);
             })
             ->groupBy('menu_name')
             ->orderByDesc('total_qty')
             ->limit(5)
             ->get();
+
+        $topMenusTotalQty = (int) $topMenus->sum('total_qty');
+        $topMenus = $topMenus->map(function ($menu) use ($topMenusTotalQty) {
+            $qty = (int) $menu->total_qty;
+            return [
+                'menu_name' => $menu->menu_name,
+                'total_qty' => $qty,
+                'total_sales' => (int) $menu->total_sales,
+                'sales_share' => $topMenusTotalQty > 0 ? round(($qty / $topMenusTotalQty) * 100, 1) : 0,
+            ];
+        })->values();
+
+        $dayNames = [
+            1 => 'Senin',
+            2 => 'Selasa',
+            3 => 'Rabu',
+            4 => 'Kamis',
+            5 => 'Jumat',
+            6 => 'Sabtu',
+            7 => 'Minggu',
+        ];
+        $busyDays = collect($dayNames)->map(function ($dayName, $isoDay) use ($paidStatuses) {
+            $orders = Order::whereIn('status', $paidStatuses)
+                ->whereRaw('WEEKDAY(created_at) = ?', [$isoDay - 1]);
+
+            return [
+                'day' => $dayName,
+                'orders' => (clone $orders)->count(),
+                'revenue' => (int) (clone $orders)->sum('total_amount'),
+            ];
+        })->sortByDesc('orders')->values();
+
+        $busiestDay = $busyDays->first();
 
         return response()->json([
             'status' => true,
@@ -335,10 +379,14 @@ class OrderController extends Controller
                     'total_orders' => $totalOrders,
                     'today_revenue' => (int) $todayRevenue,
                     'today_orders' => $todayOrders,
+                    'month_revenue' => (int) $monthRevenue,
+                    'month_orders' => $monthOrders,
+                    'average_order_value' => $averageOrderValue,
                 ],
                 'top_menus' => $topMenus,
+                'busy_days' => $busyDays,
+                'busiest_day' => $busiestDay,
             ],
         ]);
     }
 }
-

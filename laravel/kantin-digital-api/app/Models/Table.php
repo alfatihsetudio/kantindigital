@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Table extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
-    protected $fillable = ['code', 'name', 'is_occupied'];
+    protected $fillable = ['tenant_id', 'code', 'name', 'is_occupied'];
 
     protected $casts = [
         'is_occupied' => 'boolean',
@@ -20,4 +20,3 @@ class Table extends Model
         return $this->hasMany(Order::class);
     }
 }
-

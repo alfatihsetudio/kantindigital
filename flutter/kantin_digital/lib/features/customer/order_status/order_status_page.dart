@@ -10,7 +10,6 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/image_saver.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/error_view.dart';
-import '../../../core/widgets/glass_components.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/constants/order_status.dart';
@@ -43,7 +42,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     if (args is String && _orderCode == null) {
       _orderCode = args;
       _loadOrder();
-      
+
       // Auto-refresh every 3 seconds to get status updates
       _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
         _loadOrder(silent: true);
@@ -59,11 +58,11 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   Future<void> _loadOrder({bool silent = false}) async {
     if (_orderCode == null) return;
-    
+
     if (!silent) {
       setState(() => _loading = true);
     }
-    
+
     try {
       final order = await _controller.fetchByCode(_orderCode!);
       if (mounted) {
@@ -72,12 +71,13 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           _showStatusNotification(order.status);
         }
         _lastStatus = order.status.name;
-        
+
         // Clear active order if served or cancelled
-        if (order.status == OrderStatus.served || order.status == OrderStatus.cancelled) {
+        if (order.status == OrderStatus.served ||
+            order.status == OrderStatus.cancelled) {
           ActiveOrderStorage.instance.clear();
         }
-        
+
         setState(() {
           _order = order;
           _loading = false;
@@ -99,7 +99,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     setState(() => _isDownloading = true);
 
     try {
-      final boundary = _qrisCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          _qrisCardKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         throw Exception('Gagal menangkap tampilan QRIS');
       }
@@ -118,7 +120,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         if (success) {
           AppSnackBar.show(
             context,
-            message: 'QRIS berhasil diunduh! Silakan buka m-Banking/E-Wallet dan upload dari Galeri.',
+            message:
+                'QRIS berhasil diunduh! Silakan buka m-Banking/E-Wallet dan upload dari Galeri.',
             backgroundColor: const Color(0xFF059669),
             icon: Icons.check_circle_rounded,
           );
@@ -224,14 +227,19 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   Widget build(BuildContext context) {
     if (_orderCode == null) {
       return const Scaffold(
-        body: ErrorView(message: "Terjadi kesalahan: Kode pesanan tidak ditemukan."),
+        body: ErrorView(
+          message: "Terjadi kesalahan: Kode pesanan tidak ditemukan.",
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Status Pesanan', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Status Pesanan',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -239,16 +247,20 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       body: _loading
           ? const LoadingView(message: 'Memuat status pesanan...')
           : _error != null
-              ? ErrorView(message: _error!)
-              : _order == null
-                  ? const ErrorView(message: "Data pesanan tidak ditemukan.")
-                  : _buildOrderStatus(_order!),
+          ? ErrorView(message: _error!)
+          : _order == null
+          ? const ErrorView(message: "Data pesanan tidak ditemukan.")
+          : _buildOrderStatus(_order!),
     );
   }
 
   Widget _buildOrderStatus(OrderModel order) {
-    final isQrisUnpaid = order.status == OrderStatus.unpaid && order.paymentMethod.toLowerCase() == 'qris';
-    final isCashUnpaid = order.status == OrderStatus.unpaid && order.paymentMethod.toLowerCase() == 'cash';
+    final isQrisUnpaid =
+        order.status == OrderStatus.unpaid &&
+        order.paymentMethod.toLowerCase() == 'qris';
+    final isCashUnpaid =
+        order.status == OrderStatus.unpaid &&
+        order.paymentMethod.toLowerCase() == 'cash';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -278,7 +290,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
               const SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -366,7 +381,11 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
               color: Colors.amber.shade50,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.payments_rounded, size: 40, color: Colors.amber.shade800),
+            child: Icon(
+              Icons.payments_rounded,
+              size: 40,
+              color: Colors.amber.shade800,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -380,7 +399,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           const SizedBox(height: 8),
           Text(
             'Silakan tunjukkan Kode Pesanan ke kasir untuk melakukan pembayaran:',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -435,10 +457,15 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                 // Top Header Strip
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   decoration: const BoxDecoration(
                     color: Color(0xFF1E293B),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -446,7 +473,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFDC2626),
                               borderRadius: BorderRadius.circular(4),
@@ -514,7 +544,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       // Nominal Card
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
@@ -552,7 +585,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                          border: Border.all(
+                            color: const Color(0xFFCBD5E1),
+                            width: 1.5,
+                          ),
                         ),
                         child: QrImageView(
                           data: payload,
@@ -599,7 +635,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.file_download_outlined, size: 22),
             label: Text(
@@ -609,7 +648,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF059669),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               elevation: 2,
             ),
           ),
@@ -623,15 +664,25 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           height: 48,
           child: OutlinedButton.icon(
             onPressed: () => _openWhatsAppConfirmation(order),
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: Color(0xFF16A34A)),
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 20,
+              color: Color(0xFF16A34A),
+            ),
             label: const Text(
               'Konfirmasi Bukti Transfer via WhatsApp',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF15803D),
+              ),
             ),
             style: OutlinedButton.styleFrom(
               backgroundColor: const Color(0xFFF0FDF4),
               side: const BorderSide(color: Color(0xFF86EFAC), width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -652,7 +703,11 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
             children: [
               Row(
                 children: const [
-                  Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF2563EB),
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Petunjuk Bayar di HP yang Sama:',
@@ -665,11 +720,26 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                 ],
               ),
               const SizedBox(height: 10),
-              _buildInstructionStep('1', 'Tekan tombol "Download QRIS" di atas untuk menyimpan gambar.'),
-              _buildInstructionStep('2', 'Buka m-Banking (BCA, Livin, dll) atau E-Wallet (GoPay, OVO, DANA, ShopeePay).'),
-              _buildInstructionStep('3', 'Pilih menu Scan QRIS, lalu tekan ikon Galeri/Foto.'),
-              _buildInstructionStep('4', 'Pilih gambar QRIS tadi dan selesaikan pembayaran.'),
-              _buildInstructionStep('5', 'Setelah transfer, tekan tombol WhatsApp di atas untuk mengirimkan bukti transfer jika diperlukan.'),
+              _buildInstructionStep(
+                '1',
+                'Tekan tombol "Download QRIS" di atas untuk menyimpan gambar.',
+              ),
+              _buildInstructionStep(
+                '2',
+                'Buka m-Banking (BCA, Livin, dll) atau E-Wallet (GoPay, OVO, DANA, ShopeePay).',
+              ),
+              _buildInstructionStep(
+                '3',
+                'Pilih menu Scan QRIS, lalu tekan ikon Galeri/Foto.',
+              ),
+              _buildInstructionStep(
+                '4',
+                'Pilih gambar QRIS tadi dan selesaikan pembayaran.',
+              ),
+              _buildInstructionStep(
+                '5',
+                'Setelah transfer, tekan tombol WhatsApp di atas untuk mengirimkan bukti transfer jika diperlukan.',
+              ),
             ],
           ),
         ),
@@ -686,7 +756,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       phone = '62$phone';
     }
 
-    final message = '''Halo Admin ${order.merchantName ?? 'Kantin Digital'}, saya ingin konfirmasi pembayaran QRIS untuk pesanan:
+    final message =
+        '''Halo Admin ${order.merchantName ?? 'Kantin Digital'}, saya ingin konfirmasi pembayaran QRIS untuk pesanan:
 *Kode Pesanan:* #${order.code}
 *Nama:* ${order.customerName ?? 'Pelanggan'}
 *Pesanan:* ${order.orderType == 'delivery'
@@ -756,8 +827,17 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Kode Pesanan', style: TextStyle(color: AppColors.textSecondary)),
-              Text(order.code, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text(
+                'Kode Pesanan',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              Text(
+                order.code,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -768,8 +848,14 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Nama', style: TextStyle(color: AppColors.textSecondary)),
-                  Text(order.customerName!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Nama',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    order.customerName!,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -780,8 +866,14 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Nomor Telepon', style: TextStyle(color: AppColors.textSecondary)),
-                  Text(order.customerPhone!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Nomor Telepon',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    order.customerPhone!,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -821,7 +913,10 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Metode Pembayaran', style: TextStyle(color: AppColors.textSecondary)),
+              const Text(
+                'Metode Pembayaran',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -844,7 +939,10 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
             ],
           ),
           const Divider(height: 24),
-          const Text('Detail Menu:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Detail Menu:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           ...order.items.map((item) {
             return Padding(
@@ -888,22 +986,35 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
                       padding: const EdgeInsets.only(top: 4, left: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: item.toppings.map((topping) => Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '+ ${topping.toppingName}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        children: item.toppings
+                            .map(
+                              (topping) => Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '+ ${topping.toppingName}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.rupiah(
+                                        topping.toppingPrice * topping.quantity,
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Text(
-                                CurrencyFormatter.rupiah(topping.toppingPrice * topping.quantity),
-                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                              ),
-                            ],
-                          ),
-                        )).toList(),
+                            )
+                            .toList(),
                       ),
                     ),
                   if (item.notes != null && item.notes!.isNotEmpty)
@@ -926,7 +1037,10 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text(
+                'Total Pembayaran',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
               Text(
                 CurrencyFormatter.rupiah(order.totalAmount),
                 style: const TextStyle(
@@ -942,4 +1056,3 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
     );
   }
 }
-

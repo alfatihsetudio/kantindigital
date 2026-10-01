@@ -29,11 +29,16 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   List<CashierOrderModel> _completedOrders = [];
   bool _loading = true;
 
+  bool get _isOperations => AuthSession().user?.role?.name == 'operations';
+
   @override
   void initState() {
     super.initState();
+    if (_isOperations) {
+      _selectedIndex = 1;
+    }
     _loadOrders();
-    
+
     // Auto-refresh every 5 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _loadOrders(silent: true);
@@ -54,7 +59,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       final pending = await _service.getOrders(status: 'UNPAID');
       final processing = await _service.getOrders(status: 'PROCESSING');
       final completed = await _service.getOrders(status: 'READY');
-      
+
       if (mounted) {
         setState(() {
           _pendingOrders = pending;
@@ -77,7 +82,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       await _service.updateOrderStatus(order.id, newStatus);
       _loadOrders(); // Refresh immediately
       if (!mounted) return;
-      
+
       TopNotification.show(
         message: 'Pesanan #${order.code} berhasil diproses',
         backgroundColor: AppColors.success,
@@ -95,19 +100,27 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
 
   List<CashierOrderModel> get _currentList {
     switch (_selectedIndex) {
-      case 0: return _pendingOrders;
-      case 1: return _processingOrders;
-      case 2: return _completedOrders;
-      default: return [];
+      case 0:
+        return _pendingOrders;
+      case 1:
+        return _processingOrders;
+      case 2:
+        return _completedOrders;
+      default:
+        return [];
     }
   }
 
   Color get _currentColor {
     switch (_selectedIndex) {
-      case 0: return AppColors.warning; // Orange for New/Unpaid
-      case 1: return AppColors.primary; // Green for Processing (Cooking)
-      case 2: return AppColors.info;    // Blue for Ready/Served
-      default: return AppColors.primary;
+      case 0:
+        return AppColors.warning; // Orange for New/Unpaid
+      case 1:
+        return AppColors.primary; // Green for Processing (Cooking)
+      case 2:
+        return AppColors.info; // Blue for Ready/Served
+      default:
+        return AppColors.primary;
     }
   }
 
@@ -125,8 +138,12 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 _buildAppBar(context),
                 _buildTabSelectors(),
                 Expanded(
-                  child: _loading 
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  child: _loading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        )
                       : _buildOrderGrid(),
                 ),
               ],
@@ -170,6 +187,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
 
   Widget _buildAppBar(BuildContext context) {
     final user = AuthSession().user;
+    final isOperations = _isOperations;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
@@ -184,7 +202,10 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: AppTheme.shadowSm,
                 ),
-                child: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
+                child: const Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ),
@@ -194,15 +215,15 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Halo, ${user?.name ?? "Kasir"}',
+                  'Halo, ${user?.name ?? (isOperations ? "Operasional" : "Kasir")}',
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const Text(
-                  'Dashboard Kasir',
-                  style: TextStyle(
+                Text(
+                  isOperations ? 'Dashboard Operasional' : 'Dashboard Kasir',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
@@ -211,52 +232,65 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               ],
             ),
           ),
-          Row(
-            children: [
-              // Calculator button
-              GestureDetector(
-                onTap: () => CalculatorWidget.show(context),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                    boxShadow: AppTheme.shadowSm,
-                  ),
-                  child: const CircleAvatar(
-                    backgroundColor: AppColors.primaryLight,
-                    child: Icon(Icons.calculate_rounded, color: AppColors.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // POS icon - Manual Order
-              GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(builder: (_) => const ManualOrderPage()),
-                  );
-                  if (result == true) {
-                    _loadOrders(); // Refresh after creating order
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                    boxShadow: AppTheme.shadowSm,
-                  ),
-                  child: const CircleAvatar(
-                    backgroundColor: AppColors.primaryLight,
-                    child: Icon(Icons.point_of_sale_rounded, color: AppColors.primary),
+          if (!isOperations)
+            Row(
+              children: [
+                // Calculator button
+                GestureDetector(
+                  onTap: () => CalculatorWidget.show(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                      ),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    child: const CircleAvatar(
+                      backgroundColor: AppColors.primaryLight,
+                      child: Icon(
+                        Icons.calculate_rounded,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                // POS icon - Manual Order
+                GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => const ManualOrderPage(),
+                      ),
+                    );
+                    if (result == true) {
+                      _loadOrders(); // Refresh after creating order
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                      ),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    child: const CircleAvatar(
+                      backgroundColor: AppColors.primaryLight,
+                      child: Icon(
+                        Icons.point_of_sale_rounded,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -274,9 +308,25 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
         ),
         child: Row(
           children: [
-            _buildTabItem(0, 'Baru', _pendingOrders.length, Icons.new_releases_rounded),
-            _buildTabItem(1, 'Proses', _processingOrders.length, Icons.soup_kitchen_rounded),
-            _buildTabItem(2, 'Siap', _completedOrders.length, Icons.check_circle_rounded),
+            if (!_isOperations)
+              _buildTabItem(
+                0,
+                'Baru',
+                _pendingOrders.length,
+                Icons.new_releases_rounded,
+              ),
+            _buildTabItem(
+              1,
+              'Proses',
+              _processingOrders.length,
+              Icons.inventory_2_rounded,
+            ),
+            _buildTabItem(
+              2,
+              'Siap',
+              _completedOrders.length,
+              Icons.check_circle_rounded,
+            ),
           ],
         ),
       ),
@@ -287,9 +337,13 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     final isSelected = _selectedIndex == index;
     // Specific colors for tabs
     Color activeColor;
-    if (index == 0) activeColor = AppColors.warning;
-    else if (index == 1) activeColor = AppColors.primary;
-    else activeColor = AppColors.info;
+    if (index == 0) {
+      activeColor = AppColors.warning;
+    } else if (index == 1) {
+      activeColor = AppColors.primary;
+    } else {
+      activeColor = AppColors.info;
+    }
 
     return Expanded(
       child: GestureDetector(
@@ -298,7 +352,9 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           duration: const Duration(milliseconds: 250),
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.1) : Colors.transparent,
+            color: isSelected
+                ? activeColor.withValues(alpha: 0.1)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(21),
           ),
           child: Row(
@@ -320,7 +376,10 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               if (count > 0) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected ? activeColor : AppColors.textMuted,
                     borderRadius: BorderRadius.circular(10),
@@ -357,7 +416,11 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 shape: BoxShape.circle,
                 boxShadow: AppTheme.shadowMd,
               ),
-              child: Icon(Icons.inbox_rounded, size: 64, color: AppColors.textMuted),
+              child: Icon(
+                Icons.inbox_rounded,
+                size: 64,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -383,7 +446,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
             padding: const EdgeInsets.fromLTRB(10, 0, 10, 100),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.58, // Taller aspect ratio for 2 compact mobile columns
+              childAspectRatio:
+                  0.58, // Taller aspect ratio for 2 compact mobile columns
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -393,6 +457,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 order: orders[index],
                 tabIndex: _selectedIndex,
                 isCompact: true,
+                actionsEnabled: !_isOperations || _selectedIndex == 1,
                 onAction: (order, action) => _updateStatus(order, action),
               );
             },
@@ -414,6 +479,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               order: orders[index],
               tabIndex: _selectedIndex,
               isCompact: false,
+              actionsEnabled: !_isOperations || _selectedIndex == 1,
               onAction: (order, action) => _updateStatus(order, action),
             );
           },
@@ -427,12 +493,14 @@ class _OrderTicketCard extends StatelessWidget {
   final CashierOrderModel order;
   final int tabIndex;
   final bool isCompact;
+  final bool actionsEnabled;
   final Function(CashierOrderModel, String) onAction;
 
   const _OrderTicketCard({
     required this.order,
     required this.tabIndex,
     this.isCompact = false,
+    this.actionsEnabled = true,
     required this.onAction,
   });
 
@@ -443,17 +511,20 @@ class _OrderTicketCard extends StatelessWidget {
     String nextStatus;
     IconData btnIcon;
 
-    if (tabIndex == 0) { // Baru
+    if (tabIndex == 0) {
+      // Baru
       accentColor = AppColors.warning;
       btnLabel = isCompact ? 'Bayar' : 'Konfirmasi Bayar';
       nextStatus = 'PROCESSING';
       btnIcon = Icons.payment_rounded;
-    } else if (tabIndex == 1) { // Proses
+    } else if (tabIndex == 1) {
+      // Proses
       accentColor = AppColors.primary;
       btnLabel = isCompact ? 'Siap' : 'Pesanan Siap';
       nextStatus = 'READY';
       btnIcon = Icons.dinner_dining_rounded;
-    } else { // Siap
+    } else {
+      // Siap
       accentColor = AppColors.info;
       btnLabel = isCompact ? 'Selesai' : 'Selesai & Antar';
       nextStatus = 'SERVED';
@@ -482,7 +553,9 @@ class _OrderTicketCard extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(isCompact ? 16 : 20)),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(isCompact ? 16 : 20),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -495,7 +568,9 @@ class _OrderTicketCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     order.fulfillmentLabel,
@@ -517,7 +592,7 @@ class _OrderTicketCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Customer info
           if ((order.customerName != null && order.customerName!.isNotEmpty) ||
               (order.customerPhone != null &&
@@ -538,13 +613,18 @@ class _OrderTicketCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.person_rounded, size: isCompact ? 14 : 16, color: AppColors.textSecondary),
+                  Icon(
+                    Icons.person_rounded,
+                    size: isCompact ? 14 : 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (order.customerName != null && order.customerName!.isNotEmpty)
+                        if (order.customerName != null &&
+                            order.customerName!.isNotEmpty)
                           Text(
                             order.customerName!,
                             style: TextStyle(
@@ -555,7 +635,8 @@ class _OrderTicketCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        if (order.customerPhone != null && order.customerPhone!.isNotEmpty)
+                        if (order.customerPhone != null &&
+                            order.customerPhone!.isNotEmpty)
                           Text(
                             order.customerPhone!,
                             style: TextStyle(
@@ -582,7 +663,7 @@ class _OrderTicketCard extends StatelessWidget {
                 ],
               ),
             ),
-          
+
           // List Items
           Expanded(
             child: ListView.separated(
@@ -643,28 +724,38 @@ class _OrderTicketCard extends StatelessWidget {
                     // Toppings if any
                     if (item.toppings.isNotEmpty)
                       Padding(
-                        padding: EdgeInsets.only(top: 4, left: isCompact ? 28 : 40),
+                        padding: EdgeInsets.only(
+                          top: 4,
+                          left: isCompact ? 28 : 40,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: item.toppings.map((topping) => Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              '+ ${topping.toppingName} (x${topping.quantity})',
-                              style: TextStyle(
-                                fontSize: isCompact ? 10 : 11,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          )).toList(),
+                          children: item.toppings
+                              .map(
+                                (topping) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Text(
+                                    '+ ${topping.toppingName} (x${topping.quantity})',
+                                    style: TextStyle(
+                                      fontSize: isCompact ? 10 : 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
                       ),
                     // Notes if any
                     if (item.notes != null && item.notes!.isNotEmpty)
                       Padding(
-                        padding: EdgeInsets.only(top: 4, left: isCompact ? 28 : 40),
+                        padding: EdgeInsets.only(
+                          top: 4,
+                          left: isCompact ? 28 : 40,
+                        ),
                         child: Text(
                           '"${item.notes!}"',
                           style: TextStyle(
@@ -690,7 +781,13 @@ class _OrderTicketCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total', style: TextStyle(color: AppColors.textSecondary, fontSize: isCompact ? 11 : 13)),
+                    Text(
+                      'Total',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: isCompact ? 11 : 13,
+                      ),
+                    ),
                     Text(
                       CurrencyFormatter.rupiah(order.totalAmount),
                       style: TextStyle(
@@ -702,30 +799,33 @@ class _OrderTicketCard extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: isCompact ? 8 : 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => onAction(order, nextStatus),
-                    icon: Icon(btnIcon, size: isCompact ? 15 : 18),
-                    label: Text(
-                      btnLabel,
-                      style: TextStyle(
-                        fontSize: isCompact ? 12 : 14,
-                        fontWeight: FontWeight.w700,
+                if (actionsEnabled)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => onAction(order, nextStatus),
+                      icon: Icon(btnIcon, size: isCompact ? 15 : 18),
+                      label: Text(
+                        btnLabel,
+                        style: TextStyle(
+                          fontSize: isCompact ? 12 : 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: isCompact ? 10 : 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          vertical: isCompact ? 10 : 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 3,
+                        shadowColor: accentColor.withValues(alpha: 0.4),
                       ),
-                      elevation: 3,
-                      shadowColor: accentColor.withValues(alpha: 0.4),
                     ),
                   ),
-                ),
               ],
             ),
           ),

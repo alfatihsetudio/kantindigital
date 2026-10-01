@@ -1,8 +1,4 @@
-enum UserRole {
-  admin,
-  cashier,
-  manager,
-}
+enum UserRole { admin, cashier, operations, manager }
 
 extension UserRoleX on UserRole {
   static UserRole? fromApi(String? value) {
@@ -15,6 +11,10 @@ extension UserRoleX on UserRole {
       case 'kasir':
       case 'pelayan':
         return UserRole.cashier;
+      case 'operations':
+      case 'operasional':
+      case 'produksi':
+        return UserRole.operations;
       case 'manager':
       case 'pimpinan':
         return UserRole.manager;
@@ -24,13 +24,15 @@ extension UserRoleX on UserRole {
   }
 
   String toApi() => name;
-  
+
   String get displayName {
     switch (this) {
       case UserRole.admin:
-        return 'Admin/Operator';
+        return 'Owner/Pemilik';
       case UserRole.cashier:
         return 'Kasir/Pelayan';
+      case UserRole.operations:
+        return 'Operasional';
       case UserRole.manager:
         return 'Pimpinan';
     }

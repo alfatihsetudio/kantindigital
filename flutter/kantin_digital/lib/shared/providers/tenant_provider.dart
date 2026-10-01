@@ -1,0 +1,80 @@
+import 'package:flutter/material.dart';
+import '../models/tenant_model.dart';
+import '../services/tenant_service.dart';
+
+/// InheritedWidget yang menyimpan data tenant aktif
+/// Diakses dari mana saja dengan: TenantProvider.of(context)
+class TenantProvider extends InheritedWidget {
+  final TenantModel tenant;
+
+  const TenantProvider({
+    super.key,
+    required this.tenant,
+    required super.child,
+  });
+
+  static TenantModel of(BuildContext context) {
+    final provider = context.dependOnInheritedWidgetOfExactType<TenantProvider>();
+    return provider?.tenant ?? TenantService.current;
+  }
+
+  @override
+  bool updateShouldNotify(TenantProvider oldWidget) {
+    return oldWidget.tenant.id != tenant.id ||
+           oldWidget.tenant.primaryColor != tenant.primaryColor ||
+           oldWidget.tenant.name != tenant.name;
+  }
+}
+
+/// Widget yang me-load tenant saat startup dan membungkus seluruh app
+class TenantLoader extends StatefulWidget {
+  final Widget Function(TenantModel tenant) builder;
+
+  const TenantLoader({super.key, required this.builder});
+
+  @override
+  State<TenantLoader> createState() => _TenantLoaderState();
+}
+
+class _TenantLoaderState extends State<TenantLoader> {
+  TenantModel? _tenant;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTenant();
+  }
+
+  Future<void> _loadTenant() async {
+    final tenant = await TenantService.fetchTenantInfo();
+    if (mounted) {
+      setState(() => _tenant = tenant);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_tenant == null) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Memuat data...', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return TenantProvider(
+      tenant: _tenant!,
+      child: widget.builder(_tenant!),
+    );
+  }
+}

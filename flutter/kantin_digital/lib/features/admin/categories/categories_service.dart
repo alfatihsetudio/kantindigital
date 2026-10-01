@@ -15,18 +15,19 @@ class AdminCategoriesService {
   }
 
   Future<void> updateCategory(int id, String name) async {
-    // API client doesn't support put/patch directly in this simplistic version, but let's see. 
-    // Assuming client has put or we used post. 
-    // Wait, ApiClient only has get/post. 
-    // Laravel allows Method Spoofing using _method=PUT.
     await _client.post('/categories/$id', body: {
       'name': name,
-      '_method': 'PUT', 
+      '_method': 'PUT',
     });
   }
 
+  Future<CategoryModel> toggleCategory(int id) async {
+    final response = await _client.post('/categories/$id/toggle', body: {});
+    return CategoryModel.fromJson(response['data']);
+  }
+
   Future<void> deleteCategory(int id) async {
-     await _client.post('/categories/$id', body: {
+    await _client.post('/categories/$id', body: {
       '_method': 'DELETE',
     });
   }

@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Topping extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
-    protected $fillable = ['name', 'price'];
+    protected $fillable = ['tenant_id', 'name', 'price'];
 
     public function menuToppings()
     {
@@ -23,4 +23,3 @@ class Topping extends Model
                     ->withTimestamps();
     }
 }
-

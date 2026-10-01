@@ -7,15 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Menu extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
-        'category_id', 
-        'name', 
-        'price', 
-        'description', 
-        'image_url', 
-        'is_available'
+        'tenant_id', 'category_id',
+        'name', 'price', 'description', 'image_url', 'is_available'
     ];
 
     public function category()

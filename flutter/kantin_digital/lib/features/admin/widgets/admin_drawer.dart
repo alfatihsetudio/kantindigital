@@ -29,7 +29,9 @@ class AdminDrawer extends StatelessWidget {
               controller: currentPwdCtrl,
               decoration: InputDecoration(
                 labelText: 'Password Lama',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               obscureText: true,
             ),
@@ -38,7 +40,9 @@ class AdminDrawer extends StatelessWidget {
               controller: newPwdCtrl,
               decoration: InputDecoration(
                 labelText: 'Password Baru',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               obscureText: true,
             ),
@@ -47,7 +51,9 @@ class AdminDrawer extends StatelessWidget {
               controller: confirmPwdCtrl,
               decoration: InputDecoration(
                 labelText: 'Konfirmasi Password Baru',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               obscureText: true,
             ),
@@ -56,13 +62,18 @@ class AdminDrawer extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () async {
               if (currentPwdCtrl.text.isEmpty) {
@@ -94,28 +105,35 @@ class AdminDrawer extends StatelessWidget {
               showDialog(
                 context: dialogContext,
                 barrierDismissible: false,
-                builder: (_) => const Center(child: CircularProgressIndicator()),
+                builder: (_) =>
+                    const Center(child: CircularProgressIndicator()),
               );
 
               try {
                 final auth = AdminAuthService();
                 final user = AuthSession().user;
-                
+
                 // 1. Verify Old Password by Logging in
-                await auth.login(email: user?.email ?? '', password: currentPwdCtrl.text);
+                await auth.login(
+                  email: user?.email ?? '',
+                  password: currentPwdCtrl.text,
+                );
 
                 // 2. Change Password
                 final client = ApiClient();
-                await client.post('/change-password', body: {
-                  'user_id': user?.id,
-                  'current_password': currentPwdCtrl.text,
-                  'new_password': newPwdCtrl.text,
-                });
-                
+                await client.post(
+                  '/change-password',
+                  body: {
+                    'user_id': user?.id,
+                    'current_password': currentPwdCtrl.text,
+                    'new_password': newPwdCtrl.text,
+                  },
+                );
+
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
                 Navigator.pop(dialogContext); // Close form
-                
+
                 if (!context.mounted) return;
                 TopNotification.show(
                   message: 'Password berhasil diubah',
@@ -125,13 +143,15 @@ class AdminDrawer extends StatelessWidget {
               } catch (e) {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
-                
+
                 String msg = e.toString();
                 // Simple heuristic for login failure
-                if (msg.toLowerCase().contains('gagal') || msg.toLowerCase().contains('salah') || msg.contains('401')) {
-                   msg = 'Password lama salah!';
+                if (msg.toLowerCase().contains('gagal') ||
+                    msg.toLowerCase().contains('salah') ||
+                    msg.contains('401')) {
+                  msg = 'Password lama salah!';
                 }
-                
+
                 TopNotification.show(
                   message: msg,
                   backgroundColor: AppColors.danger,
@@ -147,7 +167,9 @@ class AdminDrawer extends StatelessWidget {
   }
 
   void _showChangeEmailDialog(BuildContext context) {
-    final currentEmailCtrl = TextEditingController(text: AuthSession().user?.email ?? '');
+    final currentEmailCtrl = TextEditingController(
+      text: AuthSession().user?.email ?? '',
+    );
     final newEmailCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
 
@@ -170,7 +192,9 @@ class AdminDrawer extends StatelessWidget {
               enabled: false,
               decoration: InputDecoration(
                 labelText: 'Email Saat Ini',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: AppColors.background,
               ),
@@ -180,7 +204,9 @@ class AdminDrawer extends StatelessWidget {
               controller: newEmailCtrl,
               decoration: InputDecoration(
                 labelText: 'Email Baru',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
@@ -189,7 +215,9 @@ class AdminDrawer extends StatelessWidget {
               controller: passwordCtrl,
               decoration: InputDecoration(
                 labelText: 'Password Saat Ini',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 helperText: 'Diperlukan untuk keamanan',
               ),
               obscureText: true,
@@ -199,16 +227,22 @@ class AdminDrawer extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () async {
-              if (newEmailCtrl.text.isEmpty || !newEmailCtrl.text.contains('@')) {
+              if (newEmailCtrl.text.isEmpty ||
+                  !newEmailCtrl.text.contains('@')) {
                 TopNotification.show(
                   message: 'Email baru tidak valid',
                   backgroundColor: AppColors.warning,
@@ -229,23 +263,30 @@ class AdminDrawer extends StatelessWidget {
               showDialog(
                 context: dialogContext,
                 barrierDismissible: false,
-                builder: (_) => const Center(child: CircularProgressIndicator()),
+                builder: (_) =>
+                    const Center(child: CircularProgressIndicator()),
               );
 
               try {
                 // Verify password first
                 final auth = AdminAuthService();
                 final user = AuthSession().user;
-                await auth.login(email: user?.email ?? '', password: passwordCtrl.text);
+                await auth.login(
+                  email: user?.email ?? '',
+                  password: passwordCtrl.text,
+                );
 
                 // Update Profile
                 final client = ApiClient();
-                await client.post('/update-profile', body: {
-                  'user_id': user?.id,
-                  'email': newEmailCtrl.text,
-                  // 'password': passwordCtrl.text, // Backend might re-verify
-                });
-                
+                await client.post(
+                  '/update-profile',
+                  body: {
+                    'user_id': user?.id,
+                    'email': newEmailCtrl.text,
+                    // 'password': passwordCtrl.text, // Backend might re-verify
+                  },
+                );
+
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
                 Navigator.pop(dialogContext); // Close form
@@ -259,10 +300,11 @@ class AdminDrawer extends StatelessWidget {
               } catch (e) {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
-                
-                 String msg = e.toString();
-                if (msg.toLowerCase().contains('gagal') || msg.toLowerCase().contains('salah')) {
-                   msg = 'Password salah / Gagal update';
+
+                String msg = e.toString();
+                if (msg.toLowerCase().contains('gagal') ||
+                    msg.toLowerCase().contains('salah')) {
+                  msg = 'Password salah / Gagal update';
                 }
 
                 TopNotification.show(
@@ -293,7 +335,7 @@ class AdminDrawer extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(4, 0),
-            )
+            ),
           ],
         ),
         child: Column(
@@ -353,7 +395,13 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminQris,
                     isActive: currentRoute == RouteName.adminQris,
                   ),
-                   const Padding(
+                  _DrawerItem(
+                    icon: Icons.storefront_rounded,
+                    label: 'Profil & Logo Kantin',
+                    route: RouteName.adminTenantProfile,
+                    isActive: currentRoute == RouteName.adminTenantProfile,
+                  ),
+                  const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
                   ),
@@ -367,7 +415,7 @@ class AdminDrawer extends StatelessWidget {
                       _showChangePasswordDialog(context);
                     },
                   ),
-                   _DrawerItem(
+                  _DrawerItem(
                     icon: Icons.email_outlined,
                     label: 'Ganti Email',
                     route: '',
@@ -388,9 +436,12 @@ class AdminDrawer extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.danger,
+                  ),
                   title: const Text(
-                    'Keluar', 
+                    'Keluar',
                     style: TextStyle(
                       color: AppColors.danger,
                       fontWeight: FontWeight.bold,
@@ -417,9 +468,7 @@ class AdminDrawer extends StatelessWidget {
     final user = AuthSession().user;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-      ),
+      decoration: BoxDecoration(gradient: AppColors.primaryGradient),
       child: Row(
         children: [
           Container(
@@ -437,7 +486,11 @@ class AdminDrawer extends StatelessWidget {
             child: CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.background,
-              child: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.primary, size: 28),
+              child: const Icon(
+                Icons.admin_panel_settings_rounded,
+                color: AppColors.primary,
+                size: 28,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -447,7 +500,7 @@ class AdminDrawer extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  user?.name ?? 'Admin',
+                  user?.name ?? 'Owner',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -457,7 +510,7 @@ class AdminDrawer extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  user?.email ?? 'Administrator',
+                  user?.email ?? 'Pemilik Usaha',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
@@ -467,13 +520,16 @@ class AdminDrawer extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
-                    'Master Data',
+                    'Owner/Pemilik',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -508,34 +564,40 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSelected = isActive;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap ?? () {
-            Navigator.pop(context); // Close drawer first
-            if (!isActive) {
-              Navigator.pushReplacementNamed(context, route);
-            }
-          },
+          onTap:
+              onTap ??
+              () {
+                Navigator.pop(context); // Close drawer first
+                if (!isActive) {
+                  Navigator.pushReplacementNamed(context, route);
+                }
+              },
           borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
-              border: isSelected 
-                  ? Border.all(color: AppColors.primary.withValues(alpha: 0.2)) 
+              border: isSelected
+                  ? Border.all(color: AppColors.primary.withValues(alpha: 0.2))
                   : null,
             ),
             child: Row(
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                   size: 24,
                 ),
                 const SizedBox(width: 16),
@@ -543,8 +605,12 @@ class _DrawerItem extends StatelessWidget {
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       fontSize: 15,
                     ),
                   ),

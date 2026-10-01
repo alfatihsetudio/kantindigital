@@ -10,6 +10,6 @@ class RouteGuard {
 
   bool canAccessAdmin() => isAuthenticated && role == UserRole.admin;
   bool canAccessCashier() => isAuthenticated && role == UserRole.cashier;
+  bool canAccessOperations() => isAuthenticated && role == UserRole.operations;
   bool canAccessManager() => isAuthenticated && role == UserRole.manager;
 }
-

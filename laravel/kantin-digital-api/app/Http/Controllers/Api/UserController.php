@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    private array $roles = ['admin', 'cashier', 'operations', 'manager'];
+
     public function index()
     {
         $users = User::all();
@@ -22,11 +24,14 @@ class UserController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'role' => 'required'
+            'role' => ['required', Rule::in($this->roles)],
         ]);
 
-        $data = $request->all();
+        $data = $request->only(['name', 'email', 'password', 'role']);
         $data['password'] = Hash::make($request->password);
+        if (app()->has('tenant')) {
+            $data['tenant_id'] = app('tenant')->id;
+        }
 
         $user = User::create($data);
         return response()->json(['status' => true, 'message' => 'Created', 'data' => $user]);
@@ -39,9 +44,10 @@ class UserController extends Controller
 
         $request->validate([
             'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+            'role' => ['nullable', Rule::in($this->roles)],
         ]);
         
-        $data = $request->except('password');
+        $data = $request->only(['name', 'email', 'role']);
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }

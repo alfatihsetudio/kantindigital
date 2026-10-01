@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
-        'code', 'customer_name', 'customer_phone',
+        'tenant_id', 'code', 'customer_name', 'customer_phone',
         'table_id', 'order_type', 'delivery_address', 'status',
         'payment_method', 'total_amount'
     ];
@@ -25,4 +25,3 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 }
-

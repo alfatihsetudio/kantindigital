@@ -36,7 +36,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         title: const Text('Hapus Pengguna?'),
         content: const Text('Tindakan ini tidak dapat dibatalkan.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Hapus', style: TextStyle(color: Colors.red)),
@@ -80,7 +83,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Text(user == null ? 'Tambah Pengguna' : 'Edit Pengguna'),
             content: SingleChildScrollView(
               child: Column(
@@ -90,7 +95,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     controller: nameCtrl,
                     decoration: InputDecoration(
                       labelText: 'Nama Lengkap',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     enabled: !isSubmitting,
                   ),
@@ -99,7 +106,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     controller: emailCtrl,
                     decoration: InputDecoration(
                       labelText: 'Email',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     enabled: !isSubmitting,
@@ -108,9 +117,15 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   TextField(
                     controller: passwordCtrl,
                     decoration: InputDecoration(
-                      labelText: user == null ? 'Password' : 'Password Baru (opsional)',
-                      helperText: user == null ? 'Wajib diisi (min. 6 karakter)' : 'Kosongkan jika tidak ingin mengubah',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      labelText: user == null
+                          ? 'Password'
+                          : 'Password Baru (opsional)',
+                      helperText: user == null
+                          ? 'Wajib diisi (min. 6 karakter)'
+                          : 'Kosongkan jika tidak ingin mengubah',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     obscureText: true,
                     enabled: !isSubmitting,
@@ -120,112 +135,156 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     value: selectedRole,
                     decoration: InputDecoration(
                       labelText: 'Role',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'admin', child: Text('Admin/Operator')),
-                      DropdownMenuItem(value: 'cashier', child: Text('Kasir/Pelayan')),
-                      DropdownMenuItem(value: 'manager', child: Text('Pimpinan')),
+                      DropdownMenuItem(
+                        value: 'admin',
+                        child: Text('Owner/Pemilik'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'cashier',
+                        child: Text('Kasir/Pelayan'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'operations',
+                        child: Text('Operasional'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'manager',
+                        child: Text('Pimpinan'),
+                      ),
                     ],
-                    onChanged: isSubmitting ? null : (val) => setState(() => selectedRole = val ?? 'cashier'),
+                    onChanged: isSubmitting
+                        ? null
+                        : (val) =>
+                              setState(() => selectedRole = val ?? 'cashier'),
                   ),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
               ElevatedButton(
-                onPressed: isSubmitting ? null : () async {
-                  // 1. Local Validation
-                  if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty) {
-                    TopNotification.show(
-                      message: 'Nama dan Email wajib diisi',
-                      backgroundColor: AppColors.danger,
-                      icon: Icons.error_rounded,
-                    );
-                    return;
-                  }
-                  
-                  if (user == null && (passwordCtrl.text.isEmpty || passwordCtrl.text.length < 6)) {
-                    TopNotification.show(
-                      message: 'Password wajib diisi minimal 6 karakter',
-                      backgroundColor: AppColors.danger,
-                      icon: Icons.error_rounded,
-                    );
-                    return;
-                  }
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        // 1. Local Validation
+                        if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty) {
+                          TopNotification.show(
+                            message: 'Nama dan Email wajib diisi',
+                            backgroundColor: AppColors.danger,
+                            icon: Icons.error_rounded,
+                          );
+                          return;
+                        }
 
-                  if (user != null && passwordCtrl.text.isNotEmpty && passwordCtrl.text.length < 6) {
-                    TopNotification.show(
-                      message: 'Password baru minimal 6 karakter',
-                      backgroundColor: AppColors.danger,
-                      icon: Icons.error_rounded,
-                    );
-                    return;
-                  }
+                        if (user == null &&
+                            (passwordCtrl.text.isEmpty ||
+                                passwordCtrl.text.length < 6)) {
+                          TopNotification.show(
+                            message: 'Password wajib diisi minimal 6 karakter',
+                            backgroundColor: AppColors.danger,
+                            icon: Icons.error_rounded,
+                          );
+                          return;
+                        }
 
-                  // 2. Prepare Data
-                  final data = {
-                    'name': nameCtrl.text.trim(),
-                    'email': emailCtrl.text.trim(),
-                    'role': selectedRole,
-                  };
+                        if (user != null &&
+                            passwordCtrl.text.isNotEmpty &&
+                            passwordCtrl.text.length < 6) {
+                          TopNotification.show(
+                            message: 'Password baru minimal 6 karakter',
+                            backgroundColor: AppColors.danger,
+                            icon: Icons.error_rounded,
+                          );
+                          return;
+                        }
 
-                  if (passwordCtrl.text.isNotEmpty) {
-                    data['password'] = passwordCtrl.text;
-                  }
+                        // 2. Prepare Data
+                        final data = {
+                          'name': nameCtrl.text.trim(),
+                          'email': emailCtrl.text.trim(),
+                          'role': selectedRole,
+                        };
 
-                  // 3. Submit
-                  setState(() => isSubmitting = true);
+                        if (passwordCtrl.text.isNotEmpty) {
+                          data['password'] = passwordCtrl.text;
+                        }
 
-                  try {
-                    if (user == null) {
-                      await _controller.addUser(data);
-                    } else {
-                      await _controller.editUser(user.id, data);
-                    }
-                    
-                    // Success!
-                    if (mounted) {
-                       _reload();
-                       TopNotification.show(
-                        message: user == null ? 'Pengguna berhasil ditambah' : 'Pengguna berhasil diperbarui',
-                        backgroundColor: AppColors.success,
-                        icon: Icons.check_circle_rounded,
-                      );
-                      Navigator.pop(dialogContext); // Close ONLY on success
-                    }
-                  } catch (e) {
-                    // Error!
-                    if (context.mounted) {
-                      setState(() => isSubmitting = false); // Stop loading
-                      // Clean error message
-                      String msg = e.toString();
-                      if (msg.contains('ApiException')) {
-                        msg = msg.replaceAll('ApiException:', '').trim();
-                        // Try to parse message if json
-                        // But for now raw message is better than nothing
-                      }
-                      
-                      TopNotification.show(
-                        message: 'Gagal: $msg',
-                        backgroundColor: AppColors.danger,
-                        icon: Icons.error_rounded,
-                        duration: const Duration(seconds: 4),
-                      );
-                    }
-                  }
-                },
+                        // 3. Submit
+                        setState(() => isSubmitting = true);
+
+                        try {
+                          if (user == null) {
+                            await _controller.addUser(data);
+                          } else {
+                            await _controller.editUser(user.id, data);
+                          }
+
+                          // Success!
+                          if (mounted) {
+                            _reload();
+                            TopNotification.show(
+                              message: user == null
+                                  ? 'Pengguna berhasil ditambah'
+                                  : 'Pengguna berhasil diperbarui',
+                              backgroundColor: AppColors.success,
+                              icon: Icons.check_circle_rounded,
+                            );
+                            Navigator.pop(
+                              dialogContext,
+                            ); // Close ONLY on success
+                          }
+                        } catch (e) {
+                          // Error!
+                          if (context.mounted) {
+                            setState(
+                              () => isSubmitting = false,
+                            ); // Stop loading
+                            // Clean error message
+                            String msg = e.toString();
+                            if (msg.contains('ApiException')) {
+                              msg = msg.replaceAll('ApiException:', '').trim();
+                              // Try to parse message if json
+                              // But for now raw message is better than nothing
+                            }
+
+                            TopNotification.show(
+                              message: 'Gagal: $msg',
+                              backgroundColor: AppColors.danger,
+                              icon: Icons.error_rounded,
+                              duration: const Duration(seconds: 4),
+                            );
+                          }
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: isSubmitting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text('Simpan'),
               ),
             ],
@@ -241,6 +300,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         return Colors.blue;
       case 'cashier':
         return Colors.orange;
+      case 'operations':
+        return Colors.teal;
       case 'manager':
         return Colors.purple;
       default:
@@ -251,9 +312,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   String _getRoleLabel(UserRole? role) {
     switch (role) {
       case UserRole.admin:
-        return 'Admin/Operator';
+        return 'Owner/Pemilik';
       case UserRole.cashier:
         return 'Kasir/Pelayan';
+      case UserRole.operations:
+        return 'Operasional';
       case UserRole.manager:
         return 'Pimpinan';
       default:
@@ -306,19 +369,32 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: _getRoleColor(user.role?.name).withValues(alpha: 0.1),
-                    child: Icon(Icons.person, color: _getRoleColor(user.role?.name)),
+                    backgroundColor: _getRoleColor(
+                      user.role?.name,
+                    ).withValues(alpha: 0.1),
+                    child: Icon(
+                      Icons.person,
+                      color: _getRoleColor(user.role?.name),
+                    ),
                   ),
-                  title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    user.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(user.email, style: const TextStyle(fontSize: 12)),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: _getRoleColor(user.role?.name).withValues(alpha: 0.1),
+                          color: _getRoleColor(
+                            user.role?.name,
+                          ).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

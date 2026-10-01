@@ -16,6 +16,7 @@ class RouteName {
   static const String adminTables = '/admin/tables';
   static const String adminUsers = '/admin/users';
   static const String adminQris = '/admin/qris';
+  static const String adminTenantProfile = '/admin/profile';
 
   // cashier
   static const String cashierOrders = '/cashier/orders';

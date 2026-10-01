@@ -84,18 +84,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Future<void> _fetchTables() async {
     try {
       final tables = await AdminTablesService().getTables();
+      if (!mounted) return;
       setState(() {
         _tables = tables;
         _tablesLoading = false;
       });
       _checkLockedTable();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _tablesLoading = false;
       });
-      if (mounted) {
-        AppSnackBar.show(context, message: 'Gagal mengambil data meja');
-      }
+      AppSnackBar.show(context, message: 'Gagal mengambil data meja');
     }
   }
 
@@ -105,7 +105,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       AppSnackBar.show(context, message: 'Mohon isi nama anda');
       return;
     }
-    
+
     // Validasi nomor telepon
     if (_phoneController.text.trim().isEmpty) {
       AppSnackBar.show(context, message: 'Mohon isi nomor telepon anda');
@@ -139,22 +139,26 @@ class _CheckoutPageState extends State<CheckoutPage> {
       customerPhone: _phoneController.text.trim(),
       paymentMethod: _selectedPayment,
     );
+    if (!mounted) return;
     setState(() {
       _loading = false;
     });
-    if (!mounted) return;
     if (result.error != null) {
       AppSnackBar.show(context, message: result.error!);
       return;
     }
     if (result.orderCode == null || result.orderCode!.isEmpty) {
-      AppSnackBar.show(context, message: 'Gagal membuat pesanan: Order Code kosong');
+      AppSnackBar.show(
+        context,
+        message: 'Gagal membuat pesanan: Order Code kosong',
+      );
       return;
     }
     CartController.instance.clear();
     CartController.instance.setTableNumber(null);
     // Save order code for tracking
     await ActiveOrderStorage.instance.setOrderCode(result.orderCode!);
+    if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(
       RouteName.customerOrderStatus,
       arguments: result.orderCode,
@@ -171,7 +175,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         children: [
           // Background gradient
           _buildBackgroundGradient(),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -187,7 +191,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         // Customer Info
                         _buildCustomerSection(),
                         const SizedBox(height: 20),
-                        
+
                         // Order Summary
                         _buildOrderSummary(cart),
                         const SizedBox(height: 20),
@@ -198,7 +202,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           _buildOrderTypeSection(),
                         ],
                         const SizedBox(height: 20),
-                        
+
                         // Payment Method
                         _buildPaymentSection(),
                       ],
@@ -208,7 +212,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ],
             ),
           ),
-          
+
           // Bottom Bar
           _buildBottomBar(cart),
         ],
@@ -261,9 +265,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
           Expanded(
             child: Text(
               'Checkout',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Container(
@@ -311,14 +315,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(width: 12),
               Text(
                 'Data Pelanggan',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Name field
           TextField(
             controller: _nameController,
@@ -333,25 +337,34 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 fontSize: 12,
                 color: AppColors.textMuted,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
+                borderSide: const BorderSide(
+                  color: AppColors.textMuted,
+                  width: 0.5,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
+                borderSide: const BorderSide(
+                  color: AppColors.textMuted,
+                  width: 0.5,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
             style: const TextStyle(fontSize: 13),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Phone field
           TextField(
             controller: _phoneController,
@@ -367,18 +380,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 fontSize: 12,
                 color: AppColors.textMuted,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
+                borderSide: const BorderSide(
+                  color: AppColors.textMuted,
+                  width: 0.5,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
+                borderSide: const BorderSide(
+                  color: AppColors.textMuted,
+                  width: 0.5,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
             style: const TextStyle(fontSize: 13),
@@ -416,13 +438,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(width: 12),
               Text(
                 'Ringkasan Pesanan',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(20),
@@ -438,170 +463,188 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // Items - Full detailed list with proper alignment
-          ...cart.items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Menu name with price and quantity (properly aligned)
-                Row(
-                  children: [
-                    // Menu name on left
-                    Expanded(
-                      child: Text(
-                        item.menu.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    // Quantity column
-                    SizedBox(
-                      width: 35,
-                      child: Text(
-                        'x${item.quantity}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Price column
-                    SizedBox(
-                      width: 85,
-                      child: Text(
-                        CurrencyFormatter.rupiah(item.menu.price * item.quantity),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                  ],
-                ),
-                
-                // Toppings if any (indented and aligned)
-                if (item.toppings.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, left: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: item.toppings.map((topping) => Padding(
-                        padding: const EdgeInsets.only(bottom: 3),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                '- ${topping.name}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 80,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'x${topping.quantity}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textMuted,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    CurrencyFormatter.rupiah(topping.price * topping.quantity),
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )).toList(),
-                    ),
-                  ),
-                
-                // Notes if any
-                if (item.notes != null && item.notes!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.textMuted, width: 0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.notes_rounded, size: 14, color: AppColors.textMuted),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              item.notes!,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                
-                // Total for this menu item
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ...cart.items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Menu name with price and quantity (properly aligned)
+                  Row(
                     children: [
-                      Text(
-                        'Total',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
+                      // Menu name on left
+                      Expanded(
+                        child: Text(
+                          item.menu.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      Text(
-                        CurrencyFormatter.rupiah(item.subtotal),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                      // Quantity column
+                      SizedBox(
+                        width: 35,
+                        child: Text(
+                          'x${item.quantity}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Price column
+                      SizedBox(
+                        width: 85,
+                        child: Text(
+                          CurrencyFormatter.rupiah(
+                            item.menu.price * item.quantity,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                          textAlign: TextAlign.right,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+
+                  // Toppings if any (indented and aligned)
+                  if (item.toppings.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: item.toppings
+                            .map(
+                              (topping) => Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      flex: 1,
+                                      child: Text(
+                                        '- ${topping.name}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'x${topping.quantity}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.textMuted,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            CurrencyFormatter.rupiah(
+                                              topping.price * topping.quantity,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+
+                  // Notes if any
+                  if (item.notes != null && item.notes!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: AppColors.textMuted,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.notes_rounded,
+                              size: 14,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                item.notes!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Total for this menu item
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.rupiah(item.subtotal),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
-          
+          ),
+
           const Divider(height: 24),
-          
+
           // Subtotal
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -614,9 +657,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               Text(
                 CurrencyFormatter.rupiah(cart.totalAmount),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -683,20 +726,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
                     ),
                     Text(
-                      lockedCode != null ? 'Otomatis terisi dari QR' : 'Wajib dipilih',
+                      lockedCode != null
+                          ? 'Otomatis terisi dari QR'
+                          : 'Wajib dipilih',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: lockedCode != null ? AppColors.success : AppColors.danger,
+                        color: lockedCode != null
+                            ? AppColors.success
+                            : AppColors.danger,
                       ),
                     ),
                   ],
                 ),
               ),
               if (lockedCode != null)
-                const Icon(Icons.lock_rounded, color: AppColors.textSecondary, size: 18),
+                const Icon(
+                  Icons.lock_rounded,
+                  color: AppColors.textSecondary,
+                  size: 18,
+                ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           if (_tablesLoading)
             const Center(
               child: Padding(
@@ -713,7 +764,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.danger,
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     'Tidak ada meja tersedia',
@@ -724,69 +778,82 @@ class _CheckoutPageState extends State<CheckoutPage> {
             )
           else if (lockedCode != null)
             // Tampilan Terkunci (Locked View)
-             Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.successLight.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.success, width: 1.5),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Meja $lockedCode',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.success,
-                      ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.successLight.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.success, width: 1.5),
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Meja $lockedCode',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success,
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Meja Anda sudah terpilih',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-             )
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Meja Anda sudah terpilih',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            )
           else
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: _tables.map((table) {
                 final isSelected = _selectedTable?.id == table.id;
-                final isOccupied = table.isOccupied ?? false;
-                
+                final isOccupied = table.isOccupied;
+
                 return TapScaleContainer(
-                  onTap: isOccupied ? null : () {
-                    setState(() {
-                      _selectedTable = table;
-                    });
-                  },
+                  onTap: isOccupied
+                      ? null
+                      : () {
+                          setState(() {
+                            _selectedTable = table;
+                          });
+                        },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
-                      color: isOccupied 
+                      color: isOccupied
                           ? AppColors.background
                           : (isSelected ? AppColors.primary : Colors.white),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isOccupied 
+                        color: isOccupied
                             ? AppColors.borderLight
-                            : (isSelected ? AppColors.primary : AppColors.border),
+                            : (isSelected
+                                  ? AppColors.primary
+                                  : AppColors.border),
                         width: 1.5,
                       ),
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ] : null,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -794,24 +861,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         Icon(
                           Icons.table_restaurant_rounded,
                           size: 18,
-                          color: isOccupied 
+                          color: isOccupied
                               ? AppColors.textMuted
-                              : (isSelected ? Colors.white : AppColors.textSecondary),
+                              : (isSelected
+                                    ? Colors.white
+                                    : AppColors.textSecondary),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           table.name ?? table.code,
                           style: TextStyle(
-                            color: isOccupied 
+                            color: isOccupied
                                 ? AppColors.textMuted
-                                : (isSelected ? Colors.white : AppColors.textPrimary),
+                                : (isSelected
+                                      ? Colors.white
+                                      : AppColors.textPrimary),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (isOccupied) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.danger.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
@@ -922,14 +996,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(width: 12),
               Text(
                 'Metode Pembayaran',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // QRIS Option
           _PaymentOption(
             icon: Icons.qr_code_2_rounded,
@@ -940,7 +1014,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             onTap: () => setState(() => _selectedPayment = 'qris'),
           ),
           const SizedBox(height: 12),
-          
+
           // Cash Option
           _PaymentOption(
             icon: Icons.payments_rounded,
@@ -957,7 +1031,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   Widget _buildBottomBar(CartController cart) {
     // Check if form is complete
-    final isFormComplete = _nameController.text.trim().isNotEmpty &&
+    final isFormComplete =
+        _nameController.text.trim().isNotEmpty &&
         _phoneController.text.trim().isNotEmpty &&
         (_isQrOrder
             ? _selectedTable != null
@@ -1043,7 +1118,9 @@ class _PaymentOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.1) : AppColors.background,
+          color: isSelected
+              ? color.withValues(alpha: 0.1)
+              : AppColors.background,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? color : AppColors.borderLight,
@@ -1055,7 +1132,9 @@ class _PaymentOption extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isSelected ? color : AppColors.textMuted.withValues(alpha: 0.1),
+                color: isSelected
+                    ? color
+                    : AppColors.textMuted.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -1098,7 +1177,11 @@ class _PaymentOption extends StatelessWidget {
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    )
                   : null,
             ),
           ],

@@ -8,7 +8,8 @@ class AdminLoginController {
   final AdminAuthService _service;
   final AuthSession _session = AuthSession();
 
-  AdminLoginController({AdminAuthService? service}) : _service = service ?? AdminAuthService();
+  AdminLoginController({AdminAuthService? service})
+    : _service = service ?? AdminAuthService();
 
   Future<String?> login({
     required String email,
@@ -30,6 +31,9 @@ class AdminLoginController {
         case UserRole.cashier:
           onNavigate(RouteName.cashierOrders);
           break;
+        case UserRole.operations:
+          onNavigate(RouteName.cashierOrders);
+          break;
         case UserRole.manager:
           onNavigate(RouteName.managerDashboard);
           break;
@@ -40,4 +44,3 @@ class AdminLoginController {
     }
   }
 }
-

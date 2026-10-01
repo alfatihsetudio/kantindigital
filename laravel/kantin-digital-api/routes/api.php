@@ -10,14 +10,20 @@ use App\Http\Controllers\Api\ToppingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\QrisSettingController;
 
+use App\Http\Controllers\Api\TenantController;
+
 // Public (customer)
+Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
+Route::post('/tenant/update', [TenantController::class, 'update']); // update profil tenant
 Route::get('/menus', [MenuController::class, 'index']);
 Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/orders/{order}/status', [OrderController::class, 'updateStatus']);
 Route::get('/orders/{code}', [OrderController::class, 'show']);
 
 // Admin / Management Resource Endpoints
 Route::apiResource('menus', MenuController::class)->except(['index']);
 Route::apiResource('categories', CategoryController::class);
+Route::post('/categories/{id}/toggle', [CategoryController::class, 'toggle']);
 Route::apiResource('tables', TableController::class);
 Route::apiResource('toppings', ToppingController::class);
 Route::apiResource('users', UserController::class);
@@ -35,4 +41,3 @@ Route::get('/manager/stats', [OrderController::class, 'salesStats']);
 // Webhook Pembayaran Otomatis dari Notifikasi HP (DANA Bisnis, GoPay, BCA, dll)
 Route::post('/webhook/payment-notification', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handle']);
 Route::get('/webhook/payment-notification', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handle']);
-

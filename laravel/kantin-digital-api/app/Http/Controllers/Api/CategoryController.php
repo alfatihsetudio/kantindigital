@@ -20,7 +20,10 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate(['name' => 'required']);
-        $category = Category::create($request->all());
+        $category = Category::create([
+            'name' => $request->name,
+            'is_active' => $request->has('is_active') ? (bool)$request->is_active : true,
+        ]);
         return response()->json(['status' => true, 'message' => 'Created', 'data' => $category]);
     }
 
@@ -29,8 +32,23 @@ class CategoryController extends Controller
         $category = Category::find($id);
         if (!$category) return response()->json(['status' => false, 'message' => 'Not found'], 404);
         
-        $category->update($request->all());
+        $category->update($request->only(['name', 'is_active']));
         return response()->json(['status' => true, 'message' => 'Updated', 'data' => $category]);
+    }
+
+    public function toggle($id)
+    {
+        $category = Category::find($id);
+        if (!$category) return response()->json(['status' => false, 'message' => 'Not found'], 404);
+
+        $category->is_active = !$category->is_active;
+        $category->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => $category->is_active ? 'Kategori diaktifkan' : 'Kategori dinonaktifkan',
+            'data' => $category
+        ]);
     }
 
     public function destroy($id)

@@ -63,6 +63,8 @@ class _ManagerUsersPageState extends State<ManagerUsersPage>
         return const Color(0xFF42A5F5); // Blue
       case 'cashier':
         return const Color(0xFFFF7043); // Orange
+      case 'operations':
+        return const Color(0xFF26A69A); // Teal
       case 'manager':
         return AppColors.primary; // Green
       default:
@@ -76,6 +78,8 @@ class _ManagerUsersPageState extends State<ManagerUsersPage>
         return Icons.admin_panel_settings_rounded;
       case 'cashier':
         return Icons.point_of_sale_rounded;
+      case 'operations':
+        return Icons.inventory_2_rounded;
       case 'manager':
         return Icons.business_rounded;
       default:

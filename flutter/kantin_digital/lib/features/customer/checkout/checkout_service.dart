@@ -18,6 +18,7 @@ class CheckoutService {
   ///     { "menu_id": 1, "quantity": 2, "topping_ids": [1,2], "notes": "..." }
   ///   ]
   /// }
+  /// table_code hanya dikirim untuk pesanan dari QR meja.
   Future<String> createOrder({
     String? tableCode,
     required String orderType,
@@ -35,19 +36,21 @@ class CheckoutService {
       'customer_phone': customerPhone,
       'payment_method': paymentMethod,
       'items': items
-          .map((e) => {
-                'menu_id': e.menu.id,
-                'quantity': e.quantity,
-                'topping_ids': e.toppings.map((t) => t.id).toList(),
-                'notes': e.notes,
-              })
+          .map(
+            (e) => {
+              'menu_id': e.menu.id,
+              'quantity': e.quantity,
+              'topping_ids': e.toppings.map((t) => t.id).toList(),
+              'notes': e.notes,
+            },
+          )
           .toList(),
     };
 
-    final json = await _client.post('/orders', body: body) as Map<String, dynamic>;
+    final json =
+        await _client.post('/orders', body: body) as Map<String, dynamic>;
     final data = json['data'] as Map<String, dynamic>;
     // order_code bisa berupa kode unik untuk tracking
     return (data['code'] ?? '').toString();
   }
 }
-

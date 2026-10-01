@@ -466,7 +466,7 @@ class _CartItemCardState extends State<_CartItemCard> {
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                      child: const Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                                      child: Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
                                     ),
                                   ),
                                 ],
@@ -543,7 +543,7 @@ class _CartItemCardState extends State<_CartItemCard> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1),
+                borderSide: BorderSide(color: AppColors.primary, width: 1),
               ),
             ),
             style: const TextStyle(fontSize: 12),

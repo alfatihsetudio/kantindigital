@@ -10,18 +10,23 @@ class MenuController extends Controller
 {
     public function index()
     {
-        $menus = Menu::with('category')->get()->map(function ($menu) {
-            return [
-                'id' => $menu->id,
-                'name' => $menu->name,
-                'description' => $menu->description,
-                'price' => $menu->price,
-                'category_id' => $menu->category_id,
-                'category_name' => optional($menu->category)->name ?? 'Tanpa Kategori',
-                'image_url' => $menu->image_url,
-                'is_available' => $menu->is_available,
-            ];
-        });
+        $menus = Menu::with('category')
+            ->whereHas('category', function ($q) {
+                $q->where('is_active', true);
+            })
+            ->get()
+            ->map(function ($menu) {
+                return [
+                    'id' => $menu->id,
+                    'name' => $menu->name,
+                    'description' => $menu->description,
+                    'price' => $menu->price,
+                    'category_id' => $menu->category_id,
+                    'category_name' => optional($menu->category)->name ?? 'Tanpa Kategori',
+                    'image_url' => $menu->image_url,
+                    'is_available' => $menu->is_available,
+                ];
+            });
 
         return response()->json([
             'status' => true,

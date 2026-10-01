@@ -113,9 +113,10 @@ class AppTheme {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // THEME DATA
+  // THEME DATA — bisa menerima warna primary dari tenant
   // ═══════════════════════════════════════════════════════════
-  static ThemeData light() {
+  static ThemeData light({Color? primaryColor}) {
+    final primary = primaryColor ?? AppColors.primary;
     final textTheme = GoogleFonts.plusJakartaSansTextTheme().apply(
       bodyColor: AppColors.textPrimary,
       displayColor: AppColors.textPrimary,
@@ -124,8 +125,8 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        primary: AppColors.primary,
+        seedColor: primary,
+        primary: primary,
         secondary: AppColors.primaryDark,
         surface: AppColors.surface,
         brightness: Brightness.light,
@@ -133,9 +134,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       textTheme: textTheme,
       
-      // ─────────────────────────────────────────────────────────
-      // AppBar - Clean & Minimal with soft shadow
-      // ─────────────────────────────────────────────────────────
+      // AppBar
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.glassWhite,
         foregroundColor: AppColors.textPrimary,
@@ -151,9 +150,7 @@ class AppTheme {
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
 
-      // ─────────────────────────────────────────────────────────
-      // Cards - Glass effect with soft shadows
-      // ─────────────────────────────────────────────────────────
+      // Cards
       cardTheme: CardThemeData(
         color: AppColors.glassCard,
         elevation: 0,
@@ -166,12 +163,10 @@ class AppTheme {
         margin: EdgeInsets.zero,
       ),
 
-      // ─────────────────────────────────────────────────────────
-      // Elevated Button - Pill shaped, vibrant
-      // ─────────────────────────────────────────────────────────
+      // Elevated Button — warna dari tenant
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
@@ -187,13 +182,11 @@ class AppTheme {
         ),
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Outlined Button - Soft border, rounded
-      // ─────────────────────────────────────────────────────────
+      // Outlined Button
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          foregroundColor: primary,
+          side: BorderSide(color: primary, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w700,
@@ -205,12 +198,10 @@ class AppTheme {
         ),
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Text Button - Subtle & clean
-      // ─────────────────────────────────────────────────────────
+      // Text Button
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w600,
@@ -221,9 +212,7 @@ class AppTheme {
         ),
       ),
 
-      // ─────────────────────────────────────────────────────────
-      // Input - Soft, filled style
-      // ─────────────────────────────────────────────────────────
+      // Input
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.background,
@@ -238,7 +227,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLg),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusLg),
@@ -254,18 +243,16 @@ class AppTheme {
         suffixIconColor: AppColors.textSecondary,
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Chips - Soft & rounded
-      // ─────────────────────────────────────────────────────────
+      // Chips
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.background,
-        selectedColor: AppColors.primaryLight,
+        selectedColor: primary.withValues(alpha: 0.15),
         labelStyle: textTheme.labelMedium?.copyWith(
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w500,
         ),
         secondaryLabelStyle: textTheme.labelMedium?.copyWith(
-          color: AppColors.primary,
+          color: primary,
           fontWeight: FontWeight.w600,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -275,43 +262,33 @@ class AppTheme {
         side: BorderSide.none,
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Bottom Navigation - Clean & modern
-      // ─────────────────────────────────────────────────────────
+      // Bottom Navigation
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.glassWhite,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: primary,
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+        selectedLabelStyle: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
         unselectedLabelStyle: textTheme.labelSmall,
       ),
       
-      // ─────────────────────────────────────────────────────────
       // Icon Theme
-      // ─────────────────────────────────────────────────────────
       iconTheme: const IconThemeData(
         color: AppColors.textPrimary,
         size: 24,
       ),
       
-      // ─────────────────────────────────────────────────────────
       // Divider
-      // ─────────────────────────────────────────────────────────
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
         space: 1,
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Floating Action Button - Sleek & modern
-      // ─────────────────────────────────────────────────────────
+      // FAB — warna dari tenant
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
+        backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 4,
         shape: RoundedRectangleBorder(
@@ -319,9 +296,7 @@ class AppTheme {
         ),
       ),
       
-      // ─────────────────────────────────────────────────────────
       // Snackbar
-      // ─────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.textPrimary,
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
@@ -331,9 +306,7 @@ class AppTheme {
         ),
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Dialog - Soft & rounded
-      // ─────────────────────────────────────────────────────────
+      // Dialog
       dialogTheme: DialogThemeData(
         backgroundColor: Colors.white,
         elevation: 8,
@@ -346,9 +319,7 @@ class AppTheme {
         ),
       ),
       
-      // ─────────────────────────────────────────────────────────
-      // Bottom Sheet - Rounded top corners
-      // ─────────────────────────────────────────────────────────
+      // Bottom Sheet
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Colors.white,
         elevation: 8,

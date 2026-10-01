@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../config/app_config.dart';
 import '../utils/logger.dart';
@@ -15,8 +17,8 @@ class ApiClient {
   ApiClient({
     http.Client? httpClient,
     List<ApiInterceptor> interceptors = const [],
-  })  : _http = httpClient ?? http.Client(),
-        _interceptors = interceptors;
+  }) : _http = httpClient ?? http.Client(),
+       _interceptors = interceptors;
 
   Uri _buildUri(String path, [Map<String, dynamic>? queryParameters]) {
     final base = AppConfig.apiBaseUrl;
@@ -79,8 +81,52 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  Future<dynamic> postMultipart(
+    String path, {
+    Map<String, String> fields = const {},
+    String? fileField,
+    Uint8List? fileBytes,
+    String? filename,
+    String? contentType,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final uri = _buildUri(path, queryParameters);
+    final request = http.MultipartRequest('POST', uri);
+
+    final headers = await _defaultHeaders();
+    headers.remove('Content-Type');
+    request.headers.addAll(headers);
+    request.fields.addAll(fields);
+
+    if (fileField != null && fileBytes != null && filename != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fileField,
+          fileBytes,
+          filename: filename,
+          contentType: contentType == null
+              ? null
+              : _parseMediaType(contentType),
+        ),
+      );
+    }
+
+    final applied = await _applyInterceptors(request);
+    final streamed = await _http.send(applied);
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
+  MediaType _parseMediaType(String contentType) {
+    final parts = contentType.split('/');
+    if (parts.length != 2) return MediaType('application', 'octet-stream');
+    return MediaType(parts[0], parts[1]);
+  }
+
   dynamic _handleResponse(http.Response response) {
-    AppLogger.debug('HTTP ${response.request?.method} ${response.request?.url} -> ${response.statusCode}');
+    AppLogger.debug(
+      'HTTP ${response.request?.method} ${response.request?.url} -> ${response.statusCode}',
+    );
 
     dynamic decoded;
     try {
@@ -93,8 +139,13 @@ class ApiClient {
       return decoded;
     }
 
-    final message = _extractErrorMessage(decoded) ?? 'Terjadi kesalahan pada server';
-    throw ApiException(statusCode: response.statusCode, message: message, raw: decoded);
+    final message =
+        _extractErrorMessage(decoded) ?? 'Terjadi kesalahan pada server';
+    throw ApiException(
+      statusCode: response.statusCode,
+      message: message,
+      raw: decoded,
+    );
   }
 
   String? _extractErrorMessage(dynamic decoded) {
@@ -106,4 +157,3 @@ class ApiClient {
     return null;
   }
 }
-

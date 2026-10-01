@@ -4,18 +4,18 @@ import 'package:flutter/material.dart';
 /// Soft, translucent, with beautiful gradients
 class AppColors {
   // ═══════════════════════════════════════════════════════════
-  // PRIMARY COLORS - Gojek Green with subtle variations
+  // PRIMARY COLORS - Base Palette
   // ═══════════════════════════════════════════════════════════
-  static const Color primary = Color(0xFF00AA13);
-  static const Color primaryDark = Color(0xFF008A0F);
-  static const Color primaryLight = Color(0xFFE8F7EA);
-  static const Color primarySoft = Color(0xFFC8EECB); // For glass overlays
+  static const Color primary = Color(0xFF6F4E37); // Default Coffee Brown
+  static const Color primaryDark = Color(0xFF3E2723);
+  static const Color primaryLight = Color(0xFFEFEBE9);
+  static const Color primarySoft = Color(0xFFD7CCC8);
   
   // Primary Gradient
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00C916), Color(0xFF00AA13)],
+    colors: [Color(0xFF8D6E63), Color(0xFF6F4E37)],
   );
 
   // ═══════════════════════════════════════════════════════════
@@ -44,7 +44,7 @@ class AppColors {
   static const Color surfaceElevated = Color(0xFFFEFEFE);
   
   // Mesh Gradient Background Effect Colors
-  static const Color meshGradient1 = Color(0xFFE8F7EA); // Light green
+  static const Color meshGradient1 = Color(0xFFEFEBE9);
   static const Color meshGradient2 = Color(0xFFF0F4FF); // Light blue
   static const Color meshGradient3 = Color(0xFFFFF8E8); // Light warm yellow
 

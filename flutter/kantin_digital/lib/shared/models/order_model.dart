@@ -64,9 +64,13 @@ class OrderModel {
           : null,
       totalAmount: (json['total_amount'] as num).toInt(),
       items: rawItems is List
-          ? rawItems.map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>)).toList()
+          ? rawItems
+                .map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>))
+                .toList()
           : const [],
-      payment: json['payment'] is Map<String, dynamic> ? PaymentModel.fromJson(json['payment'] as Map<String, dynamic>) : null,
+      payment: json['payment'] is Map<String, dynamic>
+          ? PaymentModel.fromJson(json['payment'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

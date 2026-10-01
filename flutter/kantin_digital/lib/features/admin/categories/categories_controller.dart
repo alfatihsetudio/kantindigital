@@ -16,6 +16,10 @@ class AdminCategoriesController {
     await _service.updateCategory(id, name);
   }
 
+  Future<CategoryModel> toggleCategory(int id) async {
+    return _service.toggleCategory(id);
+  }
+
   Future<void> deleteCategory(int id) async {
     await _service.deleteCategory(id);
   }

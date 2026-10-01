@@ -61,6 +61,14 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     return 0;
   }
 
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
   Future<void> _loadStats() async {
     setState(() => _loading = true);
     try {
@@ -91,20 +99,20 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
         children: [
           // Background decorations
           _buildBackgroundDecorations(),
-          
+
           SafeArea(
             child: Column(
               children: [
                 // Custom App Bar
                 _buildAppBar(context),
-                
+
                 // Content
                 Expanded(
                   child: _loading
                       ? _buildLoadingState()
                       : _error != null
-                          ? _buildErrorState(_error!)
-                          : _buildContent(),
+                      ? _buildErrorState(_error!)
+                      : _buildContent(),
                 ),
               ],
             ),
@@ -184,13 +192,13 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Grafik Penjualan',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  'Laporan Penjualan',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  'Statistik dan Laporan',
+                  'Pemasukan, grafik, dan analisa',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -257,7 +265,11 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                 color: AppColors.dangerLight,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: AppColors.danger,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -288,13 +300,21 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     }
 
     final summary = _stats!['summary'] as Map<String, dynamic>? ?? {};
-    final dailySales = (_stats!['daily_sales'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final topMenus = (_stats!['top_menus'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final dailySales =
+        (_stats!['daily_sales'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final topMenus =
+        (_stats!['top_menus'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final busyDays =
+        (_stats!['busy_days'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final busiestDay = _stats!['busiest_day'] as Map<String, dynamic>? ?? {};
 
     final todayRevenue = _parseInt(summary['today_revenue']);
     final todayOrders = _parseInt(summary['today_orders']);
     final totalRevenue = _parseInt(summary['total_revenue']);
     final totalOrders = _parseInt(summary['total_orders']);
+    final monthRevenue = _parseInt(summary['month_revenue']);
+    final monthOrders = _parseInt(summary['month_orders']);
+    final averageOrderValue = _parseInt(summary['average_order_value']);
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -310,15 +330,23 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
               todayOrders: todayOrders,
               totalRevenue: totalRevenue,
               totalOrders: totalOrders,
+              monthRevenue: monthRevenue,
+              monthOrders: monthOrders,
+              averageOrderValue: averageOrderValue,
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Sales Chart
             _buildChartSection(dailySales),
-            
+
             const SizedBox(height: 24),
-            
+
+            // Busy Days
+            _buildBusyDaysSection(busyDays, busiestDay),
+
+            const SizedBox(height: 24),
+
             // Top Menus
             _buildTopMenusSection(topMenus),
           ],
@@ -332,6 +360,9 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     required int todayOrders,
     required int totalRevenue,
     required int totalOrders,
+    required int monthRevenue,
+    required int monthOrders,
+    required int averageOrderValue,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,9 +375,9 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
           icon: Icons.account_balance_wallet_rounded,
           gradient: AppColors.primaryGradient,
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Small Cards Row
         Row(
           children: [
@@ -365,6 +396,28 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                 value: '$totalOrders',
                 icon: Icons.receipt_long_rounded,
                 color: const Color(0xFFAB47BC),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _GlassSummaryCard(
+                title: 'Pemasukan Bulan Ini',
+                value: CurrencyFormatter.rupiah(monthRevenue),
+                icon: Icons.calendar_month_rounded,
+                color: const Color(0xFFFF9800),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _GlassSummaryCard(
+                title: '$monthOrders order, rata-rata',
+                value: CurrencyFormatter.rupiah(averageOrderValue),
+                icon: Icons.payments_rounded,
+                color: const Color(0xFF26A69A),
               ),
             ),
           ],
@@ -404,7 +457,7 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Penjualan 7 Hari Terakhir',
+                      'Pendapatan 7 Hari Terakhir',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -502,14 +555,18 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                             },
                           ),
                         ),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
-                        horizontalInterval: _getMaxValue(dailySales) > 0 
-                            ? _getMaxValue(dailySales) / 4 
+                        horizontalInterval: _getMaxValue(dailySales) > 0
+                            ? _getMaxValue(dailySales) / 4
                             : 25000,
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
@@ -569,13 +626,10 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                 children: [
                   Text(
                     'Menu Terlaris',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    'Bulan ini',
+                    '30 hari terakhir',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -621,10 +675,186 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
               name: menu['menu_name']?.toString() ?? 'Menu',
               quantity: menu['total_qty']?.toString() ?? '0',
               total: _parseInt(menu['total_sales']),
+              salesShare: _parseDouble(menu['sales_share']),
               index: index,
             );
           }),
       ],
+    );
+  }
+
+  Widget _buildBusyDaysSection(
+    List<Map<String, dynamic>> busyDays,
+    Map<String, dynamic> busiestDay,
+  ) {
+    final topDay = busiestDay['day']?.toString() ?? '-';
+    final topOrders = _parseInt(busiestDay['orders']);
+    final topRevenue = _parseInt(busiestDay['revenue']);
+    final maxOrders = busyDays.isEmpty
+        ? 0
+        : busyDays
+              .map((day) => _parseInt(day['orders']))
+              .reduce((a, b) => a > b ? a : b);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        boxShadow: AppTheme.shadowMd,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.query_stats_rounded,
+                  color: Color(0xFFFF9800),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Analisa Hari Ramai',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      topOrders > 0
+                          ? '$topDay paling ramai, $topOrders pesanan'
+                          : 'Belum ada pola hari ramai',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    topOrders > 0
+                        ? '$topDay menghasilkan ${CurrencyFormatter.rupiah(topRevenue)} dari $topOrders pesanan.'
+                        : 'Data akan terisi setelah ada pesanan yang dibayar atau diproses.',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (busyDays.isEmpty)
+            Center(
+              child: Text(
+                'Belum ada data hari',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            )
+          else
+            ...busyDays.map((day) {
+              final orders = _parseInt(day['orders']);
+              final revenue = _parseInt(day['revenue']);
+              final ratio = maxOrders > 0 ? orders / maxOrders : 0.0;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 56,
+                          child: Text(
+                            day['day']?.toString() ?? '-',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              minHeight: 8,
+                              value: ratio.clamp(0.0, 1.0),
+                              backgroundColor: AppColors.border,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                orders == maxOrders && orders > 0
+                                    ? AppColors.primary
+                                    : const Color(0xFF90CAF9),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 72,
+                          child: Text(
+                            '$orders order',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (revenue > 0) ...[
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 56),
+                        child: Text(
+                          CurrencyFormatter.rupiah(revenue),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
     );
   }
 
@@ -718,7 +948,10 @@ class _GlassSummaryHero extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
@@ -789,10 +1022,7 @@ class _GlassSummaryCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -809,6 +1039,7 @@ class _TopMenuCard extends StatelessWidget {
   final String name;
   final String quantity;
   final int total;
+  final double salesShare;
   final int index;
 
   const _TopMenuCard({
@@ -816,6 +1047,7 @@ class _TopMenuCard extends StatelessWidget {
     required this.name,
     required this.quantity,
     required this.total,
+    required this.salesShare,
     required this.index,
   });
 
@@ -854,10 +1086,7 @@ class _TopMenuCard extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(30 * (1 - value), 0),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -868,7 +1097,9 @@ class _TopMenuCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           boxShadow: [
             BoxShadow(
-              color: _getMedalColor().withValues(alpha: rank <= 3 ? 0.15 : 0.05),
+              color: _getMedalColor().withValues(
+                alpha: rank <= 3 ? 0.15 : 0.05,
+              ),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -917,7 +1148,7 @@ class _TopMenuCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // Menu info
             Expanded(
               child: Column(
@@ -948,12 +1179,33 @@ class _TopMenuCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      if (salesShare > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${salesShare.toStringAsFixed(salesShare % 1 == 0 ? 0 : 1)}%',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
               ),
             ),
-            
+
             // Total sales
             Text(
               CurrencyFormatter.rupiah(total),

@@ -66,6 +66,28 @@ class _AdminCategoriesPageState extends State<AdminCategoriesPage> {
     }
   }
 
+  Future<void> _toggleActive(CategoryModel cat) async {
+    try {
+      final updated = await _controller.toggleCategory(cat.id);
+      _reload();
+      if (!mounted) return;
+      TopNotification.show(
+        message: updated.isActive
+            ? '${cat.name} diaktifkan'
+            : '${cat.name} dinonaktifkan',
+        backgroundColor: updated.isActive ? AppColors.success : Colors.orange,
+        icon: updated.isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Gagal mengubah status: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_rounded,
+      );
+    }
+  }
+
   Future<void> _showForm({CategoryModel? category}) async {
     final nameController = TextEditingController(text: category?.name ?? '');
     await showDialog(
@@ -83,7 +105,7 @@ class _AdminCategoriesPageState extends State<AdminCategoriesPage> {
               final name = nameController.text.trim();
               if (name.isEmpty) return;
               
-              Navigator.pop(context); // Close dialog first to avoid context issues during async
+              Navigator.pop(context);
               
               try {
                 if (category == null) {
@@ -145,43 +167,27 @@ class _AdminCategoriesPageState extends State<AdminCategoriesPage> {
             return const Center(child: Text('Belum ada kategori'));
           }
 
-          return ListView.separated(
+          // Pisahkan aktif dan nonaktif
+          final activeItems = items.where((c) => c.isActive).toList();
+          final inactiveItems = items.where((c) => !c.isActive).toList();
+
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            separatorBuilder: (_, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final cat = items[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      cat.name[0].toUpperCase(),
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showForm(category: cat),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _delete(cat.id),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            children: [
+              // Aktif
+              if (activeItems.isNotEmpty) ...[
+                _buildSectionHeader('Aktif', Colors.green, Icons.check_circle),
+                const SizedBox(height: 8),
+                ...activeItems.map((cat) => _buildCategoryTile(cat)),
+              ],
+              // Nonaktif
+              if (inactiveItems.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildSectionHeader('Tidak Aktif', Colors.orange, Icons.pause_circle),
+                const SizedBox(height: 8),
+                ...inactiveItems.map((cat) => _buildCategoryTile(cat)),
+              ],
+            ],
           );
         },
       ),
@@ -189,6 +195,97 @@ class _AdminCategoriesPageState extends State<AdminCategoriesPage> {
         onPressed: () => _showForm(),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String label, Color color, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryTile(CategoryModel cat) {
+    final isActive = cat.isActive;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? AppColors.border : Colors.orange.shade200,
+            width: isActive ? 1 : 1.5,
+          ),
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: isActive
+                ? AppColors.primary.withValues(alpha: 0.1)
+                : Colors.orange.withValues(alpha: 0.1),
+            child: Text(
+              cat.name[0].toUpperCase(),
+              style: TextStyle(
+                color: isActive ? AppColors.primary : Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          title: Text(
+            cat.name,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isActive ? AppColors.textPrimary : Colors.grey,
+              decoration: isActive ? null : TextDecoration.none,
+            ),
+          ),
+          subtitle: Text(
+            isActive ? 'Tampil di menu pelanggan' : 'Disembunyikan dari pelanggan',
+            style: TextStyle(
+              fontSize: 11,
+              color: isActive ? Colors.green.shade600 : Colors.orange.shade600,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Toggle Switch
+              Tooltip(
+                message: isActive ? 'Nonaktifkan' : 'Aktifkan',
+                child: Switch(
+                  value: isActive,
+                  activeColor: Colors.green,
+                  inactiveThumbColor: Colors.orange,
+                  inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
+                  onChanged: (_) => _toggleActive(cat),
+                ),
+              ),
+              // Edit
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                tooltip: 'Edit',
+                onPressed: () => _showForm(category: cat),
+              ),
+              // Delete
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                tooltip: 'Hapus',
+                onPressed: () => _delete(cat.id),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -843,7 +843,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.primary),
+                          Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.primary),
                           const SizedBox(width: 6),
                           Text(
                             '$_totalItems Item',
@@ -915,7 +915,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.shopping_cart_rounded, color: AppColors.primary, size: 22),
+                Icon(Icons.shopping_cart_rounded, color: AppColors.primary, size: 22),
                 const SizedBox(width: 10),
                 const Text(
                   'Keranjang Pesanan',

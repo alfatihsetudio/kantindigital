@@ -261,7 +261,7 @@ class _ToppingSelectionCardState extends State<_ToppingSelectionCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: const Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                    child: Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
                   ),
                 )
               : Container(
@@ -312,7 +312,7 @@ class _ToppingSelectionCardState extends State<_ToppingSelectionCard> {
                         }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          child: const Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                          child: Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
                         ),
                       ),
                     ],

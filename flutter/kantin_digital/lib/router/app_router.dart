@@ -12,6 +12,7 @@ import '../features/admin/tables/tables_page.dart';
 import '../features/admin/toppings/toppings_page.dart';
 import '../features/admin/users/users_page.dart';
 import '../features/admin/qris/qris_setting_page.dart';
+import '../features/admin/profile/tenant_profile_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
 import '../features/customer/cart/cart_page.dart';
@@ -40,7 +41,7 @@ class AppRouter {
       if (uri != null) {
         final table = uri.queryParameters['table'];
         if (table != null && table.isNotEmpty) {
-           CartController.instance.setTableNumber(table);
+          CartController.instance.setTableNumber(table);
         }
       }
     }
@@ -53,8 +54,11 @@ class AppRouter {
     switch (routeName) {
       // customer
       case RouteName.customerMenu:
-        return MaterialPageRoute(builder: (_) => const MenuPage(), settings: settings);
-        
+        return MaterialPageRoute(
+          builder: (_) => const MenuPage(),
+          settings: settings,
+        );
+
       case RouteName.customerMenuDetail:
         return MaterialPageRoute(
           builder: (context) {
@@ -64,9 +68,15 @@ class AppRouter {
           settings: settings,
         );
       case RouteName.customerCart:
-        return MaterialPageRoute(builder: (_) => const CartPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const CartPage(),
+          settings: settings,
+        );
       case RouteName.customerCheckout:
-        return MaterialPageRoute(builder: (_) => const CheckoutPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const CheckoutPage(),
+          settings: settings,
+        );
       case RouteName.customerOrderStatus:
         return MaterialPageRoute(
           builder: (_) => const OrderStatusPage(),
@@ -79,39 +89,91 @@ class AppRouter {
         if (session.isAuthenticated && session.role != null) {
           switch (session.role!) {
             case UserRole.admin:
-              return MaterialPageRoute(builder: (_) => const AdminDashboardPage(), settings: const RouteSettings(name: RouteName.adminDashboard));
+              return MaterialPageRoute(
+                builder: (_) => const AdminDashboardPage(),
+                settings: const RouteSettings(name: RouteName.adminDashboard),
+              );
             case UserRole.cashier:
-              return MaterialPageRoute(builder: (_) => const CashierOrdersPage(), settings: const RouteSettings(name: RouteName.cashierOrders));
+              return MaterialPageRoute(
+                builder: (_) => const CashierOrdersPage(),
+                settings: const RouteSettings(name: RouteName.cashierOrders),
+              );
+            case UserRole.operations:
+              return MaterialPageRoute(
+                builder: (_) => const CashierOrdersPage(),
+                settings: const RouteSettings(name: RouteName.cashierOrders),
+              );
             case UserRole.manager:
-              return MaterialPageRoute(builder: (_) => const ManagerDashboardPage(), settings: const RouteSettings(name: RouteName.managerDashboard));
+              return MaterialPageRoute(
+                builder: (_) => const ManagerDashboardPage(),
+                settings: const RouteSettings(name: RouteName.managerDashboard),
+              );
           }
         }
-        return MaterialPageRoute(builder: (_) => const AdminLoginPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminLoginPage(),
+          settings: settings,
+        );
       case RouteName.adminDashboard:
-        return MaterialPageRoute(builder: (_) => const AdminDashboardPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminDashboardPage(),
+          settings: settings,
+        );
       case RouteName.adminCategories:
-        return MaterialPageRoute(builder: (_) => const AdminCategoriesPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminCategoriesPage(),
+          settings: settings,
+        );
       case RouteName.adminMenus:
-        return MaterialPageRoute(builder: (_) => const AdminMenusPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminMenusPage(),
+          settings: settings,
+        );
       case RouteName.adminToppings:
-        return MaterialPageRoute(builder: (_) => const AdminToppingsPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminToppingsPage(),
+          settings: settings,
+        );
 
       case RouteName.adminTables:
-        return MaterialPageRoute(builder: (_) => const AdminTablesPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminTablesPage(),
+          settings: settings,
+        );
       case RouteName.adminUsers:
-        return MaterialPageRoute(builder: (_) => const AdminUsersPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const AdminUsersPage(),
+          settings: settings,
+        );
       case RouteName.adminQris:
-        return MaterialPageRoute(builder: (_) => const QrisSettingPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const QrisSettingPage(),
+          settings: settings,
+        );
+      case RouteName.adminTenantProfile:
+        return MaterialPageRoute(
+          builder: (_) => const AdminTenantProfilePage(),
+          settings: settings,
+        );
 
       // cashier
       case RouteName.cashierOrders:
-        return MaterialPageRoute(builder: (_) => const CashierOrdersPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const CashierOrdersPage(),
+          settings: settings,
+        );
       case RouteName.cashierOrderDetail:
-        return MaterialPageRoute(builder: (_) => const CashierOrderDetailPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const CashierOrderDetailPage(),
+          settings: settings,
+        );
 
       // manager/pimpinan (read only)
       case RouteName.managerDashboard:
-        return MaterialPageRoute(builder: (_) => const ManagerDashboardPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const ManagerDashboardPage(),
+          settings: settings,
+        );
       case RouteName.managerMenus:
         final categoryArg = settings.arguments as String?;
         return MaterialPageRoute(
@@ -119,16 +181,27 @@ class AppRouter {
           settings: settings,
         );
       case RouteName.managerCategories:
-        return MaterialPageRoute(builder: (_) => const ManagerCategoriesPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const ManagerCategoriesPage(),
+          settings: settings,
+        );
       case RouteName.managerUsers:
-        return MaterialPageRoute(builder: (_) => const ManagerUsersPage(), settings: settings);
+        return MaterialPageRoute(
+          builder: (_) => const ManagerUsersPage(),
+          settings: settings,
+        );
       case RouteName.managerSales:
-        return MaterialPageRoute(builder: (_) => const ManagerSalesPage(), settings: settings);
-        
+        return MaterialPageRoute(
+          builder: (_) => const ManagerSalesPage(),
+          settings: settings,
+        );
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(child: Text('Route tidak ditemukan: ${settings.name}')),
+            body: Center(
+              child: Text('Route tidak ditemukan: ${settings.name}'),
+            ),
           ),
         );
     }

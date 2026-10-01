@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
 import '../../admin/widgets/admin_drawer.dart';
@@ -12,10 +15,14 @@ class AdminDashboardPage extends StatefulWidget {
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
 }
 
-class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTickerProviderStateMixin {
+class _AdminDashboardPageState extends State<AdminDashboardPage>
+    with SingleTickerProviderStateMixin {
+  final ApiClient _client = ApiClient();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  Map<String, dynamic>? _salesStats;
+  bool _salesLoading = true;
 
   @override
   void initState() {
@@ -28,14 +35,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
       parent: _animationController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _loadSalesStats();
     _animationController.forward();
+  }
+
+  int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  Future<void> _loadSalesStats() async {
+    try {
+      final response = await _client.get('/manager/stats');
+      if (!mounted) return;
+      setState(() {
+        _salesStats = response['data'] as Map<String, dynamic>?;
+        _salesLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _salesLoading = false);
+    }
   }
 
   @override
@@ -66,7 +96,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
                         opacity: _fadeAnimation,
                         child: SlideTransition(
                           position: _slideAnimation,
-                          child: _buildWelcomeCard(user?.name ?? 'Admin'),
+                          child: _buildWelcomeCard(user?.name ?? 'Owner'),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: _buildSalesReportSection(),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -152,12 +190,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
             borderRadius: BorderRadius.circular(12),
             boxShadow: AppTheme.shadowSm,
           ),
-            child: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
-                onPressed: () => Scaffold.of(context).openDrawer(),
+          child: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: AppColors.textPrimary,
               ),
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
+          ),
         ),
       ),
       actions: [
@@ -171,10 +212,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
             ),
             child: Row(
               children: [
-                const Icon(Icons.admin_panel_settings_rounded, size: 16, color: AppColors.primary),
+                const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  'Admin Mode',
+                  'Owner Mode',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
@@ -219,14 +264,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
                   '👋 Selamat Datang',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -241,7 +292,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
               ),
               const SizedBox(height: 8),
               Text(
-                'Kelola seluruh data operasional kantin dengan mudah dan aman.',
+                'Kelola usaha, pantau pemasukan, dan atur operasional dari satu tempat.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 14,
@@ -303,16 +354,386 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> with SingleTick
           crossAxisSpacing: 16,
           childAspectRatio: 1.1,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final action = actions[index];
-            return _GlassActionCard(
-              action: action,
-              index: index,
-            );
-          },
-          childCount: actions.length,
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final action = actions[index];
+          return _GlassActionCard(action: action, index: index);
+        }, childCount: actions.length),
+      ),
+    );
+  }
+
+  Widget _buildSalesReportSection() {
+    if (_salesLoading) {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: AppTheme.shadowSm,
         ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final stats = _salesStats;
+    if (stats == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: AppTheme.shadowSm,
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Laporan penjualan belum bisa dimuat.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final summary = stats['summary'] as Map<String, dynamic>? ?? {};
+    final dailySales =
+        (stats['daily_sales'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final topMenus =
+        (stats['top_menus'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final busiestDay = stats['busiest_day'] as Map<String, dynamic>? ?? {};
+
+    final todayRevenue = _parseInt(summary['today_revenue']);
+    final monthRevenue = _parseInt(summary['month_revenue']);
+    final totalRevenue = _parseInt(summary['total_revenue']);
+    final averageOrderValue = _parseInt(summary['average_order_value']);
+    final topMenu = topMenus.isNotEmpty
+        ? topMenus.first['menu_name']?.toString() ?? '-'
+        : '-';
+    final busyDay = busiestDay['day']?.toString() ?? '-';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppTheme.shadowMd,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.analytics_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Laporan Penjualan',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Pemasukan, grafik, produk, dan hari ramai',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Muat ulang',
+                onPressed: _loadSalesStats,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniReportCard(
+                  title: 'Hari Ini',
+                  value: CurrencyFormatter.rupiah(todayRevenue),
+                  color: AppColors.primary,
+                  icon: Icons.today_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniReportCard(
+                  title: 'Bulan Ini',
+                  value: CurrencyFormatter.rupiah(monthRevenue),
+                  color: const Color(0xFFFF9800),
+                  icon: Icons.calendar_month_rounded,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniReportCard(
+                  title: 'Total',
+                  value: CurrencyFormatter.rupiah(totalRevenue),
+                  color: const Color(0xFF42A5F5),
+                  icon: Icons.trending_up_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniReportCard(
+                  title: 'Rata-rata',
+                  value: CurrencyFormatter.rupiah(averageOrderValue),
+                  color: const Color(0xFF26A69A),
+                  icon: Icons.payments_rounded,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(height: 170, child: _buildSalesChart(dailySales)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightPill(
+                  icon: Icons.emoji_events_rounded,
+                  label: 'Produk terlaris',
+                  value: topMenu,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightPill(
+                  icon: Icons.query_stats_rounded,
+                  label: 'Hari ramai',
+                  value: busyDay,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, RouteName.managerSales),
+              icon: const Icon(Icons.bar_chart_rounded, size: 18),
+              label: const Text('Lihat Laporan Lengkap'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSalesChart(List<Map<String, dynamic>> dailySales) {
+    if (dailySales.isEmpty) {
+      return Center(
+        child: Text(
+          'Belum ada data grafik',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    final maxValue = dailySales
+        .map((item) => _parseInt(item['total']).toDouble())
+        .reduce((a, b) => a > b ? a : b);
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxValue > 0 ? maxValue * 1.2 : 100000,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: AppColors.border,
+            strokeWidth: 1,
+            dashArray: [5, 5],
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= dailySales.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    dailySales[index]['day']?.toString() ?? '',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barGroups: List.generate(dailySales.length, (index) {
+          final total = _parseInt(dailySales[index]['total']);
+          return BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: total.toDouble(),
+                width: 18,
+                gradient: AppColors.primaryGradient,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _MiniReportCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final Color color;
+  final IconData icon;
+
+  const _MiniReportCard({
+    required this.title,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _InsightPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -338,10 +759,7 @@ class _GlassActionCard extends StatelessWidget {
   final _ActionItem action;
   final int index;
 
-  const _GlassActionCard({
-    required this.action,
-    required this.index,
-  });
+  const _GlassActionCard({required this.action, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -352,10 +770,7 @@ class _GlassActionCard extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.scale(
           scale: 0.8 + (0.2 * value),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Material(
@@ -407,7 +822,7 @@ class _GlassActionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -419,11 +834,7 @@ class _GlassActionCard extends StatelessWidget {
                           color: action.color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Icon(
-                          action.icon,
-                          color: action.color,
-                          size: 26,
-                        ),
+                        child: Icon(action.icon, color: action.color, size: 26),
                       ),
                       const Spacer(),
                       Text(

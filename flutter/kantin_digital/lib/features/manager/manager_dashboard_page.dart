@@ -15,7 +15,7 @@ class ManagerDashboardPage extends StatefulWidget {
   State<ManagerDashboardPage> createState() => _ManagerDashboardPageState();
 }
 
-class _ManagerDashboardPageState extends State<ManagerDashboardPage> 
+class _ManagerDashboardPageState extends State<ManagerDashboardPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -32,13 +32,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
       parent: _animationController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
     _animationController.forward();
 
     // Set status bar style
@@ -67,17 +64,15 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
         children: [
           // Background gradient circles
           _buildBackgroundDecorations(),
-          
+
           // Main content
           SafeArea(
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // Custom App Bar
-                SliverToBoxAdapter(
-                  child: _buildCustomAppBar(context),
-                ),
-                
+                SliverToBoxAdapter(child: _buildCustomAppBar(context)),
+
                 // Welcome Card
                 SliverToBoxAdapter(
                   child: FadeTransition(
@@ -96,7 +91,7 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                     child: _buildQuickStats(),
                   ),
                 ),
-                
+
                 // Menu Section Title
                 SliverToBoxAdapter(
                   child: FadeTransition(
@@ -108,45 +103,49 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                         children: [
                           Text(
                             'Menu Laporan',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Semua data bersifat Read Only',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontStyle: FontStyle.italic,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-                
+
                 // Quick Actions Grid
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.0,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.0,
+                        ),
                     delegate: SliverChildListDelegate([
                       _GlassActionCard(
                         icon: Icons.bar_chart_rounded,
-                        title: 'Grafik Penjualan',
-                        subtitle: 'Lihat statistik harian',
+                        title: 'Laporan Penjualan',
+                        subtitle: 'Pemasukan dan analisa',
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [Color(0xFF00C853), Color(0xFF00AA13)],
                         ),
-                        onTap: () => Navigator.pushNamed(context, RouteName.managerSales),
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          RouteName.managerSales,
+                        ),
                         index: 0,
                       ),
                       _GlassActionCard(
@@ -158,7 +157,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                           end: Alignment.bottomRight,
                           colors: [Color(0xFF26A69A), Color(0xFF00897B)],
                         ),
-                        onTap: () => Navigator.pushNamed(context, RouteName.managerMenus),
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          RouteName.managerMenus,
+                        ),
                         index: 1,
                       ),
                       _GlassActionCard(
@@ -170,7 +172,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                           end: Alignment.bottomRight,
                           colors: [Color(0xFF42A5F5), Color(0xFF1E88E5)],
                         ),
-                        onTap: () => Navigator.pushNamed(context, RouteName.managerCategories),
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          RouteName.managerCategories,
+                        ),
                         index: 2,
                       ),
                       _GlassActionCard(
@@ -182,7 +187,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                           end: Alignment.bottomRight,
                           colors: [Color(0xFFAB47BC), Color(0xFF8E24AA)],
                         ),
-                        onTap: () => Navigator.pushNamed(context, RouteName.managerUsers),
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          RouteName.managerUsers,
+                        ),
                         index: 3,
                       ),
                     ]),
@@ -266,9 +274,7 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
           const Spacer(),
           // Quick Action Menu
           Theme(
-            data: Theme.of(context).copyWith(
-              cardColor: Colors.white,
-            ),
+            data: Theme.of(context).copyWith(cardColor: Colors.white),
             child: PopupMenuButton<String>(
               icon: Container(
                 padding: const EdgeInsets.all(10),
@@ -306,9 +312,16 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                   value: 'stats',
                   child: Row(
                     children: [
-                      Icon(Icons.bar_chart_rounded, size: 20, color: AppColors.primary),
+                      Icon(
+                        Icons.bar_chart_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
                       SizedBox(width: 12),
-                      Text('Grafik Penjualan', style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Laporan Penjualan',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -316,9 +329,16 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                   value: 'drawer',
                   child: Row(
                     children: [
-                      Icon(Icons.person_outline_rounded, size: 20, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
                       SizedBox(width: 12),
-                      Text('Menu & Akun', style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Menu & Akun',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -327,9 +347,19 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                   value: 'logout',
                   child: Row(
                     children: [
-                      Icon(Icons.logout_rounded, size: 20, color: AppColors.danger),
+                      Icon(
+                        Icons.logout_rounded,
+                        size: 20,
+                        color: AppColors.danger,
+                      ),
                       SizedBox(width: 12),
-                      Text('Keluar', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Keluar',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -426,7 +456,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
               ),
               const SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
@@ -525,7 +558,7 @@ class _GlassActionCard extends StatefulWidget {
   State<_GlassActionCard> createState() => _GlassActionCardState();
 }
 
-class _GlassActionCardState extends State<_GlassActionCard> 
+class _GlassActionCardState extends State<_GlassActionCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -537,9 +570,10 @@ class _GlassActionCardState extends State<_GlassActionCard>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -557,10 +591,7 @@ class _GlassActionCardState extends State<_GlassActionCard>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: GestureDetector(
@@ -628,11 +659,7 @@ class _GlassActionCardState extends State<_GlassActionCard>
                             ),
                           ],
                         ),
-                        child: Icon(
-                          widget.icon,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                        child: Icon(widget.icon, color: Colors.white, size: 24),
                       ),
                       const Spacer(),
                       // Title
