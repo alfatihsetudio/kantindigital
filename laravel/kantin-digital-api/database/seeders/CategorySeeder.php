@@ -9,7 +9,12 @@ class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        Category::insert([
+        Category::insert($this->templates());
+    }
+
+    public function templates(): array
+    {
+        return [
             ['name' => 'Nasi & Rice Bowl'],
             ['name' => 'Mie & Pasta'],
             ['name' => 'Ayam & Daging'],
@@ -18,6 +23,6 @@ class CategorySeeder extends Seeder
             ['name' => 'Minuman Dingin'],
             ['name' => 'Minuman Panas'],
             ['name' => 'Dessert'],
-        ]);
+        ];
     }
 }

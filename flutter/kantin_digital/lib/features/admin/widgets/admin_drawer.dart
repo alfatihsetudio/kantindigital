@@ -110,21 +110,10 @@ class AdminDrawer extends StatelessWidget {
               );
 
               try {
-                final auth = AdminAuthService();
-                final user = AuthSession().user;
-
-                // 1. Verify Old Password by Logging in
-                await auth.login(
-                  email: user?.email ?? '',
-                  password: currentPwdCtrl.text,
-                );
-
-                // 2. Change Password
                 final client = ApiClient();
                 await client.post(
                   '/change-password',
                   body: {
-                    'user_id': user?.id,
                     'current_password': currentPwdCtrl.text,
                     'new_password': newPwdCtrl.text,
                   },

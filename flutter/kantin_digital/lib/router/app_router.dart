@@ -4,6 +4,7 @@ import '../shared/models/menu_model.dart';
 import '../features/customer/cart/cart_controller.dart';
 
 import '../features/admin/auth/login_page.dart';
+import '../features/admin/auth/force_password_change_page.dart';
 import '../features/admin/categories/categories_page.dart';
 import '../features/admin/dashboard/dashboard_page.dart';
 
@@ -13,6 +14,7 @@ import '../features/admin/toppings/toppings_page.dart';
 import '../features/admin/users/users_page.dart';
 import '../features/admin/qris/qris_setting_page.dart';
 import '../features/admin/profile/tenant_profile_page.dart';
+import '../features/superadmin/superadmin_dashboard_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
 import '../features/customer/cart/cart_page.dart';
@@ -51,6 +53,13 @@ class AppRouter {
       routeName = RouteName.customerMenu;
     }
 
+    final session = AuthSession();
+    if (session.isAuthenticated &&
+        session.user?.mustChangePassword == true &&
+        routeName != RouteName.forcePasswordChange) {
+      routeName = RouteName.forcePasswordChange;
+    }
+
     switch (routeName) {
       // customer
       case RouteName.customerMenu:
@@ -85,9 +94,23 @@ class AppRouter {
 
       // admin
       case RouteName.adminLogin:
-        final session = AuthSession();
         if (session.isAuthenticated && session.role != null) {
+          if (session.user?.mustChangePassword == true) {
+            return MaterialPageRoute(
+              builder: (_) => const ForcePasswordChangePage(),
+              settings: const RouteSettings(
+                name: RouteName.forcePasswordChange,
+              ),
+            );
+          }
           switch (session.role!) {
+            case UserRole.superadmin:
+              return MaterialPageRoute(
+                builder: (_) => const SuperAdminDashboardPage(),
+                settings: const RouteSettings(
+                  name: RouteName.superAdminDashboard,
+                ),
+              );
             case UserRole.admin:
               return MaterialPageRoute(
                 builder: (_) => const AdminDashboardPage(),
@@ -113,6 +136,29 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const AdminLoginPage(),
           settings: settings,
+        );
+      case RouteName.forcePasswordChange:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const ForcePasswordChangePage(),
+          settings: settings,
+        );
+      case RouteName.superAdminDashboard:
+        if (AuthSession().isAuthenticated &&
+            AuthSession().role == UserRole.superadmin) {
+          return MaterialPageRoute(
+            builder: (_) => const SuperAdminDashboardPage(),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AdminLoginPage(),
+          settings: const RouteSettings(name: RouteName.adminLogin),
         );
       case RouteName.adminDashboard:
         return MaterialPageRoute(

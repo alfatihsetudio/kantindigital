@@ -8,6 +8,7 @@ class RouteName {
 
   // admin
   static const String adminLogin = '/admin/login';
+  static const String forcePasswordChange = '/account/change-password';
   static const String adminDashboard = '/admin/dashboard';
   static const String adminCategories = '/admin/categories';
   static const String adminMenus = '/admin/menus';
@@ -17,6 +18,9 @@ class RouteName {
   static const String adminUsers = '/admin/users';
   static const String adminQris = '/admin/qris';
   static const String adminTenantProfile = '/admin/profile';
+
+  // platform superadmin
+  static const String superAdminDashboard = '/superadmin/dashboard';
 
   // cashier
   static const String cashierOrders = '/cashier/orders';
@@ -29,4 +33,3 @@ class RouteName {
   static const String managerUsers = '/manager/users';
   static const String managerSales = '/manager/sales';
 }
-

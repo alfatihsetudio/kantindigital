@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/category_model.dart';
@@ -41,14 +41,19 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Hapus'),
           ),
@@ -82,8 +87,10 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
     final nameCtrl = TextEditingController(text: menu?.name ?? '');
     final priceCtrl = TextEditingController(text: menu?.price.toString() ?? '');
     final descCtrl = TextEditingController(text: menu?.description ?? '');
-    final imageUrlCtrl = TextEditingController(text: menu?.imageUrl ?? '');
-    
+    CompressedImageFile? selectedImage;
+    bool isCompressing = false;
+    bool isAvailable = menu?.isAvailable ?? true;
+
     // We need to fetch categories for the dropdown
     List<CategoryModel> categories = [];
     try {
@@ -95,7 +102,7 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
         backgroundColor: AppColors.danger,
         icon: Icons.error_rounded,
       );
-      return; 
+      return;
     }
 
     int? selectedCategory;
@@ -117,7 +124,9 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Container(
               padding: const EdgeInsets.all(24),
               constraints: const BoxConstraints(maxWidth: 400),
@@ -136,8 +145,7 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
-                    
-                    // Image Preview
+
                     Container(
                       height: 150,
                       decoration: BoxDecoration(
@@ -145,18 +153,37 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: imageUrlCtrl.text.isNotEmpty
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Image.memory(
+                                selectedImage!.bytes,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : (menu?.imageUrl?.isNotEmpty ?? false)
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(15),
                               child: Image.network(
-                                imageUrlCtrl.text,
+                                menu!.imageUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (ctx, err, st) => const Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image_rounded, size: 32, color: AppColors.textMuted),
-                                      Text('URL tidak valid', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                                      Icon(
+                                        Icons.broken_image_rounded,
+                                        size: 32,
+                                        color: AppColors.textMuted,
+                                      ),
+                                      Text(
+                                        'Gambar tidak dapat dimuat',
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -166,29 +193,82 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_photo_alternate_rounded, size: 32, color: AppColors.textMuted),
-                                  Text('Preview Gambar', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                                  Icon(
+                                    Icons.add_photo_alternate_rounded,
+                                    size: 32,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  Text(
+                                    'Preview Gambar',
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                     ),
-                    const SizedBox(height: 16),
-                    
-                    TextField(
-                      controller: imageUrlCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'URL Gambar',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.link),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: isCompressing
+                          ? null
+                          : () async {
+                              setState(() => isCompressing = true);
+                              try {
+                                final image =
+                                    await ImageUploadHelper.pickAndCompressImage(
+                                      maxDimension: 1200,
+                                      quality: 78,
+                                    );
+                                if (image != null) {
+                                  setState(() => selectedImage = image);
+                                }
+                              } catch (e) {
+                                if (!dialogContext.mounted) return;
+                                TopNotification.show(
+                                  message: 'Gagal memproses gambar: $e',
+                                  backgroundColor: AppColors.danger,
+                                  icon: Icons.error_rounded,
+                                );
+                              } finally {
+                                if (dialogContext.mounted) {
+                                  setState(() => isCompressing = false);
+                                }
+                              }
+                            },
+                      icon: isCompressing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cloud_upload_rounded),
+                      label: Text(
+                        isCompressing
+                            ? 'Memproses gambar...'
+                            : selectedImage == null
+                            ? 'Unggah Foto Menu'
+                            : 'Ganti Foto Menu',
                       ),
-                      onChanged: (value) => setState(() {}),
                     ),
+                    if (selectedImage != null)
+                      Text(
+                        'Foto dikompres: ${(selectedImage!.bytes.length / 1024).toStringAsFixed(0)} KB',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: nameCtrl,
                       decoration: InputDecoration(
                         labelText: 'Nama Menu',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         prefixIcon: const Icon(Icons.restaurant_menu),
                       ),
                     ),
@@ -198,20 +278,28 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                       value: selectedCategory,
                       decoration: InputDecoration(
                         labelText: 'Kategori',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         prefixIcon: const Icon(Icons.category),
                       ),
                       items: categories.map((c) {
-                        return DropdownMenuItem(value: c.id, child: Text(c.name));
+                        return DropdownMenuItem(
+                          value: c.id,
+                          child: Text(c.name),
+                        );
                       }).toList(),
-                      onChanged: (val) => setState(() => selectedCategory = val),
+                      onChanged: (val) =>
+                          setState(() => selectedCategory = val),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: priceCtrl,
                       decoration: InputDecoration(
                         labelText: 'Harga',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         prefixIcon: const Icon(Icons.attach_money),
                         suffixText: 'IDR',
                       ),
@@ -222,13 +310,30 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                       controller: descCtrl,
                       decoration: InputDecoration(
                         labelText: 'Deskripsi (Opsional)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         prefixIcon: const Icon(Icons.description),
                       ),
                       maxLines: 2,
                     ),
                     const SizedBox(height: 24),
-                    
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        isAvailable ? 'Menu Aktif' : 'Menu Tidak Aktif',
+                      ),
+                      subtitle: Text(
+                        isAvailable
+                            ? 'Menu dapat dilihat dan dipesan pelanggan'
+                            : 'Menu disembunyikan dari pelanggan',
+                      ),
+                      value: isAvailable,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (value) => setState(() => isAvailable = value),
+                    ),
+                    const SizedBox(height: 8),
+
                     Row(
                       children: [
                         Expanded(
@@ -236,19 +341,27 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                             onPressed: () => Navigator.pop(dialogContext),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               side: const BorderSide(color: AppColors.border),
                             ),
-                            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+                            child: const Text(
+                              'Batal',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () async {
-                              if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty || selectedCategory == null) {
+                              if (nameCtrl.text.isEmpty ||
+                                  priceCtrl.text.isEmpty ||
+                                  selectedCategory == null) {
                                 TopNotification.show(
-                                  message: 'Mohon lengkapi nama, harga, dan kategori',
+                                  message:
+                                      'Mohon lengkapi nama, harga, dan kategori',
                                   backgroundColor: AppColors.warning,
                                   icon: Icons.warning_rounded,
                                 );
@@ -260,23 +373,31 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                 'price': int.tryParse(priceCtrl.text) ?? 0,
                                 'category_id': selectedCategory,
                                 'description': descCtrl.text.trim(),
-                                'image_url': imageUrlCtrl.text.trim(),
-                                'is_available': 1,
+                                'is_available': isAvailable ? 1 : 0,
                               };
 
                               Navigator.pop(dialogContext);
 
                               try {
                                 if (menu == null) {
-                                  await _controller.addMenu(data);
+                                  await _controller.addMenu(
+                                    data,
+                                    image: selectedImage,
+                                  );
                                 } else {
-                                  await _controller.editMenu(menu.id, data);
+                                  await _controller.editMenu(
+                                    menu.id,
+                                    data,
+                                    image: selectedImage,
+                                  );
                                 }
                                 _reload();
                                 if (!mounted) return;
                                 // ignore: use_build_context_synchronously
                                 TopNotification.show(
-                                  message: menu == null ? 'Menu ditambahkan' : 'Menu diperbarui',
+                                  message: menu == null
+                                      ? 'Menu ditambahkan'
+                                      : 'Menu diperbarui',
                                   backgroundColor: AppColors.success,
                                   icon: Icons.check_circle_rounded,
                                 );
@@ -294,7 +415,9 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             child: const Text('Simpan'),
                           ),
@@ -348,19 +471,25 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
               ),
             ),
           ),
-          
+
           FutureBuilder<List<MenuModel>>(
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
               }
               if (snapshot.hasError) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 48,
+                        color: AppColors.danger,
+                      ),
                       const SizedBox(height: 16),
                       Text('Gagal memuat data: ${snapshot.error}'),
                       const SizedBox(height: 16),
@@ -378,11 +507,18 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.restaurant_menu_rounded, size: 64, color: AppColors.textMuted.withValues(alpha: 0.5)),
+                      Icon(
+                        Icons.restaurant_menu_rounded,
+                        size: 64,
+                        color: AppColors.textMuted.withValues(alpha: 0.5),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Belum ada menu tersimpan',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                        ),
                       ),
                     ],
                   ),
@@ -426,20 +562,27 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                   decoration: BoxDecoration(
                                     color: AppColors.background,
                                     borderRadius: BorderRadius.circular(12),
-                                    image: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                                    image:
+                                        menu.imageUrl != null &&
+                                            menu.imageUrl!.isNotEmpty
                                         ? DecorationImage(
                                             image: NetworkImage(menu.imageUrl!),
                                             fit: BoxFit.cover,
                                           )
                                         : null,
                                   ),
-                                  child: menu.imageUrl == null || menu.imageUrl!.isEmpty
-                                      ? const Icon(Icons.fastfood_rounded, color: AppColors.textMuted)
+                                  child:
+                                      menu.imageUrl == null ||
+                                          menu.imageUrl!.isEmpty
+                                      ? const Icon(
+                                          Icons.fastfood_rounded,
+                                          color: AppColors.textMuted,
+                                        )
                                       : null,
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              
+
                               // Content
                               Expanded(
                                 child: Column(
@@ -455,9 +598,14 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                     ),
                                     const SizedBox(height: 4),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -477,6 +625,35 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: menu.isAvailable
+                                            ? AppColors.success.withValues(
+                                                alpha: 0.1,
+                                              )
+                                            : AppColors.textMuted.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        menu.isAvailable
+                                            ? 'Aktif'
+                                            : 'Tidak Aktif',
+                                        style: TextStyle(
+                                          color: menu.isAvailable
+                                              ? AppColors.success
+                                              : AppColors.textMuted,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -485,12 +662,18 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                               Column(
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                                    icon: const Icon(
+                                      Icons.edit_rounded,
+                                      color: AppColors.primary,
+                                    ),
                                     onPressed: () => _showForm(menu: menu),
                                     tooltip: 'Edit',
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.danger,
+                                    ),
                                     onPressed: () => _delete(menu.id),
                                     tooltip: 'Hapus',
                                   ),
@@ -512,7 +695,10 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
         onPressed: () => _showForm(),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('Tambah Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Tambah Menu',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

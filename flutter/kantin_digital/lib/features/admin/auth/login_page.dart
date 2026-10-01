@@ -70,25 +70,25 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Login Staff',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      'Login Staff / Superadmin',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Email'),
                       validator: Validator.email,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Password'),
                       obscureText: true,
-                      validator: (v) => Validator.requiredText(v, label: 'Password'),
+                      validator: (v) =>
+                          Validator.requiredText(v, label: 'Password'),
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
@@ -99,7 +99,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     Center(
                       child: TextButton.icon(
                         onPressed: () {
-                          Navigator.of(context).pushReplacementNamed(RouteName.customerMenu);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(RouteName.customerMenu);
                         },
                         icon: const Icon(Icons.arrow_back_rounded, size: 18),
                         label: const Text('Kembali ke Halaman Pelanggan'),
@@ -118,4 +120,3 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     );
   }
 }
-

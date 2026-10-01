@@ -15,10 +15,7 @@ class AdminCategoriesService {
   }
 
   Future<void> updateCategory(int id, String name) async {
-    await _client.post('/categories/$id', body: {
-      'name': name,
-      '_method': 'PUT',
-    });
+    await _client.put('/categories/$id', body: {'name': name});
   }
 
   Future<CategoryModel> toggleCategory(int id) async {
@@ -27,8 +24,6 @@ class AdminCategoriesService {
   }
 
   Future<void> deleteCategory(int id) async {
-    await _client.post('/categories/$id', body: {
-      '_method': 'DELETE',
-    });
+    await _client.delete('/categories/$id');
   }
 }

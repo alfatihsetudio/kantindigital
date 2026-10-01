@@ -15,11 +15,10 @@ class AdminToppingsService {
   }
 
   Future<void> updateTopping(int id, Map<String, dynamic> body) async {
-    body['_method'] = 'PUT';
-    await _client.post('/toppings/$id', body: body);
+    await _client.put('/toppings/$id', body: body);
   }
 
   Future<void> deleteTopping(int id) async {
-    await _client.post('/toppings/$id', body: {'_method': 'DELETE'});
+    await _client.delete('/toppings/$id');
   }
 }

@@ -59,12 +59,16 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
   List<MenuModel> _filterItems(List<MenuModel> items) {
     var filtered = items;
     if (_selectedCategory != 'Semua') {
-      filtered = filtered.where((e) => e.categoryName == _selectedCategory).toList();
+      filtered = filtered
+          .where((e) => e.categoryName == _selectedCategory)
+          .toList();
     }
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((e) => 
-        e.name.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      filtered = filtered
+          .where(
+            (e) => e.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+          )
+          .toList();
     }
     return filtered;
   }
@@ -78,16 +82,16 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
         children: [
           // Background decorations
           _buildBackgroundDecorations(),
-          
+
           SafeArea(
             child: Column(
               children: [
                 // Custom App Bar
                 _buildAppBar(context),
-                
+
                 // Search Bar
                 _buildSearchBar(),
-                
+
                 // Content
                 Expanded(
                   child: FutureBuilder<List<MenuModel>>(
@@ -105,7 +109,10 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                       }
 
                       final filteredItems = _filterItems(items);
-                      final categories = ['Semua', ...items.map((e) => e.categoryName).toSet()];
+                      final categories = [
+                        'Semua',
+                        ...items.map((e) => e.categoryName).toSet(),
+                      ];
 
                       return FadeTransition(
                         opacity: _fadeAnimation,
@@ -113,21 +120,29 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                           children: [
                             // Category Chips
                             _buildCategoryChips(categories),
-                            
+
                             // Menu Count
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '${filteredItems.length} Menu Ditemukan',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppColors.primaryLight,
                                       borderRadius: BorderRadius.circular(20),
@@ -135,7 +150,11 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.visibility_rounded, size: 12, color: AppColors.primary),
+                                        Icon(
+                                          Icons.visibility_rounded,
+                                          size: 12,
+                                          color: AppColors.primary,
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           'Read Only',
@@ -151,14 +170,20 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                                 ],
                               ),
                             ),
-                            
+
                             // Menu List
                             Expanded(
                               child: ListView.separated(
                                 physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  8,
+                                  20,
+                                  100,
+                                ),
                                 itemCount: filteredItems.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   return _MenuGlassCard(
                                     menu: filteredItems[index],
@@ -252,9 +277,9 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
               children: [
                 Text(
                   'Daftar Menu',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   'Mode Read Only',
@@ -300,7 +325,10 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
           icon: Icon(Icons.search_rounded, color: AppColors.textMuted),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: () => setState(() => _searchQuery = ''),
                 )
               : null,
@@ -320,7 +348,7 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
         itemBuilder: (context, index) {
           final cat = categories[index];
           final isSelected = _selectedCategory == cat;
-          
+
           return GestureDetector(
             onTap: () => setState(() => _selectedCategory = cat),
             child: AnimatedContainer(
@@ -331,13 +359,15 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                 color: isSelected ? null : Colors.white,
                 borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 border: isSelected ? null : Border.all(color: AppColors.border),
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ] : AppTheme.shadowSm,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : AppTheme.shadowSm,
               ),
               child: Text(
                 cat,
@@ -393,15 +423,16 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
                 color: AppColors.dangerLight,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: AppColors.danger,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               'Terjadi Kesalahan',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
@@ -435,10 +466,7 @@ class _ManagerMenusPageState extends State<ManagerMenusPage>
           const SizedBox(height: 20),
           Text(
             'Belum Ada Menu',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ],
       ),
@@ -454,10 +482,7 @@ class _MenuGlassCard extends StatelessWidget {
   final MenuModel menu;
   final int index;
 
-  const _MenuGlassCard({
-    required this.menu,
-    required this.index,
-  });
+  const _MenuGlassCard({required this.menu, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -468,10 +493,7 @@ class _MenuGlassCard extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(30 * (1 - value), 0),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -517,7 +539,7 @@ class _MenuGlassCard extends StatelessWidget {
                   : _buildPlaceholder(),
             ),
             const SizedBox(width: 16),
-            
+
             // Content
             Expanded(
               child: Column(
@@ -536,11 +558,37 @@ class _MenuGlassCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: menu.isAvailable
+                              ? AppColors.success.withValues(alpha: 0.1)
+                              : AppColors.textMuted.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          menu.isAvailable ? 'Aktif' : 'Tidak Aktif',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: menu.isAvailable
+                                ? AppColors.success
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(6),

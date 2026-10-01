@@ -11,7 +11,10 @@ class ManualOrderService {
   Future<List<MenuModel>> getMenus() async {
     final response = await _client.get('/menus');
     final data = response['data'] as List;
-    return data.map((json) => MenuModel.fromJson(json)).toList();
+    return data
+        .map((json) => MenuModel.fromJson(json))
+        .where((menu) => menu.isAvailable)
+        .toList();
   }
 
   /// Fetch all tables
@@ -27,7 +30,7 @@ class ManualOrderService {
     if (menuId != null) {
       endpoint += '?menu_id=$menuId';
     }
-    
+
     final response = await _client.get(endpoint);
     final data = response['data'] as List;
     return data.map((json) => ToppingModel.fromJson(json)).toList();
@@ -64,7 +67,8 @@ class ManualOrderService {
       }).toList(),
     };
 
-    final json = await _client.post('/orders', body: body) as Map<String, dynamic>;
+    final json =
+        await _client.post('/orders', body: body) as Map<String, dynamic>;
     final data = json['data'] as Map<String, dynamic>;
     return (data['code'] ?? '').toString();
   }

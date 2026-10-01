@@ -1,9 +1,12 @@
-enum UserRole { admin, cashier, operations, manager }
+enum UserRole { superadmin, admin, cashier, operations, manager }
 
 extension UserRoleX on UserRole {
   static UserRole? fromApi(String? value) {
     if (value == null) return null;
     switch (value.toLowerCase()) {
+      case 'superadmin':
+      case 'super_admin':
+        return UserRole.superadmin;
       case 'admin':
       case 'operator':
         return UserRole.admin;
@@ -27,6 +30,8 @@ extension UserRoleX on UserRole {
 
   String get displayName {
     switch (this) {
+      case UserRole.superadmin:
+        return 'Superadmin Platform';
       case UserRole.admin:
         return 'Owner/Pemilik';
       case UserRole.cashier:

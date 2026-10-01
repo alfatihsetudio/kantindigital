@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenant;
 use Illuminate\Http\Request;
 
 class TenantController extends Controller
@@ -13,29 +12,28 @@ class TenantController extends Controller
      */
     public function info(Request $request)
     {
-        // Ambil tenant dari request/subdomain, atau fallback ke tenant pertama jika diakses via IP lokal
-        $tenant = app()->has('tenant') ? app('tenant') : Tenant::first();
+        $tenant = app()->has('tenant') ? app('tenant') : null;
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Tenant tidak ditemukan',
             ], 404);
         }
 
         return response()->json([
             'status' => true,
-            'data'   => [
-                'id'            => $tenant->id,
-                'subdomain'     => $tenant->subdomain,
-                'name'          => $tenant->name,
-                'logo_url'      => $tenant->logo_url,
+            'data' => [
+                'id' => $tenant->id,
+                'subdomain' => $tenant->subdomain,
+                'name' => $tenant->name,
+                'logo_url' => $tenant->logo_url,
                 'primary_color' => $tenant->primary_color,
-                'address'       => $tenant->address,
-                'phone'         => $tenant->phone,
-                'whatsapp'      => $tenant->whatsapp,
-                'plan'          => $tenant->plan,
-                'is_active'     => $tenant->is_active,
+                'address' => $tenant->address,
+                'phone' => $tenant->phone,
+                'whatsapp' => $tenant->whatsapp,
+                'plan' => $tenant->plan,
+                'is_active' => $tenant->is_active,
             ],
         ]);
     }
@@ -45,24 +43,24 @@ class TenantController extends Controller
      */
     public function update(Request $request)
     {
-        $tenant = app()->has('tenant') ? app('tenant') : Tenant::first();
+        $tenant = app()->has('tenant') ? app('tenant') : null;
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Tenant tidak ditemukan',
             ], 404);
         }
 
         $request->validate([
-            'name'          => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'primary_color' => 'nullable|string',
-            'logo_url'      => 'nullable|string',
-            'logo'          => 'nullable|image|max:2048',
-            'logo_base64'   => 'nullable|string',
-            'address'       => 'nullable|string',
-            'phone'         => 'nullable|string',
-            'whatsapp'      => 'nullable|string',
+            'logo_url' => 'nullable|string',
+            'logo' => 'nullable|image|max:2048',
+            'logo_base64' => 'nullable|string',
+            'address' => 'nullable|string',
+            'phone' => 'nullable|string',
+            'whatsapp' => 'nullable|string',
         ]);
 
         $data = $request->only(['name', 'logo_url', 'primary_color', 'address', 'phone', 'whatsapp']);
@@ -101,9 +99,9 @@ class TenantController extends Controller
         $tenant->update($data);
 
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Profil kantin berhasil diperbarui',
-            'data'    => $tenant,
+            'data' => $tenant,
         ]);
     }
 
@@ -117,20 +115,21 @@ class TenantController extends Controller
         $extension = in_array($extension, ['jpg', 'png'], true) ? $extension : 'jpg';
         $directory = public_path('uploads/logos');
 
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
-        $filename = 'logo_' . $tenant->id . '_' . time() . '.' . $extension;
-        $targetPath = $directory . DIRECTORY_SEPARATOR . $filename;
+        $filename = 'logo_'.$tenant->id.'_'.time().'.'.$extension;
+        $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
 
-        if (!extension_loaded('gd') || !function_exists('imagecreatefromstring')) {
+        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
             file_put_contents($targetPath, $binaryData);
-            return url('uploads/logos/' . $filename);
+
+            return url('uploads/logos/'.$filename);
         }
 
         $src = @imagecreatefromstring($binaryData);
-        if (!$src) {
+        if (! $src) {
             return null;
         }
 
@@ -164,6 +163,6 @@ class TenantController extends Controller
         imagedestroy($dst);
         imagedestroy($src);
 
-        return url('uploads/logos/' . $filename);
+        return url('uploads/logos/'.$filename);
     }
 }

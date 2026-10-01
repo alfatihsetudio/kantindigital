@@ -13,13 +13,19 @@ class MenuService {
     if (json is Map<String, dynamic>) {
       final raw = json['data'];
       if (raw is List) {
-        return raw.map((e) => MenuModel.fromJson(e as Map<String, dynamic>)).toList();
+        return raw
+            .map((e) => MenuModel.fromJson(e as Map<String, dynamic>))
+            .where((menu) => menu.isAvailable)
+            .toList();
       }
     }
 
     // fallback (kalau backend return list langsung)
     if (json is List) {
-      return json.map((e) => MenuModel.fromJson(e as Map<String, dynamic>)).toList();
+      return json
+          .map((e) => MenuModel.fromJson(e as Map<String, dynamic>))
+          .where((menu) => menu.isAvailable)
+          .toList();
     }
 
     return const [];
@@ -31,16 +37,19 @@ class MenuService {
     if (json is Map<String, dynamic>) {
       final raw = json['data'];
       if (raw is List) {
-        return raw.map((e) => ToppingModel.fromJson(e as Map<String, dynamic>)).toList();
+        return raw
+            .map((e) => ToppingModel.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     }
 
     // fallback (kalau backend return list langsung)
     if (json is List) {
-      return json.map((e) => ToppingModel.fromJson(e as Map<String, dynamic>)).toList();
+      return json
+          .map((e) => ToppingModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
 
     return const [];
   }
 }
-

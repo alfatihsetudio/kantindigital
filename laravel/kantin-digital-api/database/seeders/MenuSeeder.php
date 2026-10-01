@@ -9,7 +9,12 @@ class MenuSeeder extends Seeder
 {
     public function run(): void
     {
-        $menus = [
+        Menu::insert($this->templates());
+    }
+
+    public function templates(): array
+    {
+        return [
             // Nasi & Rice Bowl (category_id: 1)
             [
                 'category_id' => 1,
@@ -410,7 +415,5 @@ class MenuSeeder extends Seeder
                 'is_available' => true,
             ],
         ];
-
-        Menu::insert($menus);
     }
 }

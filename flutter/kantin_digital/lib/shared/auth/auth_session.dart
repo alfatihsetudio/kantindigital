@@ -43,21 +43,32 @@ class AuthSession extends ChangeNotifier {
     }
   }
 
-  void setSession({
-    required String token,
-    required UserModel user,
-  }) {
+  void setSession({required String token, required UserModel user}) {
     _token = token;
     _user = user;
     notifyListeners();
 
     // Persist to SharedPreferences
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString(_keyToken, token);
-      prefs.setString(_keyUser, jsonEncode(user.toJson()));
-    }).catchError((e) {
-      debugPrint('AuthSession persist error: $e');
-    });
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.setString(_keyToken, token);
+          prefs.setString(_keyUser, jsonEncode(user.toJson()));
+        })
+        .catchError((e) {
+          debugPrint('AuthSession persist error: $e');
+        });
+  }
+
+  void updateUser(UserModel user) {
+    _user = user;
+    notifyListeners();
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.setString(_keyUser, jsonEncode(user.toJson()));
+        })
+        .catchError((e) {
+          debugPrint('AuthSession persist error: $e');
+        });
   }
 
   void clear() {
@@ -66,11 +77,13 @@ class AuthSession extends ChangeNotifier {
     notifyListeners();
 
     // Remove from SharedPreferences
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.remove(_keyToken);
-      prefs.remove(_keyUser);
-    }).catchError((e) {
-      debugPrint('AuthSession clear error: $e');
-    });
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.remove(_keyToken);
+          prefs.remove(_keyUser);
+        })
+        .catchError((e) {
+          debugPrint('AuthSession clear error: $e');
+        });
   }
 }

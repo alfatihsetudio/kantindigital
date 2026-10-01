@@ -30,11 +30,22 @@ class OrderController extends Controller
             'items.*.notes' => ['nullable', 'string'],
         ]);
 
+        $unavailableMenus = Menu::whereIn(
+            'id',
+            collect($request->input('items'))->pluck('menu_id')->unique()
+        )->where('is_available', false)->pluck('name');
+        if ($unavailableMenus->isNotEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Menu tidak tersedia: '.$unavailableMenus->implode(', '),
+            ], 422);
+        }
+
         // table_code opsional: pesanan online bisa tanpa meja
         $tableId = null;
         if ($request->filled('table_code')) {
             $table = Table::where('code', $request->table_code)->first();
-            if (!$table) {
+            if (! $table) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Meja tidak ditemukan',
@@ -211,12 +222,12 @@ class OrderController extends Controller
     public function indexForCashier(Request $request)
     {
         $query = Order::with(['table', 'items.toppings']);
-        
+
         // Filter by status if provided
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
-        
+
         $orders = $query->orderByDesc('created_at')->limit(100)->get();
 
         return response()->json([
@@ -290,15 +301,15 @@ class OrderController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
             $dayName = now()->subDays($i)->format('D');
-            
+
             $total = Order::whereDate('created_at', $date)
                 ->whereIn('status', $paidStatuses)
                 ->sum('total_amount');
-            
+
             $orderCount = Order::whereDate('created_at', $date)
                 ->whereIn('status', $paidStatuses)
                 ->count();
-            
+
             $dailySales[] = [
                 'date' => $date,
                 'day' => $dayName,
@@ -340,6 +351,7 @@ class OrderController extends Controller
         $topMenusTotalQty = (int) $topMenus->sum('total_qty');
         $topMenus = $topMenus->map(function ($menu) use ($topMenusTotalQty) {
             $qty = (int) $menu->total_qty;
+
             return [
                 'menu_name' => $menu->menu_name,
                 'total_qty' => $qty,

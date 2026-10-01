@@ -81,6 +81,36 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  Future<dynamic> put(
+    String path, {
+    Map<String, dynamic>? body,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final uri = _buildUri(path, queryParameters);
+    final request = http.Request('PUT', uri);
+    request.headers.addAll(await _defaultHeaders());
+    if (body != null) request.body = jsonEncode(body);
+
+    final applied = await _applyInterceptors(request);
+    final streamed = await _http.send(applied);
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> delete(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final uri = _buildUri(path, queryParameters);
+    final request = http.Request('DELETE', uri);
+    request.headers.addAll(await _defaultHeaders());
+
+    final applied = await _applyInterceptors(request);
+    final streamed = await _http.send(applied);
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response);
+  }
+
   Future<dynamic> postMultipart(
     String path, {
     Map<String, String> fields = const {},

@@ -15,11 +15,10 @@ class AdminUsersService {
   }
 
   Future<void> updateUser(int id, Map<String, dynamic> body) async {
-    body['_method'] = 'PUT';
-    await _client.post('/users/$id', body: body);
+    await _client.put('/users/$id', body: body);
   }
 
   Future<void> deleteUser(int id) async {
-    await _client.post('/users/$id', body: {'_method': 'DELETE'});
+    await _client.delete('/users/$id');
   }
 }

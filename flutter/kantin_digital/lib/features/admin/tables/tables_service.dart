@@ -15,10 +15,10 @@ class AdminTablesService {
   }
 
   Future<void> updateTable(int id, String code) async {
-    await _client.post('/tables/$id', body: {'code': code, '_method': 'PUT'});
+    await _client.put('/tables/$id', body: {'code': code});
   }
 
   Future<void> deleteTable(int id) async {
-    await _client.post('/tables/$id', body: {'_method': 'DELETE'});
+    await _client.delete('/tables/$id');
   }
 }

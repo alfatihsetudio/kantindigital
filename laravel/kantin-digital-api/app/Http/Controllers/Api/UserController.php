@@ -29,6 +29,7 @@ class UserController extends Controller
 
         $data = $request->only(['name', 'email', 'password', 'role']);
         $data['password'] = Hash::make($request->password);
+        $data['must_change_password'] = true;
         if (app()->has('tenant')) {
             $data['tenant_id'] = app('tenant')->id;
         }
@@ -50,6 +51,7 @@ class UserController extends Controller
         $data = $request->only(['name', 'email', 'role']);
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
+            $data['must_change_password'] = true;
         }
 
         $user->update($data);

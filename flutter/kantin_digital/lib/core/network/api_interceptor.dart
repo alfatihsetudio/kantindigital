@@ -20,4 +20,3 @@ class AuthInterceptor implements ApiInterceptor {
     return request;
   }
 }
-

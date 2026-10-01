@@ -20,11 +20,19 @@ class AdminLoginController {
       final result = await _service.login(email: email, password: password);
       _session.setSession(token: result.token, user: result.user);
 
+      if (result.user.mustChangePassword) {
+        onNavigate(RouteName.forcePasswordChange);
+        return null;
+      }
+
       // Redirect berdasar role
       final role = result.user.role;
       switch (role) {
         case null:
           return 'Role user tidak ditemukan';
+        case UserRole.superadmin:
+          onNavigate(RouteName.superAdminDashboard);
+          break;
         case UserRole.admin:
           onNavigate(RouteName.adminDashboard);
           break;

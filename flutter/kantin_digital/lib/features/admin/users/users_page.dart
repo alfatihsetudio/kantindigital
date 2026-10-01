@@ -311,6 +311,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   String _getRoleLabel(UserRole? role) {
     switch (role) {
+      case UserRole.superadmin:
+        return 'Superadmin Platform';
       case UserRole.admin:
         return 'Owner/Pemilik';
       case UserRole.cashier:

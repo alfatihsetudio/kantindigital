@@ -25,46 +25,41 @@ class ImageUploadHelper {
     int maxDimension = 400,
     int quality = 80,
   }) async {
-    try {
-      final input = html.FileUploadInputElement()..accept = 'image/*';
-      input.click();
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
 
-      await input.onChange.first;
-      if (input.files == null || input.files!.isEmpty) return null;
+    await input.onChange.first;
+    if (input.files == null || input.files!.isEmpty) return null;
 
-      final file = input.files!.first;
-      final reader = html.FileReader();
-      reader.readAsArrayBuffer(file);
-      await reader.onLoadEnd.first;
+    final file = input.files!.first;
+    final reader = html.FileReader();
+    reader.readAsArrayBuffer(file);
+    await reader.onLoadEnd.first;
 
-      final rawBytes = reader.result as Uint8List;
+    final rawBytes = reader.result as Uint8List;
 
-      // Decode gambar menggunakan package:image
-      final image = img.decodeImage(rawBytes);
-      if (image == null) return null;
-
-      // Resize jika dimensi melebihi batas max
-      img.Image resized = image;
-      if (image.width > maxDimension || image.height > maxDimension) {
-        if (image.width >= image.height) {
-          resized = img.copyResize(image, width: maxDimension);
-        } else {
-          resized = img.copyResize(image, height: maxDimension);
-        }
-      }
-
-      // Encode kembali ke JPEG terkompresi
-      final compressedBytes = Uint8List.fromList(
-        img.encodeJpg(resized, quality: quality),
-      );
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      return CompressedImageFile(
-        bytes: compressedBytes,
-        filename: 'logo_$timestamp.jpg',
-        mimeType: 'image/jpeg',
-      );
-    } catch (_) {
-      return null;
+    final image = img.decodeImage(rawBytes);
+    if (image == null) {
+      throw const FormatException('File yang dipilih bukan gambar yang valid.');
     }
+
+    img.Image resized = image;
+    if (image.width > maxDimension || image.height > maxDimension) {
+      if (image.width >= image.height) {
+        resized = img.copyResize(image, width: maxDimension);
+      } else {
+        resized = img.copyResize(image, height: maxDimension);
+      }
+    }
+
+    final compressedBytes = Uint8List.fromList(
+      img.encodeJpg(resized, quality: quality),
+    );
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return CompressedImageFile(
+      bytes: compressedBytes,
+      filename: 'image_$timestamp.jpg',
+      mimeType: 'image/jpeg',
+    );
   }
 }
