@@ -25,10 +25,9 @@ class Tenant extends Model
         if (empty($value)) return null;
         $path = parse_url($value, PHP_URL_PATH);
         if (!empty($path) && str_starts_with($path, '/uploads/')) {
-            if (request()->hasHeader('host')) {
-                return request()->getSchemeAndHttpHost() . $path;
-            }
-            return url(ltrim($path, '/'));
+            $host = request()->header('x-forwarded-host') ?? request()->header('host') ?? request()->getHost();
+            $scheme = (request()->isSecure() || request()->header('x-forwarded-proto') === 'https' || !app()->isLocal()) ? 'https' : 'http';
+            return "{$scheme}://{$host}{$path}";
         }
         return $value;
     }

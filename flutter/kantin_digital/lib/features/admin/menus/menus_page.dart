@@ -562,23 +562,29 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                   decoration: BoxDecoration(
                                     color: AppColors.background,
                                     borderRadius: BorderRadius.circular(12),
-                                    image:
-                                        menu.imageUrl != null &&
-                                            menu.imageUrl!.isNotEmpty
-                                        ? DecorationImage(
-                                            image: NetworkImage(menu.imageUrl!),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
                                   ),
-                                  child:
-                                      menu.imageUrl == null ||
-                                          menu.imageUrl!.isEmpty
-                                      ? const Icon(
-                                          Icons.fastfood_rounded,
-                                          color: AppColors.textMuted,
-                                        )
-                                      : null,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                                        ? Image.network(
+                                            menu.imageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (ctx, err, st) => const Center(
+                                              child: Icon(
+                                                Icons.fastfood_rounded,
+                                                color: AppColors.textMuted,
+                                                size: 32,
+                                              ),
+                                            ),
+                                          )
+                                        : const Center(
+                                            child: Icon(
+                                              Icons.fastfood_rounded,
+                                              color: AppColors.textMuted,
+                                              size: 32,
+                                            ),
+                                          ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
