@@ -44,14 +44,17 @@ class TenantModel {
 
   static String? _resolveUrl(dynamic raw) {
     if (raw == null) return null;
-    final str = raw.toString().trim();
+    var str = raw.toString().trim();
     if (str.isEmpty) return null;
     if (str.startsWith('/')) {
       return '${ApiConfig.webBaseUrl}$str';
     }
-    if (kIsWeb && (str.contains('.test') || str.contains('localhost')) && !Uri.base.host.contains('.test') && !Uri.base.host.contains('localhost')) {
+    if (kIsWeb && Uri.base.scheme == 'https' && str.startsWith('http://')) {
+      str = 'https://${str.substring(7)}';
+    }
+    if (kIsWeb && str.contains('/uploads/')) {
       final parsed = Uri.tryParse(str);
-      if (parsed != null && parsed.path.isNotEmpty) {
+      if (parsed != null && parsed.host != Uri.base.host && parsed.path.isNotEmpty) {
         return '${ApiConfig.webBaseUrl}${parsed.path}';
       }
     }

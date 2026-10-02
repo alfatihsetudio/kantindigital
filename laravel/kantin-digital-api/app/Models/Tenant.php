@@ -23,14 +23,14 @@ class Tenant extends Model
     public function getLogoUrlAttribute($value): ?string
     {
         if (empty($value)) return null;
-        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
-            $parsed = parse_url($value);
-            if (!empty($parsed['path']) && str_starts_with($parsed['path'], '/uploads/')) {
-                return url(ltrim($parsed['path'], '/'));
+        $path = parse_url($value, PHP_URL_PATH);
+        if (!empty($path) && str_starts_with($path, '/uploads/')) {
+            if (request()->hasHeader('host')) {
+                return request()->getSchemeAndHttpHost() . $path;
             }
-            return $value;
+            return url(ltrim($path, '/'));
         }
-        return url(ltrim($value, '/'));
+        return $value;
     }
 
     public function categories() { return $this->hasMany(Category::class); }
