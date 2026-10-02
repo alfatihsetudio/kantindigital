@@ -11,7 +11,8 @@ class Tenant extends Model
 
     protected $fillable = [
         'subdomain', 'name', 'logo_url', 'primary_color',
-        'address', 'phone', 'whatsapp', 'plan', 'expires_at', 'is_active',
+        'address', 'meta_title', 'meta_description', 'meta_image',
+        'phone', 'whatsapp', 'plan', 'expires_at', 'is_active',
     ];
 
     protected $casts = [
