@@ -21,6 +21,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _addressCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _whatsappCtrl = TextEditingController();
+  final _metaTitleCtrl = TextEditingController();
+  final _metaDescCtrl = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -58,6 +60,19 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _loadTenantData();
   }
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _logoCtrl.dispose();
+    _colorCtrl.dispose();
+    _addressCtrl.dispose();
+    _phoneCtrl.dispose();
+    _whatsappCtrl.dispose();
+    _metaTitleCtrl.dispose();
+    _metaDescCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadTenantData() async {
     setState(() => _isLoading = true);
     try {
@@ -69,6 +84,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _addressCtrl.text = tenant.address ?? '';
       _phoneCtrl.text = tenant.phone ?? '';
       _whatsappCtrl.text = tenant.whatsapp ?? '';
+      _metaTitleCtrl.text = tenant.metaTitle ?? '';
+      _metaDescCtrl.text = tenant.metaDescription ?? '';
     } catch (e) {
       debugPrint('Error loading tenant: $e');
     } finally {
@@ -107,6 +124,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         'address': _addressCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'whatsapp': _whatsappCtrl.text.trim(),
+        'meta_title': _metaTitleCtrl.text.trim(),
+        'meta_description': _metaDescCtrl.text.trim(),
       };
 
       if (_newLogo == null) {
@@ -607,6 +626,180 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                               labelText: 'Alamat Kantin / Usaha',
                               hintText: 'Contoh: Lantai 2 Gedung Utama...',
                               prefixIcon: Icon(Icons.location_on_outlined),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 24),
+                          const Divider(),
+                          const SizedBox(height: 16),
+
+                          // 6. PREVIEW LINK SOSIAL MEDIA (META TAGS)
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: activeThemeColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.share_rounded,
+                                  size: 18,
+                                  color: activeThemeColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Preview Link Sosial Media (WhatsApp / FB)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Kustomisasi judul dan teks ringkasan yang muncul saat link website kantin Anda dibagikan ke WhatsApp, Telegram, Facebook, dll.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // WhatsApp Style Link Preview
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0F2F5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.chat_bubble_outline_rounded,
+                                      size: 14,
+                                      color: Color(0xFF25D366),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Simulasi tampilan saat link dibagikan di chat:',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 70,
+                                        height: 70,
+                                        decoration: BoxDecoration(
+                                          color: activeThemeColor.withValues(alpha: 0.1),
+                                          borderRadius: const BorderRadius.horizontal(
+                                            left: Radius.circular(10),
+                                          ),
+                                        ),
+                                        child: _buildLogoPreview(activeThemeColor),
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _metaTitleCtrl.text.isNotEmpty
+                                                    ? _metaTitleCtrl.text
+                                                    : (_nameCtrl.text.isNotEmpty
+                                                        ? _nameCtrl.text
+                                                        : 'Nama Kantin'),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                  color: Colors.black87,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                _metaDescCtrl.text.isNotEmpty
+                                                    ? _metaDescCtrl.text
+                                                    : (_addressCtrl.text.isNotEmpty
+                                                        ? _addressCtrl.text
+                                                        : 'Pesan menu favorit Anda langsung dari smartphone tanpa perlu antre.'),
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey.shade600,
+                                                  height: 1.25,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'ekasir.my.id',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey.shade400,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 6a. Judul Preview Link (Meta Title)
+                          TextFormField(
+                            controller: _metaTitleCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Judul Preview Link (Meta Title)',
+                              hintText: 'Contoh: SAY COFFEE - Ngopi Santai & Nikmat',
+                              prefixIcon: Icon(Icons.title_rounded),
+                              helperText: 'Judul link saat dibagikan. Kosongkan jika ingin sama dengan Nama Kantin.',
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 6b. Deskripsi Preview Link (Meta Description)
+                          TextFormField(
+                            controller: _metaDescCtrl,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Deskripsi Preview Link (Meta Description)',
+                              hintText: 'Contoh: Pesan berbagai macam varian kopi susu aren, teh segar, dan camilan nikmat langsung dari smartphone Anda.',
+                              prefixIcon: Icon(Icons.description_outlined),
+                              helperText: 'Teks deskripsi ringkasan yang muncul di bawah judul saat link dibagikan.',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),

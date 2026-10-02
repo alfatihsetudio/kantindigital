@@ -13,6 +13,8 @@ class TenantModel {
   final String? whatsapp;
   final String plan;
   final bool isActive;
+  final String? metaTitle;
+  final String? metaDescription;
 
   const TenantModel({
     required this.id,
@@ -25,6 +27,8 @@ class TenantModel {
     this.whatsapp,
     this.plan = 'free',
     this.isActive = true,
+    this.metaTitle,
+    this.metaDescription,
   });
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +43,8 @@ class TenantModel {
       whatsapp: json['whatsapp']?.toString(),
       plan: json['plan']?.toString() ?? 'free',
       isActive: json['is_active'] == true || json['is_active'] == 1,
+      metaTitle: json['meta_title']?.toString(),
+      metaDescription: json['meta_description']?.toString(),
     );
   }
 
@@ -83,6 +89,8 @@ class TenantModel {
       'whatsapp': whatsapp,
       'plan': plan,
       'is_active': isActive,
+      'meta_title': metaTitle,
+      'meta_description': metaDescription,
     };
   }
 
