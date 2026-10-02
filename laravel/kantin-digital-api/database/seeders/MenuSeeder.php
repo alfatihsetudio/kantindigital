@@ -5,11 +5,22 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Menu;
 
+use App\Models\Tenant;
+
 class MenuSeeder extends Seeder
 {
     public function run(): void
     {
-        Menu::insert($this->templates());
+        $tenant = Tenant::where('subdomain', 'saycoffee')->first();
+        $tenantId = $tenant?->id;
+
+        foreach ($this->templates() as $tpl) {
+            $tpl['tenant_id'] = $tenantId;
+            Menu::firstOrCreate(
+                ['name' => $tpl['name'], 'tenant_id' => $tenantId],
+                $tpl
+            );
+        }
     }
 
     public function templates(): array

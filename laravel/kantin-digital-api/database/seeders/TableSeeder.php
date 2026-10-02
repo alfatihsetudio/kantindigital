@@ -40,10 +40,16 @@ class TableSeeder extends Seeder
             ['code' => 'V3', 'name' => 'VIP Room 3 (12 orang)'],
         ];
 
+        $tenant = \App\Models\Tenant::where('subdomain', 'saycoffee')->first();
+        $tenantId = $tenant?->id;
+
         foreach ($tables as $table) {
             Table::firstOrCreate(
-                ['code' => $table['code']],
-                ['name' => $table['name']]
+                ['code' => $table['code'], 'tenant_id' => $tenantId],
+                [
+                    'name' => $table['name'],
+                    'tenant_id' => $tenantId,
+                ]
             );
         }
     }

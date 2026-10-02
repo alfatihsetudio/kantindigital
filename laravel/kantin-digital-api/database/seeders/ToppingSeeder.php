@@ -73,9 +73,16 @@ class ToppingSeeder extends Seeder
             ['name' => 'Level Pedas 5 (DEVIL)', 'price' => 3000],
         ];
 
+        $tenant = \App\Models\Tenant::where('subdomain', 'saycoffee')->first();
+        $tenantId = $tenant?->id;
+
         // Create toppings and attach to relevant menus
         foreach ($toppings as $data) {
-            $topping = Topping::create($data);
+            $data['tenant_id'] = $tenantId;
+            $topping = Topping::firstOrCreate(
+                ['name' => $data['name'], 'tenant_id' => $tenantId],
+                $data
+            );
             $name = strtolower($data['name']);
 
             // Define category IDs based on topping type
