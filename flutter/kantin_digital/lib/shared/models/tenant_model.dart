@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/config/api_config.dart';
 
 class TenantModel {
   final int id;
@@ -30,7 +32,7 @@ class TenantModel {
       id: (json['id'] as num).toInt(),
       subdomain: json['subdomain']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Kantin Digital',
-      logoUrl: json['logo_url']?.toString(),
+      logoUrl: _resolveUrl(json['logo_url']),
       primaryColor: json['primary_color']?.toString() ?? '#00AA13',
       address: json['address']?.toString(),
       phone: json['phone']?.toString(),
@@ -38,6 +40,22 @@ class TenantModel {
       plan: json['plan']?.toString() ?? 'free',
       isActive: json['is_active'] == true || json['is_active'] == 1,
     );
+  }
+
+  static String? _resolveUrl(dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.startsWith('/')) {
+      return '${ApiConfig.webBaseUrl}$str';
+    }
+    if (kIsWeb && (str.contains('.test') || str.contains('localhost')) && !Uri.base.host.contains('.test') && !Uri.base.host.contains('localhost')) {
+      final parsed = Uri.tryParse(str);
+      if (parsed != null && parsed.path.isNotEmpty) {
+        return '${ApiConfig.webBaseUrl}${parsed.path}';
+      }
+    }
+    return str;
   }
 
   /// Parse hex color string → Color

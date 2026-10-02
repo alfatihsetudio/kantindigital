@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import '../../core/config/api_config.dart';
+
 class MenuModel {
   final int id;
   final String name;
@@ -23,10 +26,26 @@ class MenuModel {
       name: (json['name'] ?? '').toString(),
       categoryName: (json['category_name'] ?? '').toString(),
       price: (json['price'] as num).toInt(),
-      imageUrl: json['image_url']?.toString(),
+      imageUrl: _resolveUrl(json['image_url']),
       description: json['description']?.toString(),
       isAvailable: _parseAvailability(json['is_available']),
     );
+  }
+
+  static String? _resolveUrl(dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim();
+    if (str.isEmpty) return null;
+    if (str.startsWith('/')) {
+      return '${ApiConfig.webBaseUrl}$str';
+    }
+    if (kIsWeb && (str.contains('.test') || str.contains('localhost')) && !Uri.base.host.contains('.test') && !Uri.base.host.contains('localhost')) {
+      final parsed = Uri.tryParse(str);
+      if (parsed != null && parsed.path.isNotEmpty) {
+        return '${ApiConfig.webBaseUrl}${parsed.path}';
+      }
+    }
+    return str;
   }
 
   static bool _parseAvailability(dynamic value) {
