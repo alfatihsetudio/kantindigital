@@ -5,20 +5,68 @@ import '../models/tenant_model.dart';
 class TenantService {
   static TenantModel? _cached;
 
+  /// Deteksi apakah pengguna mengakses domain utama (ekasir.my.id) tanpa subdomain tenant
+  static bool get isRootDomain {
+    if (!kIsWeb) return false;
+    return currentSubdomain == null;
+  }
+
   /// Deteksi subdomain dari URL browser (Web) atau fallback
   static String? get currentSubdomain {
     if (!kIsWeb) return null;
-    final host = Uri.base.host; // e.g. saycoffee.kasirdigital.test
-    final parts = host.split('.');
-    if (parts.length >= 3) {
-      return parts.first; // "saycoffee"
+    final host = Uri.base.host.toLowerCase().trim();
+    if (host.isEmpty ||
+        host == 'localhost' ||
+        host == '127.0.0.1' ||
+        RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(host)) {
+      return null;
     }
+
+    final parts = host.split('.');
+
+    // Kasus 1: TLD 2 tingkat seperti .my.id, .co.id, .web.id
+    // ekasir.my.id -> 3 parts: ['ekasir', 'my', 'id'] -> Root domain, tidak ada tenant
+    // saycoffee.ekasir.my.id -> 4 parts: ['saycoffee', 'ekasir', 'my', 'id'] -> tenant: saycoffee
+    final isTwoLevelTld =
+        parts.length >= 2 &&
+        (parts[parts.length - 2] == 'my' ||
+            parts[parts.length - 2] == 'co' ||
+            parts[parts.length - 2] == 'web' ||
+            parts[parts.length - 2] == 'or' ||
+            parts[parts.length - 2] == 'ac' ||
+            parts[parts.length - 2] == 'sch') &&
+        parts.last == 'id';
+
+    if (isTwoLevelTld) {
+      if (parts.length > 3) {
+        final sub = parts.first;
+        if (sub != 'www') return sub;
+      }
+      return null;
+    }
+
+    // Kasus 2: Domain standar seperti kasirdigital.com, kasir.test
+    // kasirdigital.com -> 2 parts -> Root domain
+    // saycoffee.kasirdigital.com -> 3 parts -> tenant: saycoffee
+    if (parts.length >= 3) {
+      final sub = parts.first;
+      if (sub != 'www' && sub != 'ekasir' && sub != 'kasirdigital') {
+        return sub;
+      }
+    }
+
     return null;
   }
 
   /// Fetch info tenant dari API
   static Future<TenantModel> fetchTenantInfo() async {
     if (_cached != null) return _cached!;
+
+    // Jika di root domain (ekasir.my.id), gunakan profil platform root eKasir
+    if (isRootDomain) {
+      _cached = TenantModel.platformRoot;
+      return TenantModel.platformRoot;
+    }
 
     try {
       final client = ApiClient();
@@ -36,5 +84,7 @@ class TenantService {
   static void clearCache() => _cached = null;
 
   /// Return cached tenant or fallback
-  static TenantModel get current => _cached ?? TenantModel.fallback;
+  static TenantModel get current =>
+      _cached ??
+      (isRootDomain ? TenantModel.platformRoot : TenantModel.fallback);
 }

@@ -40,6 +40,10 @@ class ApiClient {
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
+    final tenantSubdomain = AuthSession().tenantSubdomain;
+    if (tenantSubdomain != null && tenantSubdomain.isNotEmpty) {
+      headers['X-Tenant'] = tenantSubdomain;
+    }
     return headers;
   }
 

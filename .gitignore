@@ -30,7 +30,8 @@ Thumbs.db
 /flutter/kantin_digital/.flutter-plugins-dependencies
 /flutter/kantin_digital/.pub-cache/
 /flutter/kantin_digital/.pub/
-/flutter/kantin_digital/build/
+/flutter/kantin_digital/build/*
+!/flutter/kantin_digital/build/web/
 /flutter/kantin_digital/coverage/
 /flutter/kantin_digital/android/app/debug
 /flutter/kantin_digital/android/app/profile

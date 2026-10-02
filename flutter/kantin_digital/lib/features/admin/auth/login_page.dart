@@ -4,6 +4,7 @@ import '../../../core/utils/validator.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../router/route_name.dart';
+import '../../../shared/services/tenant_service.dart';
 import 'login_controller.dart';
 
 class AdminLoginPage extends StatefulWidget {
@@ -99,12 +100,18 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     Center(
                       child: TextButton.icon(
                         onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pushReplacementNamed(RouteName.customerMenu);
+                          if (TenantService.isRootDomain) {
+                            Navigator.of(context).pushReplacementNamed(RouteName.landingPage);
+                          } else {
+                            Navigator.of(context).pushReplacementNamed(RouteName.customerMenu);
+                          }
                         },
                         icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                        label: const Text('Kembali ke Halaman Pelanggan'),
+                        label: Text(
+                          TenantService.isRootDomain
+                              ? 'Kembali ke Beranda'
+                              : 'Kembali ke Halaman Menu',
+                        ),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey[600],
                         ),

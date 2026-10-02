@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../shared/models/menu_model.dart';
 import '../features/customer/cart/cart_controller.dart';
+import '../features/landing/landing_page.dart';
+import '../shared/services/tenant_service.dart';
 
 import '../features/admin/auth/login_page.dart';
 import '../features/admin/auth/force_password_change_page.dart';
@@ -61,8 +63,21 @@ class AppRouter {
     }
 
     switch (routeName) {
+      // platform landing page
+      case RouteName.landingPage:
+        return MaterialPageRoute(
+          builder: (_) => const LandingPage(),
+          settings: settings,
+        );
+
       // customer
       case RouteName.customerMenu:
+        if (TenantService.isRootDomain) {
+          return MaterialPageRoute(
+            builder: (_) => const LandingPage(),
+            settings: settings,
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const MenuPage(),
           settings: settings,

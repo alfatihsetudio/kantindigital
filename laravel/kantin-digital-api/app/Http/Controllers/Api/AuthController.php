@@ -31,17 +31,27 @@ class AuthController extends Controller
             if ($user->tenant_id !== null || app()->has('tenant')) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Email atau Password salah',
-                ], 401);
+                    'message' => 'Akun Superadmin hanya dapat login melalui domain utama platform.',
+                ], 403);
             }
-        } elseif (
-            ! app()->has('tenant')
-            || (int) $user->tenant_id !== (int) app('tenant')->id
-        ) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Email atau Password salah',
-            ], 401);
+        } else {
+            if (app()->has('tenant')) {
+                if ((int) $user->tenant_id !== (int) app('tenant')->id) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Akun Anda tidak terdaftar pada tenant ini.',
+                    ], 403);
+                }
+            } else {
+                // Login dari domain utama (ekasir.my.id)
+                $user->load('tenant');
+                if (! $user->tenant || ! $user->tenant->is_active) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Tenant Anda tidak aktif atau ditangguhkan.',
+                    ], 403);
+                }
+            }
         }
 
         $user->tokens()->delete();
@@ -53,6 +63,7 @@ class AuthController extends Controller
             'data' => [
                 'token' => $token,
                 'user' => $user,
+                'tenant' => $user->tenant,
             ],
         ]);
     }

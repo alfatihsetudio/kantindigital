@@ -1,4 +1,7 @@
 class RouteName {
+  // landing page platform utama
+  static const String landingPage = '/landing';
+
   // customer
   static const String customerMenu = '/';
   static const String customerMenuDetail = '/menu-detail';

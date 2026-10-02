@@ -18,7 +18,11 @@ class AdminLoginController {
   }) async {
     try {
       final result = await _service.login(email: email, password: password);
-      _session.setSession(token: result.token, user: result.user);
+      _session.setSession(
+        token: result.token,
+        user: result.user,
+        tenant: result.tenant,
+      );
 
       if (result.user.mustChangePassword) {
         onNavigate(RouteName.forcePasswordChange);

@@ -50,12 +50,30 @@ class TenantModel {
     }
   }
 
-  /// Default tenant jika gagal load
-  static const TenantModel fallback = TenantModel(
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'subdomain': subdomain,
+      'name': name,
+      'logo_url': logoUrl,
+      'primary_color': primaryColor,
+      'address': address,
+      'phone': phone,
+      'whatsapp': whatsapp,
+      'plan': plan,
+      'is_active': isActive,
+    };
+  }
+
+  /// Default tenant platform utama (ekasir.my.id)
+  static const TenantModel platformRoot = TenantModel(
     id: 0,
-    subdomain: 'default',
-    name: 'Kantin Digital',
-    primaryColor: '#00AA13',
-    plan: 'free',
+    subdomain: '',
+    name: 'eKasir',
+    primaryColor: '#2563EB',
+    plan: 'enterprise',
   );
+
+  /// Default tenant jika gagal load
+  static const TenantModel fallback = platformRoot;
 }
