@@ -70,14 +70,22 @@ class MetaController extends Controller
         }
 
         // Cari file index.html Flutter Web
-        $htmlPath = public_path('index.html');
-        if (!File::exists($htmlPath)) {
-            $htmlPath = base_path('../flutter/kantin_digital/build/web/index.html');
+        $candidates = [
+            public_path('index.html'),
+            base_path('../../flutter/kantin_digital/build/web/index.html'),
+            base_path('../flutter/kantin_digital/build/web/index.html'),
+            '/www/wwwroot/ekasir.my.id/flutter/kantin_digital/build/web/index.html',
+        ];
+
+        $html = null;
+        foreach ($candidates as $candidate) {
+            if (File::exists($candidate)) {
+                $html = File::get($candidate);
+                break;
+            }
         }
 
-        if (File::exists($htmlPath)) {
-            $html = File::get($htmlPath);
-        } else {
+        if ($html === null) {
             $html = $this->defaultHtmlTemplate();
         }
 
