@@ -23,6 +23,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _whatsappCtrl = TextEditingController();
   final _metaTitleCtrl = TextEditingController();
   final _metaDescCtrl = TextEditingController();
+  final _menuCodePrefixCtrl = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -70,6 +71,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _whatsappCtrl.dispose();
     _metaTitleCtrl.dispose();
     _metaDescCtrl.dispose();
+    _menuCodePrefixCtrl.dispose();
     super.dispose();
   }
 
@@ -78,6 +80,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     try {
       final tenant = await TenantService.fetchTenantInfo();
       _nameCtrl.text = tenant.name;
+      _menuCodePrefixCtrl.text = tenant.menuCodePrefix ?? 'SAY';
       _logoCtrl.text = tenant.logoUrl ?? '';
       _selectedColor = tenant.primaryColor;
       _colorCtrl.text = tenant.primaryColor;
@@ -120,6 +123,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       final client = ApiClient();
       final fields = <String, String>{
         'name': _nameCtrl.text.trim(),
+        'menu_code_prefix': _menuCodePrefixCtrl.text.trim().toUpperCase(),
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
@@ -378,6 +382,20 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                 val == null || val.trim().isEmpty
                                 ? 'Nama kantin wajib diisi'
                                 : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 1.1 KODE PREFIX MENU
+                          TextFormField(
+                            controller: _menuCodePrefixCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: const InputDecoration(
+                              labelText: 'Prefix / Singkatan Kode Menu',
+                              hintText: 'Contoh: SAY (Hasil: SAY-01, SAY-02)',
+                              prefixIcon: Icon(Icons.tag_rounded),
+                              helperText: 'Awalan kode unik menu di flyer & aplikasi agar pesanan tidak tertukar.',
+                            ),
                             onChanged: (_) => setState(() {}),
                           ),
                           const SizedBox(height: 20),

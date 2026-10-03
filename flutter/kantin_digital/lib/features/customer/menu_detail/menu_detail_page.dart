@@ -7,6 +7,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/menu_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../cart/cart_controller.dart';
 
 import '../../../shared/models/topping_model.dart';
@@ -222,20 +223,48 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Category badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              menu.categoryName,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          // Category badge & Kode Menu Flyer
+          Builder(
+            builder: (context) {
+              final prefix = TenantProvider.of(context).menuCodePrefix;
+              final codeText = menu.formattedCode(prefix);
+              return Row(
+                children: [
+                  if (codeText.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        codeText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      menu.categoryName,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           
@@ -245,7 +274,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             children: [
               Expanded(
                 child: Text(
-                  menu.name,
+                  menu.displayName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,

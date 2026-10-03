@@ -84,6 +84,7 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
   }
 
   Future<void> _showForm({MenuModel? menu}) async {
+    final codeCtrl = TextEditingController(text: menu?.code ?? '');
     final nameCtrl = TextEditingController(text: menu?.name ?? '');
     final priceCtrl = TextEditingController(text: menu?.price.toString() ?? '');
     final descCtrl = TextEditingController(text: menu?.description ?? '');
@@ -262,15 +263,36 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                         ),
                       ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Nama Menu',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: TextField(
+                            controller: codeCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Kode (cth: 01)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.tag_rounded),
+                            ),
+                          ),
                         ),
-                        prefixIcon: const Icon(Icons.restaurant_menu),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: nameCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Nama Menu',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.restaurant_menu),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
@@ -369,6 +391,7 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                               }
 
                               final data = {
+                                'code': codeCtrl.text.trim(),
                                 'name': nameCtrl.text.trim(),
                                 'price': int.tryParse(priceCtrl.text) ?? 0,
                                 'category_id': selectedCategory,

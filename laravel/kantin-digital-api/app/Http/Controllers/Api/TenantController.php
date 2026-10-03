@@ -37,6 +37,7 @@ class TenantController extends Controller
                 'is_active' => $tenant->is_active,
                 'meta_title' => $tenant->meta_title,
                 'meta_description' => $tenant->meta_description,
+                'menu_code_prefix' => $tenant->menu_code_prefix ?? 'SAY',
             ],
         ]);
     }
@@ -57,6 +58,7 @@ class TenantController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
+            'menu_code_prefix' => 'nullable|string|max:20',
             'primary_color' => 'nullable|string',
             'logo_url' => 'nullable|string',
             'logo' => 'nullable|image|max:2048',
@@ -68,7 +70,7 @@ class TenantController extends Controller
             'meta_description' => 'nullable|string|max:1000',
         ]);
 
-        $data = $request->only(['name', 'logo_url', 'primary_color', 'address', 'phone', 'whatsapp', 'meta_title', 'meta_description']);
+        $data = $request->only(['name', 'menu_code_prefix', 'logo_url', 'primary_color', 'address', 'phone', 'whatsapp', 'meta_title', 'meta_description']);
 
         if ($request->hasFile('logo')) {
             // Handle upload file multipart dari Flutter, lalu kompres sebelum disimpan.

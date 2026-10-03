@@ -7,6 +7,7 @@ import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/table_model.dart';
 import '../../../shared/models/topping_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import 'manual_order_service.dart';
 import 'widgets/item_customization_sheet.dart';
 
@@ -90,8 +91,11 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   }
 
   List<MenuModel> get _filteredMenus {
-    if (_selectedCategory == 'Semua') return _menus;
-    return _menus.where((m) => m.categoryName == _selectedCategory).toList();
+    var list = _selectedCategory == 'Semua'
+        ? List<MenuModel>.from(_menus)
+        : _menus.where((m) => m.categoryName == _selectedCategory).toList();
+    list.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
+    return list;
   }
 
   int get _totalAmount {
@@ -1311,15 +1315,45 @@ class _MenuCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  menu.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final prefix = TenantProvider.of(context).menuCodePrefix;
+                    final codeText = menu.formattedCode(prefix);
+                    return Row(
+                      children: [
+                        if (codeText.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              codeText,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                        Expanded(
+                          child: Text(
+                            menu.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -1469,11 +1503,41 @@ class _CartItemTile extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            menu.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          Builder(
+                            builder: (context) {
+                              final prefix = TenantProvider.of(context).menuCodePrefix;
+                              final codeText = menu.formattedCode(prefix);
+                              return Row(
+                                children: [
+                                  if (codeText.isNotEmpty) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        codeText,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      menu.displayName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 4),
                           Text(

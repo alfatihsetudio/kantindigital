@@ -20,6 +20,7 @@ class MenuController extends Controller
             ->map(function ($menu) {
                 return [
                     'id' => $menu->id,
+                    'code' => $menu->code,
                     'name' => $menu->name,
                     'description' => $menu->description,
                     'price' => $menu->price,
@@ -39,6 +40,7 @@ class MenuController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'code' => 'nullable|string|max:50',
             'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric|min:0',
@@ -48,7 +50,7 @@ class MenuController extends Controller
         ]);
 
         $data = $request->only([
-            'name', 'category_id', 'price', 'description', 'is_available',
+            'code', 'name', 'category_id', 'price', 'description', 'is_available',
         ]);
         if ($request->hasFile('image')) {
             $data['image_url'] = $this->storeCompressedImage($request->file('image'));
@@ -67,6 +69,7 @@ class MenuController extends Controller
         }
 
         $request->validate([
+            'code' => 'nullable|string|max:50',
             'name' => 'sometimes|required|string|max:255',
             'category_id' => 'sometimes|required|exists:categories,id',
             'price' => 'sometimes|required|numeric|min:0',
@@ -76,7 +79,7 @@ class MenuController extends Controller
         ]);
 
         $data = $request->only([
-            'name', 'category_id', 'price', 'description', 'is_available',
+            'code', 'name', 'category_id', 'price', 'description', 'is_available',
         ]);
         if ($request->hasFile('image')) {
             $previousImage = $menu->image_url;

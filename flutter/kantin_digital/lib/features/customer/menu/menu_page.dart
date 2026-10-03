@@ -33,6 +33,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   Color get _brandColor => TenantProvider.of(context).primaryColorValue;
+  String get _menuPrefix => TenantProvider.of(context).menuCodePrefix ?? 'SAY';
   LinearGradient get _brandGradient => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -100,7 +101,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   }
 
   List<MenuModel> _filterItems(List<MenuModel> items) {
-    var filtered = items;
+    var filtered = List<MenuModel>.from(items);
+
+    // Urutkan sesuai urutan resmi Flyer Say Coffee
+    filtered.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
     
     // Filter by Category
     if (_selectedCategory != 'Semua') {
@@ -109,8 +113,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     
     // Filter by Search Query
     if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
       filtered = filtered.where((e) => 
-        e.name.toLowerCase().contains(_searchQuery.toLowerCase())
+        e.name.toLowerCase().contains(q) ||
+        (e.code != null && e.code!.toLowerCase().contains(q)) ||
+        e.formattedCode(_menuPrefix).toLowerCase().contains(q) ||
+        e.sequenceNumber.contains(q)
       ).toList();
     }
     
@@ -834,6 +842,9 @@ class _MenuCard extends StatelessWidget {
       ],
     );
 
+    final prefix = TenantProvider.of(context).menuCodePrefix;
+    final menuCode = menu.formattedCode(prefix);
+
     return TapScaleContainer(
       onTap: () {
         Navigator.of(context).pushNamed(
@@ -883,6 +894,35 @@ class _MenuCard extends StatelessWidget {
                           )
                         : _buildPlaceholder(brandColor),
                   ),
+                  // Badge kode menu sesuai Flyer (misal: SAY-01)
+                  if (menuCode.isNotEmpty)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: brandColor,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          menuCode,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -895,13 +935,41 @@ class _MenuCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      menu.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        if (menuCode.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: brandColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: brandColor.withValues(alpha: 0.25),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              menuCode,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: brandColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: Text(
+                            menu.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(

@@ -15,6 +15,7 @@ class TenantModel {
   final bool isActive;
   final String? metaTitle;
   final String? metaDescription;
+  final String? menuCodePrefix;
 
   const TenantModel({
     required this.id,
@@ -29,6 +30,7 @@ class TenantModel {
     this.isActive = true,
     this.metaTitle,
     this.metaDescription,
+    this.menuCodePrefix = 'SAY',
   });
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,7 @@ class TenantModel {
       isActive: json['is_active'] == true || json['is_active'] == 1,
       metaTitle: json['meta_title']?.toString(),
       metaDescription: json['meta_description']?.toString(),
+      menuCodePrefix: json['menu_code_prefix']?.toString() ?? 'SAY',
     );
   }
 
@@ -91,6 +94,7 @@ class TenantModel {
       'is_active': isActive,
       'meta_title': metaTitle,
       'meta_description': metaDescription,
+      'menu_code_prefix': menuCodePrefix,
     };
   }
 
