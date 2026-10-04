@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        RateLimiter::for('public-orders', function (Request $request) {
+            $tenantId = app()->has('tenant') ? app('tenant')->id : 'platform';
+            $key = "public-orders:{$tenantId}:{$request->ip()}";
+
+            return [
+                Limit::perMinute(5)->by("{$key}:minute"),
+                Limit::perHour(30)->by("{$key}:hour"),
+            ];
+        });
     }
 }

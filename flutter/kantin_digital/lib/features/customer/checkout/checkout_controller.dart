@@ -1,5 +1,6 @@
 import '../cart/cart_controller.dart';
 import '../../../shared/models/cart_item_model.dart';
+import '../../../core/network/api_exception.dart';
 import 'checkout_service.dart';
 import '../../../core/network/api_client.dart';
 
@@ -34,6 +35,8 @@ class CheckoutController {
         paymentMethod: paymentMethod,
       );
       return CheckoutResult.success(code);
+    } on ApiException catch (e) {
+      return CheckoutResult.error(e.userMessage);
     } catch (e) {
       return CheckoutResult.error(e.toString());
     }

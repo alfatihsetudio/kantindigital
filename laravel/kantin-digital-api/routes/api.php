@@ -5,18 +5,18 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QrisSettingController;
+use App\Http\Controllers\Api\RegisterStoreController;
 use App\Http\Controllers\Api\SuperAdminController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\ToppingController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\RegisterStoreController;
 use Illuminate\Support\Facades\Route;
 
 // Public (customer & self-service registration)
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
-Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
 Route::get('/orders/{code}', [OrderController::class, 'show']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/check-subdomain', [RegisterStoreController::class, 'checkSubdomain']);

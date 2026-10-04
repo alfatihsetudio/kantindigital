@@ -10,12 +10,15 @@ use App\Models\OrderItemTopping;
 use App\Models\Table;
 use App\Models\Topping;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
     public function store(Request $request)
     {
+        $tenantId = app()->has('tenant') ? app('tenant')->id : null;
         $request->validate([
             'table_code' => ['nullable', 'string'],
             'order_type' => ['nullable', 'string', 'in:dine_in,pickup,delivery'],
@@ -23,11 +26,20 @@ class OrderController extends Controller
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:20'],
             'payment_method' => ['nullable', 'string', 'in:qris,cash'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.menu_id' => ['required', 'integer', 'exists:menus,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.topping_ids' => ['array'],
-            'items.*.notes' => ['nullable', 'string'],
+            'items' => ['required', 'array', 'min:1', 'max:20'],
+            'items.*.menu_id' => [
+                'required',
+                'integer',
+                Rule::exists('menus', 'id')->where('tenant_id', $tenantId),
+            ],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:20'],
+            'items.*.topping_ids' => ['sometimes', 'array', 'max:5'],
+            'items.*.topping_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
+            ],
+            'items.*.notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         $unavailableMenus = Menu::whereIn(
@@ -65,58 +77,60 @@ class OrderController extends Controller
             $tableId = null;
         }
 
-        $orderCode = strtoupper(Str::random(8));
-
-        $order = Order::create([
-            'code' => $orderCode,
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $request->customer_phone,
-            'table_id' => $tableId,
-            'order_type' => $orderType,
-            'delivery_address' => $orderType === 'delivery'
-                ? $request->delivery_address
-                : null,
-            'status' => 'UNPAID',
-            'payment_method' => $request->payment_method ?? 'qris',
-            'total_amount' => 0,
-        ]);
-
-        $total = 0;
-
-        foreach ($request->items as $itemData) {
-            /** @var \App\Models\Menu $menu */
-            $menu = Menu::findOrFail($itemData['menu_id']);
-            $quantity = (int) $itemData['quantity'];
-
-            $orderItem = OrderItem::create([
-                'order_id' => $order->id,
-                'menu_id' => $menu->id,
-                'menu_name' => $menu->name,
-                'price' => $menu->price,
-                'quantity' => $quantity,
-                'notes' => $itemData['notes'] ?? null,
+        $order = DB::transaction(function () use ($request, $tableId, $orderType) {
+            $order = Order::create([
+                'code' => strtoupper(Str::random(8)),
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'table_id' => $tableId,
+                'order_type' => $orderType,
+                'delivery_address' => $orderType === 'delivery'
+                    ? $request->delivery_address
+                    : null,
+                'status' => 'UNPAID',
+                'payment_method' => $request->payment_method ?? 'qris',
+                'total_amount' => 0,
             ]);
 
-            $lineTotal = $menu->price * $quantity;
+            $total = 0;
 
-            $toppingIds = $itemData['topping_ids'] ?? [];
-            if (is_array($toppingIds) && count($toppingIds)) {
-                $toppings = Topping::whereIn('id', $toppingIds)->get();
-                foreach ($toppings as $topping) {
-                    OrderItemTopping::create([
-                        'order_item_id' => $orderItem->id,
-                        'topping_id' => $topping->id,
-                        'topping_name' => $topping->name,
-                        'topping_price' => $topping->price,
-                    ]);
-                    $lineTotal += $topping->price;
+            foreach ($request->items as $itemData) {
+                /** @var \App\Models\Menu $menu */
+                $menu = Menu::findOrFail($itemData['menu_id']);
+                $quantity = (int) $itemData['quantity'];
+
+                $orderItem = OrderItem::create([
+                    'order_id' => $order->id,
+                    'menu_id' => $menu->id,
+                    'menu_name' => $menu->name,
+                    'price' => $menu->price,
+                    'quantity' => $quantity,
+                    'notes' => $itemData['notes'] ?? null,
+                ]);
+
+                $lineTotal = $menu->price * $quantity;
+
+                $toppingIds = $itemData['topping_ids'] ?? [];
+                if (count($toppingIds)) {
+                    $toppings = Topping::whereIn('id', $toppingIds)->get();
+                    foreach ($toppings as $topping) {
+                        OrderItemTopping::create([
+                            'order_item_id' => $orderItem->id,
+                            'topping_id' => $topping->id,
+                            'topping_name' => $topping->name,
+                            'topping_price' => $topping->price,
+                        ]);
+                        $lineTotal += $topping->price;
+                    }
                 }
+
+                $total += $lineTotal;
             }
 
-            $total += $lineTotal;
-        }
+            $order->update(['total_amount' => $total]);
 
-        $order->update(['total_amount' => $total]);
+            return $order;
+        });
 
         return response()->json([
             'status' => true,
@@ -134,18 +148,18 @@ class OrderController extends Controller
             ->where('code', $code)
             ->firstOrFail();
 
-        $qrisSetting = $order->tenant_id 
+        $qrisSetting = $order->tenant_id
             ? \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', $order->tenant_id)->first()
             : \App\Models\QrisSetting::first();
 
-        if (!$qrisSetting) {
+        if (! $qrisSetting) {
             $qrisSetting = \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', 1)->first()
                 ?? \App\Models\QrisSetting::withoutGlobalScopes()->first();
         }
 
         $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'Say Coffee');
         $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'Kab. Serang');
-        $basePayload = (!empty($qrisSetting->base_payload))
+        $basePayload = (! empty($qrisSetting->base_payload))
             ? $qrisSetting->base_payload
             : env('QRIS_BASE_PAYLOAD', '00020101021126570011ID.DANA.WWW011893600915303557205402090355720540303UMI51440014ID.CO.QRIS.WWW0215ID10266058542500303UMI5204581253033605802ID5910Say Coffee6011Kab. Serang6105421176304AB0C');
 

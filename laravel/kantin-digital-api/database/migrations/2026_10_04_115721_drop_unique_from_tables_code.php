@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tables', function (Blueprint $table) {
-            try {
+        if (Schema::hasTable('tables') && Schema::hasIndex('tables', 'tables_code_unique')) {
+            Schema::table('tables', function (Blueprint $table) {
                 $table->dropUnique('tables_code_unique');
-            } catch (\Throwable $e) {
-                // Ignore if not present
-            }
-        });
+            });
+        }
     }
 
     /**

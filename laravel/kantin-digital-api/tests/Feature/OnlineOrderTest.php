@@ -92,6 +92,22 @@ class OnlineOrderTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+    public function test_order_item_limits_prevent_oversized_public_orders(): void
+    {
+        $response = $this->postJson('/api/orders', [
+            'order_type' => 'pickup',
+            'items' => array_fill(0, 21, [
+                'menu_id' => $this->menu->id,
+                'quantity' => 1,
+                'topping_ids' => [],
+            ]),
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+        $this->assertDatabaseCount('orders', 0);
+    }
+
     public function test_menu_availability_can_be_changed_through_the_api(): void
     {
         $response = $this->postJson('/api/menus', [
