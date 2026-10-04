@@ -2,6 +2,7 @@ import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
 
 import '../../../shared/constants/user_role.dart';
+import '../../../shared/services/demo_session_manager.dart';
 import 'login_service.dart';
 
 class AdminLoginController {
@@ -52,6 +53,35 @@ class AdminLoginController {
       }
       return null;
     } catch (e) {
+      final demoResult = DemoSessionManager.tryDemoLogin(email, password);
+      if (demoResult != null) {
+        DemoSessionManager.enableDemoMode();
+        _session.setSession(
+          token: demoResult.token,
+          user: demoResult.user,
+          tenant: demoResult.tenant,
+        );
+
+        final role = demoResult.user.role;
+        switch (role) {
+          case null:
+            return 'Role user tidak ditemukan';
+          case UserRole.superadmin:
+            onNavigate(RouteName.superAdminDashboard);
+            break;
+          case UserRole.admin:
+            onNavigate(RouteName.adminDashboard);
+            break;
+          case UserRole.cashier:
+          case UserRole.operations:
+            onNavigate(RouteName.cashierOrders);
+            break;
+          case UserRole.manager:
+            onNavigate(RouteName.managerDashboard);
+            break;
+        }
+        return null;
+      }
       return e.toString();
     }
   }

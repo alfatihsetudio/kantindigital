@@ -111,18 +111,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     }
   }
 
-  Color get _currentColor {
-    switch (_selectedIndex) {
-      case 0:
-        return AppColors.warning; // Orange for New/Unpaid
-      case 1:
-        return AppColors.primary; // Green for Processing (Cooking)
-      case 2:
-        return AppColors.info; // Blue for Ready/Served
-      default:
-        return AppColors.primary;
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {

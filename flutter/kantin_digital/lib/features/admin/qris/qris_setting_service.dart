@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../../../shared/models/qris_setting_model.dart';
+import '../../../shared/services/demo_session_manager.dart';
 
 class QrisSettingService {
   final ApiClient _client;
@@ -7,6 +8,9 @@ class QrisSettingService {
   QrisSettingService([ApiClient? client]) : _client = client ?? ApiClient();
 
   Future<QrisSettingModel> getSetting() async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.demoQrisSetting;
+    }
     final response = await _client.get('/qris-setting') as Map<String, dynamic>;
     final data = response['data'] as Map<String, dynamic>;
     return QrisSettingModel.fromJson(data);
@@ -19,6 +23,15 @@ class QrisSettingService {
     required String basePayload,
     bool isActive = true,
   }) async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.updateQrisSetting(
+        merchantName: merchantName,
+        merchantCity: merchantCity,
+        whatsappNumber: whatsappNumber,
+        basePayload: basePayload,
+        isActive: isActive,
+      );
+    }
     final response = await _client.post(
       '/qris-setting',
       body: {

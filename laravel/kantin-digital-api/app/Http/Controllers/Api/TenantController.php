@@ -172,4 +172,77 @@ class TenantController extends Controller
 
         return url('uploads/logos/'.$filename);
     }
+
+    /**
+     * Daftar toko aktif yang sudah memiliki menu untuk ditampilkan di halaman showcase calon pembeli
+     */
+    public function showcaseStores(Request $request)
+    {
+        $query = Tenant::query()
+            ->where('is_active', true)
+            ->whereHas('menus', function ($q) {
+                $q->withoutGlobalScope(\App\Models\Scopes\TenantScope::class);
+            })
+            ->withCount([
+                'menus' => fn ($q) => $q->withoutGlobalScope(\App\Models\Scopes\TenantScope::class),
+                'categories' => fn ($q) => $q->withoutGlobalScope(\App\Models\Scopes\TenantScope::class),
+            ])
+            ->with([
+                'menus' => fn ($q) => $q->withoutGlobalScope(\App\Models\Scopes\TenantScope::class)
+                    ->where('is_available', true)
+                    ->select('id', 'tenant_id', 'name', 'price', 'image_url')
+                    ->take(3),
+            ])
+            ->orderBy('id', 'asc');
+
+        if ($search = $request->query('q')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('subdomain', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $tenants = $query->get();
+
+        $host = $request->getHost();
+        $scheme = ($request->isSecure() || $request->header('x-forwarded-proto') === 'https' || ! app()->isLocal()) ? 'https' : 'http';
+
+        $data = $tenants->map(function ($tenant) use ($host, $scheme) {
+            if (str_contains($host, 'kantindigital.test')) {
+                $storeUrl = "{$scheme}://{$tenant->subdomain}.kantindigital.test";
+            } else {
+                $baseDomain = env('APP_MAIN_DOMAIN', 'ekasir.my.id');
+                $storeUrl = "https://{$tenant->subdomain}.{$baseDomain}";
+            }
+
+            return [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'subdomain' => $tenant->subdomain,
+                'store_url' => $storeUrl,
+                'logo_url' => $tenant->logo_url,
+                'primary_color' => $tenant->primary_color ?? '#16A34A',
+                'address' => $tenant->address,
+                'phone' => $tenant->phone,
+                'whatsapp' => $tenant->whatsapp,
+                'meta_description' => $tenant->meta_description,
+                'menus_count' => $tenant->menus_count,
+                'categories_count' => $tenant->categories_count,
+                'created_at' => $tenant->created_at?->format('d M Y'),
+                'sample_menus' => $tenant->menus->map(fn ($m) => [
+                    'name' => $m->name,
+                    'price' => $m->price,
+                    'image_url' => $m->image_url,
+                ]),
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'total' => $data->count(),
+            'data' => $data,
+        ]);
+    }
 }
+

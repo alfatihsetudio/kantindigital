@@ -134,10 +134,20 @@ class OrderController extends Controller
             ->where('code', $code)
             ->firstOrFail();
 
-        $qrisSetting = \App\Models\QrisSetting::first();
-        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'KANTIN DIGITAL');
-        $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'SERANG');
-        $basePayload = $qrisSetting->base_payload ?? env('QRIS_BASE_PAYLOAD', '');
+        $qrisSetting = $order->tenant_id 
+            ? \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', $order->tenant_id)->first()
+            : \App\Models\QrisSetting::first();
+
+        if (!$qrisSetting) {
+            $qrisSetting = \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', 1)->first()
+                ?? \App\Models\QrisSetting::withoutGlobalScopes()->first();
+        }
+
+        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'Say Coffee');
+        $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'Kab. Serang');
+        $basePayload = (!empty($qrisSetting->base_payload))
+            ? $qrisSetting->base_payload
+            : env('QRIS_BASE_PAYLOAD', '00020101021126570011ID.DANA.WWW011893600915303557205402090355720540303UMI51440014ID.CO.QRIS.WWW0215ID10266058542500303UMI5204581253033605802ID5910Say Coffee6011Kab. Serang6105421176304AB0C');
 
         $qrisService = app(\App\Services\QrisDynamicService::class);
         $qrisPayload = $qrisService->generatePayload($basePayload, (int) $order->total_amount);

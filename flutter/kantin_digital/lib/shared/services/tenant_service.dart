@@ -1,18 +1,34 @@
 import 'package:flutter/foundation.dart';
 import '../../core/network/api_client.dart';
 import '../models/tenant_model.dart';
+import 'demo_session_manager.dart';
 
 class TenantService {
   static TenantModel? _cached;
+  static String? _demoSubdomain;
+
+  static String? get demoSubdomain => _demoSubdomain;
+
+  static void setDemoSubdomain(String? sub) {
+    _demoSubdomain = sub;
+    _cached = null;
+  }
+
+  static void clearDemoSubdomain() {
+    _demoSubdomain = null;
+    _cached = null;
+  }
 
   /// Deteksi apakah pengguna mengakses domain utama (ekasir.my.id) tanpa subdomain tenant
   static bool get isRootDomain {
+    if (_demoSubdomain != null) return false;
     if (!kIsWeb) return false;
     return currentSubdomain == null;
   }
 
   /// Deteksi subdomain dari URL browser (Web) atau fallback
   static String? get currentSubdomain {
+    if (_demoSubdomain != null) return _demoSubdomain;
     if (!kIsWeb) return null;
     final host = Uri.base.host.toLowerCase().trim();
     if (host.isEmpty ||
@@ -62,6 +78,11 @@ class TenantService {
   static Future<TenantModel> fetchTenantInfo() async {
     if (_cached != null) return _cached!;
 
+    if (_demoSubdomain != null || DemoSessionManager.isDemoMode) {
+      _cached = DemoSessionManager.demoTenant;
+      return DemoSessionManager.demoTenant;
+    }
+
     // Jika di root domain (ekasir.my.id), gunakan profil platform root eKasir
     if (isRootDomain) {
       _cached = TenantModel.platformRoot;
@@ -84,7 +105,11 @@ class TenantService {
   static void clearCache() => _cached = null;
 
   /// Return cached tenant or fallback
-  static TenantModel get current =>
-      _cached ??
-      (isRootDomain ? TenantModel.platformRoot : TenantModel.fallback);
+  static TenantModel get current {
+    if (_demoSubdomain != null || DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.demoTenant;
+    }
+    return _cached ??
+        (isRootDomain ? TenantModel.platformRoot : TenantModel.fallback);
+  }
 }

@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/services/demo_session_manager.dart';
 import '../auth/login_service.dart';
 
 /// Modern Liquid Glass Drawer for Admin
@@ -97,6 +98,17 @@ class AdminDrawer extends StatelessWidget {
                   message: 'Password minimal 6 karakter',
                   backgroundColor: AppColors.warning,
                   icon: Icons.warning_rounded,
+                );
+                return;
+              }
+
+              if (DemoSessionManager.isDemoMode) {
+                Navigator.pop(dialogContext);
+                if (!context.mounted) return;
+                TopNotification.show(
+                  message: 'Password berhasil diubah (Mode Demo)',
+                  backgroundColor: AppColors.success,
+                  icon: Icons.check_circle_rounded,
                 );
                 return;
               }
@@ -244,6 +256,17 @@ class AdminDrawer extends StatelessWidget {
                   message: 'Masukkan password untuk konfirmasi',
                   backgroundColor: AppColors.warning,
                   icon: Icons.warning_rounded,
+                );
+                return;
+              }
+
+              if (DemoSessionManager.isDemoMode) {
+                Navigator.pop(dialogContext);
+                if (!context.mounted) return;
+                TopNotification.show(
+                  message: 'Email berhasil diubah (Mode Demo)',
+                  backgroundColor: AppColors.success,
+                  icon: Icons.check_circle_rounded,
                 );
                 return;
               }
@@ -437,9 +460,13 @@ class AdminDrawer extends StatelessWidget {
                     ),
                   ),
                   onTap: () {
+                    final wasDemo = DemoSessionManager.isDemoMode;
+                    if (wasDemo) {
+                      DemoSessionManager.disableDemoMode();
+                    }
                     AuthSession().clear();
                     Navigator.of(context).pushNamedAndRemoveUntil(
-                      RouteName.adminLogin,
+                      wasDemo ? RouteName.demoMenu : RouteName.adminLogin,
                       (route) => false,
                     );
                   },

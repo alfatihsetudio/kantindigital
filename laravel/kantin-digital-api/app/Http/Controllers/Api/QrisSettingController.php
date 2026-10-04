@@ -10,11 +10,16 @@ class QrisSettingController extends Controller
 {
     public function show()
     {
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        $defaultMerchant = $tenant ? $tenant->name : 'Say Coffee';
+        $defaultCity = 'Kab. Serang';
+        $defaultWa = $tenant ? ($tenant->whatsapp ?? '087771262100') : '087771262100';
+
         $setting = QrisSetting::firstOrCreate([], [
-            'merchant_name' => 'KANTIN DIGITAL',
-            'merchant_city' => 'SERANG',
-            'whatsapp_number' => '087771262100',
-            'base_payload' => '00020101021126610014COM.GO-JEK.WWW01189360091439141276340210G9141276340303UMI51440014ID.CO.QRIS.WWW0215ID10265440704890303UMI5204829953033605802ID5914KANTIN DIGITAL6006SERANG61054217162070703A0163044CD7',
+            'merchant_name' => $defaultMerchant,
+            'merchant_city' => $defaultCity,
+            'whatsapp_number' => $defaultWa,
+            'base_payload' => '00020101021126570011ID.DANA.WWW011893600915303557205402090355720540303UMI51440014ID.CO.QRIS.WWW0215ID10266058542500303UMI5204581253033605802ID5910Say Coffee6011Kab. Serang6105421176304AB0C',
             'is_active' => true,
         ]);
 
@@ -35,10 +40,15 @@ class QrisSettingController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        $defaultMerchant = $tenant ? $tenant->name : 'Say Coffee';
+        $defaultCity = 'Kab. Serang';
+        $defaultWa = $tenant ? ($tenant->whatsapp ?? '087771262100') : '087771262100';
+
         $setting = QrisSetting::firstOrCreate([], [
-            'merchant_name' => 'KANTIN DIGITAL',
-            'merchant_city' => 'SERANG',
-            'whatsapp_number' => '087771262100',
+            'merchant_name' => $defaultMerchant,
+            'merchant_city' => $defaultCity,
+            'whatsapp_number' => $defaultWa,
             'base_payload' => '',
             'is_active' => true,
         ]);

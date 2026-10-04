@@ -10,14 +10,21 @@ use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\ToppingController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\RegisterStoreController;
 use Illuminate\Support\Facades\Route;
 
-// Public (customer)
+// Public (customer & self-service registration)
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
 Route::post('/orders', [OrderController::class, 'store']);
 Route::get('/orders/{code}', [OrderController::class, 'show']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/check-subdomain', [RegisterStoreController::class, 'checkSubdomain']);
+Route::post('/register-store', [RegisterStoreController::class, 'registerStore']);
+Route::get('/register-store/status/{invoiceCode}', [RegisterStoreController::class, 'checkStatus']);
+Route::post('/register-store/simulate-paid/{invoiceCode}', [RegisterStoreController::class, 'simulatePaid']);
+Route::get('/showcase-stores', [TenantController::class, 'showcaseStores']);
+Route::get('/public/showcase-stores', [TenantController::class, 'showcaseStores']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

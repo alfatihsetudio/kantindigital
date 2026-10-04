@@ -1,6 +1,7 @@
 import '../../../core/network/api_client.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/topping_model.dart';
+import '../../../shared/services/demo_session_manager.dart';
 
 class MenuService {
   final ApiClient _client;
@@ -8,6 +9,10 @@ class MenuService {
   MenuService(this._client);
 
   Future<List<MenuModel>> fetchMenus() async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.demoMenus;
+    }
+
     final json = await _client.get('/menus');
 
     if (json is Map<String, dynamic>) {
@@ -32,6 +37,10 @@ class MenuService {
   }
 
   Future<List<ToppingModel>> fetchToppings() async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.demoToppings;
+    }
+
     final json = await _client.get('/toppings');
 
     if (json is Map<String, dynamic>) {

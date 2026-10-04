@@ -527,7 +527,6 @@ class _TableFormDialog extends StatefulWidget {
   final VoidCallback onSuccess;
 
   const _TableFormDialog({
-    super.key,
     this.table,
     required this.onSaveSingle,
     required this.onSaveBulk,
@@ -596,9 +595,6 @@ class _TableFormDialogState extends State<_TableFormDialog> {
       if (!mounted) return;
       Navigator.pop(context); // Close dialog
       widget.onSuccess(); // Trigger callback
-      
-    } catch (e) {
-      if (!mounted) return;
       
     } catch (e) {
       if (!mounted) return;

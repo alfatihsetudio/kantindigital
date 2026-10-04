@@ -430,8 +430,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   Widget _buildQrisPaymentSection(OrderModel order) {
     final payload = order.qrisPayload ?? order.code;
-    final merchant = order.merchantName ?? 'KANTIN DIGITAL';
-    final city = order.merchantCity ?? 'SERANG';
+    final merchant = order.merchantName ?? 'Say Coffee';
+    final city = order.merchantCity ?? 'Kab. Serang';
+    final nmidMatch = RegExp(r'0215(ID[0-9A-Za-z]+)').firstMatch(payload);
+    final nmid = nmidMatch != null ? nmidMatch.group(1)! : 'ID1026605854250';
 
     return Column(
       children: [
@@ -607,9 +609,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       ),
 
                       const SizedBox(height: 12),
-                      const Text(
-                        'NMID: ID1026544070489 • Kantin Digital',
-                        style: TextStyle(
+                      Text(
+                        'NMID: $nmid • $merchant',
+                        style: const TextStyle(
                           fontSize: 10,
                           color: Color(0xFF94A3B8),
                           fontWeight: FontWeight.w500,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
+
 
 /// Modern Calculator Widget for Cashier Dashboard
 /// Green Gojek theme with glassmorphism design
@@ -173,15 +173,7 @@ class _CalculatorWidgetState extends State<CalculatorWidget>
     });
   }
 
-  void _onBackspacePressed() {
-    setState(() {
-      if (_display.length > 1) {
-        _display = _display.substring(0, _display.length - 1);
-      } else {
-        _display = '0';
-      }
-    });
-  }
+
 
   void _onEqualsPressed() {
     _calculate();

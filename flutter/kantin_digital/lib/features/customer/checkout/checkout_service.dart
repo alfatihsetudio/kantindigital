@@ -1,24 +1,12 @@
 import '../../../core/network/api_client.dart';
 import '../../../shared/models/cart_item_model.dart';
+import '../../../shared/services/demo_session_manager.dart';
 
 class CheckoutService {
   final ApiClient _client;
 
   CheckoutService(this._client);
 
-  /// Memanggil endpoint pembuatan order.
-  /// Ekspektasi endpoint Laravel: POST /orders
-  /// Body kira-kira:
-  /// {
-  ///   "order_type": "delivery",
-  ///   "delivery_address": "Jl. Merdeka No. 10",
-  ///   "customer_name": "John Doe",
-  ///   "customer_phone": "081234567890",
-  ///   "items": [
-  ///     { "menu_id": 1, "quantity": 2, "topping_ids": [1,2], "notes": "..." }
-  ///   ]
-  /// }
-  /// table_code hanya dikirim untuk pesanan dari QR meja.
   Future<String> createOrder({
     String? tableCode,
     required String orderType,
@@ -28,6 +16,17 @@ class CheckoutService {
     required String customerPhone,
     String paymentMethod = 'qris',
   }) async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.createDemoOrder(
+        tableCode: tableCode,
+        orderType: orderType,
+        deliveryAddress: deliveryAddress,
+        items: items,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        paymentMethod: paymentMethod,
+      );
+    }
     final body = {
       if (tableCode != null) 'table_code': tableCode,
       'order_type': orderType,

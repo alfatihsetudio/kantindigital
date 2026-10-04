@@ -10,6 +10,8 @@ import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
+import '../../../shared/services/tenant_service.dart';
+import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/storage/active_order_storage.dart';
 import '../cart/cart_controller.dart';
 import 'menu_controller.dart' as local;
@@ -333,6 +335,17 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
                     return Row(
                       children: [
+                        if (Navigator.canPop(context)) ...[
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_rounded),
+                            tooltip: 'Kembali',
+                            onPressed: () {
+                              TenantService.clearDemoSubdomain();
+                              Navigator.pop(context);
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Container(
                           width: 42,
                           height: 42,
@@ -418,15 +431,16 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 ),
               ),
               
-              // Admin Button
-              IconContainer(
-                icon: Icons.admin_panel_settings_outlined,
-                backgroundColor: Colors.white,
-                iconColor: AppColors.textSecondary,
-                size: 42,
-                iconSize: 20,
-                onTap: () => Navigator.pushNamed(context, RouteName.adminLogin),
-              ),
+              // Admin Button (disembunyikan saat mode demo)
+              if (!DemoSessionManager.isDemoMode && TenantService.demoSubdomain == null)
+                IconContainer(
+                  icon: Icons.admin_panel_settings_outlined,
+                  backgroundColor: Colors.white,
+                  iconColor: AppColors.textSecondary,
+                  size: 42,
+                  iconSize: 20,
+                  onTap: () => Navigator.pushNamed(context, RouteName.adminLogin),
+                ),
             ],
           ),
           

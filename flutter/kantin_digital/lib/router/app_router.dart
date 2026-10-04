@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../shared/models/menu_model.dart';
 import '../features/customer/cart/cart_controller.dart';
 import '../features/landing/landing_page.dart';
+import '../features/landing/buy_website_page.dart';
+import '../features/landing/store_showcase_page.dart';
+import '../features/demo/demo_hub_page.dart';
+import '../shared/services/demo_session_manager.dart';
 import '../shared/services/tenant_service.dart';
 
 import '../features/admin/auth/login_page.dart';
@@ -70,9 +74,32 @@ class AppRouter {
           settings: settings,
         );
 
+      case RouteName.demoMenu:
+        DemoSessionManager.enableDemoMode();
+        return MaterialPageRoute(
+          builder: (_) => const DemoHubPage(),
+          settings: settings,
+        );
+
+      case RouteName.buyWebsite:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => BuyWebsitePage(
+            initialSubdomain: args?['subdomain']?.toString(),
+            initialPlan: args?['plan']?.toString(),
+          ),
+          settings: settings,
+        );
+
+      case RouteName.storeShowcase:
+        return MaterialPageRoute(
+          builder: (_) => const StoreShowcasePage(),
+          settings: settings,
+        );
+
       // customer
       case RouteName.customerMenu:
-        if (TenantService.isRootDomain) {
+        if (TenantService.isRootDomain && !DemoSessionManager.isDemoMode) {
           return MaterialPageRoute(
             builder: (_) => const LandingPage(),
             settings: settings,

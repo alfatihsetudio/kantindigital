@@ -7,16 +7,21 @@ class ApiConfig {
     if (kIsWeb) {
       final uri = Uri.base;
       if (uri.host.isNotEmpty) {
-        final port = (uri.port == 80 || uri.port == 443 || uri.port == 0) ? '' : ':${uri.port}';
-        // Jika berjalan di flutter debug web port (misal 8888), arahkan API ke port 80 pada host yang sama
-        if (uri.port == 8888) {
-          return '${uri.scheme}://${uri.host}/api';
+        // Jika di local development (localhost, 127.0.0.1, atau *.test), arahkan ke Laravel di port 8000
+        if (uri.host == 'localhost' ||
+            uri.host == '127.0.0.1' ||
+            uri.host.endsWith('.test')) {
+          final host = (uri.host == 'localhost' || uri.host == '127.0.0.1')
+              ? uri.host
+              : '127.0.0.1';
+          return '${uri.scheme}://$host:8000/api';
         }
+        final port = (uri.port == 80 || uri.port == 443 || uri.port == 0) ? '' : ':${uri.port}';
         return '${uri.scheme}://${uri.host}$port/api';
       }
-      return 'http://192.168.0.8/api';
+      return 'http://127.0.0.1:8000/api';
     }
-    return 'http://192.168.0.8/api';
+    return 'http://127.0.0.1:8000/api';
   }
 
   /// URL Frontend Flutter Web (untuk QR Code)

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('phone')->nullable();
             $table->string('whatsapp')->nullable();
-            $table->enum('plan', ['free', 'basic', 'pro'])->default('free');
+            $table->string('plan', 50)->default('basic');
             $table->timestamp('expires_at')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

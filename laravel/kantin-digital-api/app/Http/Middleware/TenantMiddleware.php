@@ -11,6 +11,11 @@ class TenantMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Endpoint publik untuk cek subdomain & pendaftaran tenant baru bersifat global
+        if ($request->is('api/check-subdomain*') || $request->is('api/register-store*')) {
+            return $next($request);
+        }
+
         $host = $request->getHost();
         $subdomain = null;
 
@@ -38,6 +43,27 @@ class TenantMiddleware
                         ->orWhere('expires_at', '>', now());
                 })
                 ->first();
+            if (! $tenant && $subdomain === 'demo') {
+                $tenant = Tenant::firstOrCreate(
+                    ['subdomain' => 'demo'],
+                    [
+                        'name' => 'DEMO RESTO & CAFE',
+                        'menu_code_prefix' => 'DEMO',
+                        'primary_color' => '#2563EB',
+                        'address' => 'Kawasan Bisnis Demo No. 88, Jakarta',
+                        'phone' => '081234567890',
+                        'whatsapp' => '6287771262100',
+                        'plan' => 'pro',
+                        'is_active' => true,
+                        'meta_title' => 'Demo eKasir - Self Order & POS Resto',
+                        'meta_description' => 'Simulasi Sistem Pemesanan Mandiri & Kasir POS',
+                    ]
+                );
+                if (! $tenant->is_active) {
+                    $tenant->update(['is_active' => true]);
+                }
+            }
+
             if (! $tenant) {
                 return response()->json([
                     'status' => false,

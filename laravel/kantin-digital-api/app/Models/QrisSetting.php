@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class QrisSetting extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
+        'tenant_id',
         'merchant_name',
         'merchant_city',
         'whatsapp_number',

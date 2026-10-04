@@ -47,6 +47,18 @@ class PaymentWebhookController extends Controller
         if ($order) {
             $order->update(['status' => 'PAID']);
 
+            // Jika ini invoice registrasi toko (#INV-...), aktifkan tenant terkait
+            if (str_starts_with($order->code, 'INV-')) {
+                $tenant = \App\Models\Tenant::where('whatsapp', $order->customer_phone)
+                    ->orWhere('phone', $order->customer_phone)
+                    ->latest()
+                    ->first();
+                if ($tenant) {
+                    $tenant->update(['is_active' => true]);
+                    Log::info("Tenant {$tenant->subdomain} otomatis diaktifkan setelah pelunasan invoice #{$order->code}.");
+                }
+            }
+
             Log::info("Order #{$order->code} automatically marked as PAID from notification webhook ($amount).");
 
             return response()->json([

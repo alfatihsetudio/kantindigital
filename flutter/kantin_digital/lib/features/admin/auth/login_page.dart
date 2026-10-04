@@ -4,6 +4,7 @@ import '../../../core/utils/validator.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../router/route_name.dart';
+import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/services/tenant_service.dart';
 import 'login_controller.dart';
 
@@ -20,6 +21,13 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   final _passwordController = TextEditingController();
   final _controller = AdminLoginController();
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pastikan keluar dari mode demo saat membuka halaman login resmi
+    DemoSessionManager.disableDemoMode();
+  }
 
   @override
   void dispose() {
@@ -57,67 +65,122 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Login Staff / Superadmin',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Card(
+              elevation: 4,
+              shadowColor: Colors.black12,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.storefront_rounded,
+                              color: Color(0xFF2563EB),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Login Kasir & Admin Toko',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'Masuk ke panel manajemen toko Anda',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                      validator: Validator.email,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordController,
-                      decoration: const InputDecoration(labelText: 'Password'),
-                      obscureText: true,
-                      validator: (v) =>
-                          Validator.requiredText(v, label: 'Password'),
-                    ),
-                    const SizedBox(height: 20),
-                    PrimaryButton(
-                      label: _loading ? 'Memproses...' : 'Masuk',
-                      onPressed: _loading ? null : _onSubmit,
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () {
-                          if (TenantService.isRootDomain) {
-                            Navigator.of(context).pushReplacementNamed(RouteName.landingPage);
-                          } else {
-                            Navigator.of(context).pushReplacementNamed(RouteName.customerMenu);
-                          }
-                        },
-                        icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                        label: Text(
-                          TenantService.isRootDomain
-                              ? 'Kembali ke Beranda'
-                              : 'Kembali ke Halaman Menu',
+                      const SizedBox(height: 24),
+
+                      // Manual Form
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey[600],
+                        validator: Validator.email,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        obscureText: true,
+                        validator: (v) =>
+                            Validator.requiredText(v, label: 'Password'),
+                      ),
+                      const SizedBox(height: 22),
+                      PrimaryButton(
+                        label: _loading ? 'Memproses Masuk...' : 'Masuk ke Sistem',
+                        onPressed: _loading ? null : _onSubmit,
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            if (TenantService.isRootDomain) {
+                              Navigator.of(context)
+                                  .pushReplacementNamed(RouteName.landingPage);
+                            } else {
+                              Navigator.of(context)
+                                  .pushReplacementNamed(RouteName.customerMenu);
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                          label: Text(
+                            TenantService.isRootDomain
+                                ? 'Kembali ke Beranda Platform'
+                                : 'Kembali ke Halaman Menu',
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey[600],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

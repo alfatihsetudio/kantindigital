@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/app_config.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/models/user_model.dart';
-
 class AdminAuthService {
   final http.Client _http;
 
