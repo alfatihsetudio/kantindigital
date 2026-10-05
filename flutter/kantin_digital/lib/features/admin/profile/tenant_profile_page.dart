@@ -22,6 +22,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _logoCtrl = TextEditingController();
   final _colorCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
+  final _openingHoursCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _whatsappCtrl = TextEditingController();
   final _metaTitleCtrl = TextEditingController();
@@ -76,6 +77,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _logoCtrl.dispose();
     _colorCtrl.dispose();
     _addressCtrl.dispose();
+    _openingHoursCtrl.dispose();
     _phoneCtrl.dispose();
     _whatsappCtrl.dispose();
     _metaTitleCtrl.dispose();
@@ -97,6 +99,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _selectedColor = tenant.primaryColor;
       _colorCtrl.text = tenant.primaryColor;
       _addressCtrl.text = tenant.address ?? '';
+      _openingHoursCtrl.text = tenant.openingHours;
       _phoneCtrl.text = tenant.phone ?? '';
       _whatsappCtrl.text = tenant.whatsapp ?? '';
       _metaTitleCtrl.text = tenant.metaTitle ?? '';
@@ -181,6 +184,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         'promo_message': _promoMessageCtrl.text.trim(),
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
+        'opening_hours': _openingHoursCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'whatsapp': _whatsappCtrl.text.trim(),
         'meta_title': _metaTitleCtrl.text.trim(),
@@ -257,7 +261,9 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Profil kantin, logo, promo, & meta data berhasil disimpan!'),
+              content: Text(
+                'Profil kantin, logo, promo, & meta data berhasil disimpan!',
+              ),
               backgroundColor: AppColors.success,
             ),
           );
@@ -266,7 +272,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     } catch (e) {
       if (!mounted) return;
       final errorStr = e.toString();
-      final isAuthError = errorStr.contains('401') ||
+      final isAuthError =
+          errorStr.contains('401') ||
           errorStr.toLowerCase().contains('unauthenticated') ||
           errorStr.toLowerCase().contains('unauthorized');
 
@@ -449,30 +456,35 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.success,
-                                        shape: BoxShape.circle,
+                                    const Icon(
+                                      Icons.access_time_rounded,
+                                      size: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        'Jam buka: ${_openingHoursCtrl.text}',
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    const Text(
-                                      'Buka',
-                                      style: TextStyle(
-                                        color: AppColors.success,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                  ],
+                                ),
+                                if (_addressCtrl.text.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on_outlined,
+                                        size: 14,
+                                        color: Colors.grey,
                                       ),
-                                    ),
-                                    if (_addressCtrl.text.isNotEmpty) ...[
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        '•',
-                                        style: TextStyle(color: Colors.grey),
-                                      ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 5),
                                       Expanded(
                                         child: Text(
                                           _addressCtrl.text,
@@ -485,8 +497,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                         ),
                                       ),
                                     ],
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -831,6 +843,19 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _openingHoursCtrl,
+                            maxLength: 100,
+                            decoration: const InputDecoration(
+                              labelText: 'Jam buka toko',
+                              hintText: 'Contoh: Setiap hari, 08:00 - 22:00',
+                              prefixIcon: Icon(Icons.access_time_rounded),
+                              helperText:
+                                  'Format: 08:00-22:00 (setiap hari) atau Senin-Sabtu 08:00-22:00; Minggu tutup. Di luar jam ini toko tidak menerima pesanan.',
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
                           const SizedBox(height: 24),
                           const Divider(),
                           const SizedBox(height: 16),
@@ -1094,12 +1119,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                                   elevation: 0,
                                                   padding:
                                                       const EdgeInsets.symmetric(
-                                                    horizontal: 14,
-                                                    vertical: 10,
-                                                  ),
+                                                        horizontal: 14,
+                                                        vertical: 10,
+                                                      ),
                                                   shape: RoundedRectangleBorder(
                                                     borderRadius:
-                                                        BorderRadius.circular(8),
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                 ),
                                                 onPressed: _isCompressingMeta
@@ -1121,7 +1148,9 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                               ),
                                               if (_newMetaImage != null ||
                                                   (!_clearMetaImage &&
-                                                      _metaImageCtrl.text.isNotEmpty))
+                                                      _metaImageCtrl
+                                                          .text
+                                                          .isNotEmpty))
                                                 OutlinedButton.icon(
                                                   style: OutlinedButton.styleFrom(
                                                     foregroundColor:
@@ -1132,20 +1161,21 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                                     ),
                                                     padding:
                                                         const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 10,
-                                                    ),
-                                                    shape:
-                                                        RoundedRectangleBorder(
+                                                          horizontal: 12,
+                                                          vertical: 10,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                              8),
+                                                            8,
+                                                          ),
                                                     ),
                                                   ),
                                                   onPressed:
                                                       _resetMetaImageToDefault,
                                                   icon: const Icon(
-                                                    Icons.delete_outline_rounded,
+                                                    Icons
+                                                        .delete_outline_rounded,
                                                     size: 16,
                                                   ),
                                                   label: const Text(
@@ -1162,9 +1192,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                             _newMetaImage != null
                                                 ? '✨ Gambar baru siap disimpan (terkompresi optimal).'
                                                 : ((!_clearMetaImage &&
-                                                        _metaImageCtrl.text.isNotEmpty)
-                                                    ? '✅ Menggunakan gambar preview khusus.'
-                                                    : 'ℹ️ Belum ada gambar khusus (otomatis memakai logo kantin).'),
+                                                          _metaImageCtrl
+                                                              .text
+                                                              .isNotEmpty)
+                                                      ? '✅ Menggunakan gambar preview khusus.'
+                                                      : 'ℹ️ Belum ada gambar khusus (otomatis memakai logo kantin).'),
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontStyle: FontStyle.italic,

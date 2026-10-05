@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kantin_digital/shared/models/tenant_model.dart';
 import 'package:kantin_digital/shared/services/demo_session_manager.dart';
+import 'package:kantin_digital/shared/utils/store_opening_hours.dart';
 
 void main() {
   group('TenantModel promo settings', () {
@@ -30,6 +31,65 @@ void main() {
       expect(tenant.toJson()['promo_badge_text'], 'Diskon Akhir Pekan');
       expect(tenant.toJson()['promo_message'], 'Beli 2 gratis 1!');
     });
+  });
+
+  test('reads and serializes store opening hours', () {
+    final tenant = TenantModel.fromJson({
+      'id': 1,
+      'subdomain': 'saycoffee',
+      'name': 'SAY COFFEE',
+      'opening_hours': 'Senin-Sabtu, 08:00 - 22:00',
+    });
+    expect(tenant.openingHours, 'Senin-Sabtu, 08:00 - 22:00');
+    expect(tenant.toJson()['opening_hours'], 'Senin-Sabtu, 08:00 - 22:00');
+  });
+
+  test('evaluates daily opening hours in WIB and closes at closing time', () {
+    const hours = '08:00 - 22:00';
+
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 5, 1, 0)),
+      isTrue,
+    );
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 5, 15, 0)),
+      isFalse,
+    );
+  });
+
+  test('evaluates day-specific hours and closed weekdays', () {
+    const hours = 'Senin-Sabtu 08:00-22:00; Minggu tutup';
+
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 5, 1, 0)),
+      isTrue,
+    );
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 4, 1, 0)),
+      isFalse,
+    );
+    expect(
+      StoreOpeningHours.isValid('Senin-Sabtu 08:00-22:00; Minggu tutup'),
+      isTrue,
+    );
+    expect(StoreOpeningHours.isValid('jam bebas'), isFalse);
+  });
+
+  test('demo profile save retains customized opening hours', () {
+    addTearDown(() {
+      DemoSessionManager.disableDemoMode();
+      DemoSessionManager.resetDemoData();
+    });
+
+    DemoSessionManager.enableDemoMode();
+    DemoSessionManager.updateTenantProfile({
+      'opening_hours': 'Senin-Sabtu, 08:00 - 22:00',
+    });
+
+    expect(
+      DemoSessionManager.demoTenant.openingHours,
+      'Senin-Sabtu, 08:00 - 22:00',
+    );
   });
 
   test('demo profile save retains customized promo copy', () {

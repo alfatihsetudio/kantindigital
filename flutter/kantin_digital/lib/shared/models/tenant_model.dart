@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/config/api_config.dart';
+import '../utils/store_opening_hours.dart';
 
 class TenantModel {
   final int id;
@@ -13,6 +14,7 @@ class TenantModel {
   final String? address;
   final String? phone;
   final String? whatsapp;
+  final String openingHours;
   final String plan;
   final bool isActive;
   final String? metaTitle;
@@ -31,6 +33,7 @@ class TenantModel {
     this.address,
     this.phone,
     this.whatsapp,
+    this.openingHours = '08:00 - 22:00',
     this.plan = 'free',
     this.isActive = true,
     this.metaTitle,
@@ -40,6 +43,9 @@ class TenantModel {
     this.promoBadgeText = 'Promo Hari Ini',
     this.promoMessage = 'Pesan Sekarang, Nikmati Kemudahannya!',
   });
+
+  bool? isOpenAt(DateTime utcInstant) =>
+      StoreOpeningHours.isOpenAt(openingHours, utcInstant);
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
     return TenantModel(
@@ -51,6 +57,7 @@ class TenantModel {
       address: json['address']?.toString(),
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
+      openingHours: json['opening_hours']?.toString() ?? '08:00 - 22:00',
       plan: json['plan']?.toString() ?? 'free',
       isActive: json['is_active'] == true || json['is_active'] == 1,
       metaTitle: json['meta_title']?.toString(),
@@ -105,6 +112,7 @@ class TenantModel {
       'address': address,
       'phone': phone,
       'whatsapp': whatsapp,
+      'opening_hours': openingHours,
       'plan': plan,
       'is_active': isActive,
       'meta_title': metaTitle,

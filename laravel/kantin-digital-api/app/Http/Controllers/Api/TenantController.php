@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 
 class TenantController extends Controller
@@ -31,6 +32,7 @@ class TenantController extends Controller
                 'logo_url' => $tenant->logo_url,
                 'primary_color' => $tenant->primary_color,
                 'address' => $tenant->address,
+                'opening_hours' => $tenant->opening_hours ?? '08:00 - 22:00',
                 'phone' => $tenant->phone,
                 'whatsapp' => $tenant->whatsapp,
                 'plan' => $tenant->plan,
@@ -68,6 +70,16 @@ class TenantController extends Controller
                 'logo' => 'nullable|image|max:2048',
                 'logo_base64' => 'nullable|string',
                 'address' => 'nullable|string',
+                'opening_hours' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                    function ($attribute, $value, $fail) {
+                        if (! StoreOpeningHours::isValid($value)) {
+                            $fail('Format jam operasional tidak dikenali.');
+                        }
+                    },
+                ],
                 'phone' => 'nullable|string',
                 'whatsapp' => 'nullable|string',
                 'meta_title' => 'nullable|string|max:255',
@@ -81,7 +93,7 @@ class TenantController extends Controller
 
             $data = $request->only([
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
-                'logo_url', 'primary_color', 'address', 'phone', 'whatsapp',
+                'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);
 
@@ -167,6 +179,8 @@ class TenantController extends Controller
                 'message' => 'Profil kantin berhasil diperbarui',
                 'data' => $tenant,
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Tenant update error: ' . $e->getMessage(), [
                 'exception' => $e,

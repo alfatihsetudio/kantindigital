@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\OrderItemTopping;
 use App\Models\Table;
 use App\Models\Topping;
+use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,6 +20,14 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $tenantId = app()->has('tenant') ? app('tenant')->id : null;
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if ($tenant && ! StoreOpeningHours::isOpen($tenant->opening_hours)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Toko sedang tutup. Jam operasional: '.($tenant->opening_hours ?: 'belum diatur').'. Silakan pesan kembali saat toko buka.',
+            ], 422);
+        }
+
         $request->validate([
             'table_code' => ['nullable', 'string'],
             'order_type' => ['nullable', 'string', 'in:dine_in,pickup,delivery'],

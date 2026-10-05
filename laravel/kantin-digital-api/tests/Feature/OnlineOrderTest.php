@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Menu;
+use App\Support\StoreOpeningHours;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,6 +51,52 @@ class OnlineOrderTest extends TestCase
             'delivery_address' => 'Jl. Merdeka No. 10',
             'table_id' => null,
         ]);
+    }
+
+    public function test_public_order_is_rejected_when_store_is_closed(): void
+    {
+        app()->instance('tenant', (object) [
+            'id' => null,
+            'opening_hours' => '08:00 - 22:00',
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/orders', [
+                'order_type' => 'pickup',
+                'items' => [
+                    [
+                        'menu_id' => $this->menu->id,
+                        'quantity' => 1,
+                        'topping_ids' => [],
+                    ],
+                ],
+            ])->assertUnprocessable()
+                ->assertJsonPath(
+                    'message',
+                    'Toko sedang tutup. Jam operasional: 08:00 - 22:00. Silakan pesan kembali saat toko buka.'
+                );
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_opening_hours_support_weekdays_and_reject_invalid_schedules(): void
+    {
+        $mondayMorning = Carbon::parse('2026-10-05 09:00:00', 'Asia/Jakarta');
+        $sundayMorning = Carbon::parse('2026-10-04 09:00:00', 'Asia/Jakarta');
+
+        $this->assertTrue(StoreOpeningHours::isOpen(
+            'Senin-Sabtu 08:00-22:00; Minggu tutup',
+            $mondayMorning
+        ));
+        $this->assertFalse(StoreOpeningHours::isOpen(
+            'Senin-Sabtu 08:00-22:00; Minggu tutup',
+            $sundayMorning
+        ));
+        $this->assertFalse(StoreOpeningHours::isValid('jam bebas'));
     }
 
     public function test_delivery_order_requires_an_address(): void
