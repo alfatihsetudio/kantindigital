@@ -149,7 +149,24 @@ class TenantController extends Controller
             $data['meta_image'] = !empty($metaUrlVal) ? $metaUrlVal : null;
         }
 
-        $tenant->update($data);
+        try {
+            // Filter hanya kolom yang benar-benar ada di tabel tenants server
+            // Mencegah SQL Error 1054 jika server belum menjalankan artisan migrate
+            $filteredData = [];
+            foreach ($data as $col => $val) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('tenants', $col)) {
+                    $filteredData[$col] = $val;
+                }
+            }
+
+            $tenant->update($filteredData);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Tenant update DB error: ' . $e->getMessage());
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal menyimpan ke database: ' . $e->getMessage(),
+            ], 500);
+        }
 
         return response()->json([
             'status' => true,
@@ -160,124 +177,146 @@ class TenantController extends Controller
 
     private function storeCompressedLogo(Tenant $tenant, string $binaryData, string $extension): ?string
     {
-        $extension = strtolower($extension);
-        if ($extension === 'jpeg') {
-            $extension = 'jpg';
-        }
+        try {
+            $extension = strtolower($extension);
+            if ($extension === 'jpeg') {
+                $extension = 'jpg';
+            }
 
-        $extension = in_array($extension, ['jpg', 'png'], true) ? $extension : 'jpg';
-        $directory = public_path('uploads/logos');
+            $extension = in_array($extension, ['jpg', 'png'], true) ? $extension : 'jpg';
+            $directory = public_path('uploads/logos');
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
+            if (! is_dir($directory)) {
+                @mkdir($directory, 0777, true);
+                @chmod($directory, 0777);
+            }
 
-        $filename = 'logo_'.$tenant->id.'_'.time().'.'.$extension;
-        $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
+            $filename = 'logo_'.$tenant->id.'_'.time().'.'.$extension;
+            $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
 
-        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
-            file_put_contents($targetPath, $binaryData);
+            if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
+                @file_put_contents($targetPath, $binaryData);
+                @chmod($targetPath, 0666);
+
+                return url('uploads/logos/'.$filename);
+            }
+
+            $src = @imagecreatefromstring($binaryData);
+            if (! $src) {
+                @file_put_contents($targetPath, $binaryData);
+                @chmod($targetPath, 0666);
+
+                return url('uploads/logos/'.$filename);
+            }
+
+            $width = imagesx($src);
+            $height = imagesy($src);
+            $maxDim = 400;
+
+            if ($width > $maxDim || $height > $maxDim) {
+                $ratio = min($maxDim / $width, $maxDim / $height);
+                $newWidth = max(1, (int) round($width * $ratio));
+                $newHeight = max(1, (int) round($height * $ratio));
+            } else {
+                $newWidth = $width;
+                $newHeight = $height;
+            }
+
+            $dst = imagecreatetruecolor($newWidth, $newHeight);
+            if ($extension === 'png') {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+            }
+
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+            if ($extension === 'png') {
+                @imagepng($dst, $targetPath, 8);
+            } else {
+                @imagejpeg($dst, $targetPath, 82);
+            }
+
+            imagedestroy($dst);
+            imagedestroy($src);
+            @chmod($targetPath, 0666);
 
             return url('uploads/logos/'.$filename);
-        }
-
-        $src = @imagecreatefromstring($binaryData);
-        if (! $src) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Logo compression error: ' . $e->getMessage());
             return null;
         }
-
-        $width = imagesx($src);
-        $height = imagesy($src);
-        $maxDim = 400;
-
-        if ($width > $maxDim || $height > $maxDim) {
-            $ratio = min($maxDim / $width, $maxDim / $height);
-            $newWidth = max(1, (int) round($width * $ratio));
-            $newHeight = max(1, (int) round($height * $ratio));
-        } else {
-            $newWidth = $width;
-            $newHeight = $height;
-        }
-
-        $dst = imagecreatetruecolor($newWidth, $newHeight);
-        if ($extension === 'png') {
-            imagealphablending($dst, false);
-            imagesavealpha($dst, true);
-        }
-
-        imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-
-        if ($extension === 'png') {
-            imagepng($dst, $targetPath, 8);
-        } else {
-            imagejpeg($dst, $targetPath, 82);
-        }
-
-        imagedestroy($dst);
-        imagedestroy($src);
-
-        return url('uploads/logos/'.$filename);
     }
 
     private function storeCompressedMetaImage(Tenant $tenant, string $binaryData, string $extension): ?string
     {
-        $extension = strtolower($extension);
-        if ($extension === 'jpeg') {
-            $extension = 'jpg';
-        }
+        try {
+            $extension = strtolower($extension);
+            if ($extension === 'jpeg') {
+                $extension = 'jpg';
+            }
 
-        $extension = in_array($extension, ['jpg', 'png', 'webp'], true) ? $extension : 'jpg';
-        $directory = public_path('uploads/meta');
+            $extension = in_array($extension, ['jpg', 'png', 'webp'], true) ? $extension : 'jpg';
+            $directory = public_path('uploads/meta');
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
+            if (! is_dir($directory)) {
+                @mkdir($directory, 0777, true);
+                @chmod($directory, 0777);
+            }
 
-        $filename = 'meta_'.$tenant->id.'_'.time().'.'.$extension;
-        $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
+            $filename = 'meta_'.$tenant->id.'_'.time().'.'.$extension;
+            $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
 
-        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
-            file_put_contents($targetPath, $binaryData);
+            if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
+                @file_put_contents($targetPath, $binaryData);
+                @chmod($targetPath, 0666);
+
+                return url('uploads/meta/'.$filename);
+            }
+
+            $src = @imagecreatefromstring($binaryData);
+            if (! $src) {
+                @file_put_contents($targetPath, $binaryData);
+                @chmod($targetPath, 0666);
+
+                return url('uploads/meta/'.$filename);
+            }
+
+            $width = imagesx($src);
+            $height = imagesy($src);
+            // Social media meta images are typically 1200x630 or max 1200 px
+            $maxDim = 1200;
+
+            if ($width > $maxDim || $height > $maxDim) {
+                $ratio = min($maxDim / $width, $maxDim / $height);
+                $newWidth = max(1, (int) round($width * $ratio));
+                $newHeight = max(1, (int) round($height * $ratio));
+            } else {
+                $newWidth = $width;
+                $newHeight = $height;
+            }
+
+            $dst = imagecreatetruecolor($newWidth, $newHeight);
+            if ($extension === 'png') {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                @imagepng($dst, $targetPath, 8);
+            } else {
+                $white = imagecolorallocate($dst, 255, 255, 255);
+                imagefill($dst, 0, 0, $white);
+                imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                @imagejpeg($dst, $targetPath, 84);
+            }
+
+            imagedestroy($dst);
+            imagedestroy($src);
+            @chmod($targetPath, 0666);
 
             return url('uploads/meta/'.$filename);
-        }
-
-        $src = @imagecreatefromstring($binaryData);
-        if (! $src) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Meta image compression error: ' . $e->getMessage());
             return null;
         }
-
-        $width = imagesx($src);
-        $height = imagesy($src);
-        // Social media meta images are typically 1200x630 or max 1200 px
-        $maxDim = 1200;
-
-        if ($width > $maxDim || $height > $maxDim) {
-            $ratio = min($maxDim / $width, $maxDim / $height);
-            $newWidth = max(1, (int) round($width * $ratio));
-            $newHeight = max(1, (int) round($height * $ratio));
-        } else {
-            $newWidth = $width;
-            $newHeight = $height;
-        }
-
-        $dst = imagecreatetruecolor($newWidth, $newHeight);
-        if ($extension === 'png') {
-            imagealphablending($dst, false);
-            imagesavealpha($dst, true);
-            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-            imagepng($dst, $targetPath, 8);
-        } else {
-            $white = imagecolorallocate($dst, 255, 255, 255);
-            imagefill($dst, 0, 0, $white);
-            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-            imagejpeg($dst, $targetPath, 84);
-        }
-
-        imagedestroy($dst);
-        imagedestroy($src);
-
-        return url('uploads/meta/'.$filename);
     }
 
     /**
