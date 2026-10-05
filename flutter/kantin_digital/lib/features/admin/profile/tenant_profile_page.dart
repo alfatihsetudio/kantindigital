@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
+import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../widgets/admin_drawer.dart';
 
@@ -24,6 +25,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _metaTitleCtrl = TextEditingController();
   final _metaDescCtrl = TextEditingController();
   final _menuCodePrefixCtrl = TextEditingController();
+  final _promoBadgeCtrl = TextEditingController();
+  final _promoMessageCtrl = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -72,6 +75,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _metaTitleCtrl.dispose();
     _metaDescCtrl.dispose();
     _menuCodePrefixCtrl.dispose();
+    _promoBadgeCtrl.dispose();
+    _promoMessageCtrl.dispose();
     super.dispose();
   }
 
@@ -89,6 +94,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _whatsappCtrl.text = tenant.whatsapp ?? '';
       _metaTitleCtrl.text = tenant.metaTitle ?? '';
       _metaDescCtrl.text = tenant.metaDescription ?? '';
+      _promoBadgeCtrl.text = tenant.promoBadgeText;
+      _promoMessageCtrl.text = tenant.promoMessage;
     } catch (e) {
       debugPrint('Error loading tenant: $e');
     } finally {
@@ -124,6 +131,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       final fields = <String, String>{
         'name': _nameCtrl.text.trim(),
         'menu_code_prefix': _menuCodePrefixCtrl.text.trim().toUpperCase(),
+        'promo_badge_text': _promoBadgeCtrl.text.trim(),
+        'promo_message': _promoMessageCtrl.text.trim(),
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
@@ -159,7 +168,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
       if (!mounted) return;
       TopNotification.show(
-        message: 'Profil kantin & logo berhasil disimpan ke server!',
+        message: 'Profil kantin, logo, dan promo berhasil disimpan!',
         backgroundColor: AppColors.success,
         icon: Icons.check_circle_rounded,
       );
@@ -203,10 +212,18 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     }
 
     if (_logoCtrl.text.isNotEmpty) {
+      final imageProvider = tenantLogoImageProvider(_logoCtrl.text);
+      if (imageProvider == null) {
+        return Icon(
+          Icons.storefront_rounded,
+          color: activeThemeColor,
+          size: 26,
+        );
+      }
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          _logoCtrl.text,
+        child: Image(
+          image: imageProvider,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) =>
               Icon(Icons.storefront_rounded, color: activeThemeColor, size: 26),
@@ -394,7 +411,45 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                               labelText: 'Prefix / Singkatan Kode Menu',
                               hintText: 'Contoh: SAY (Hasil: SAY-01, SAY-02)',
                               prefixIcon: Icon(Icons.tag_rounded),
-                              helperText: 'Awalan kode unik menu di flyer & aplikasi agar pesanan tidak tertukar.',
+                              helperText:
+                                  'Awalan kode unik menu di flyer & aplikasi agar pesanan tidak tertukar.',
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 20),
+
+                          const Text(
+                            'Promo di Halaman Menu Pelanggan',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _promoBadgeCtrl,
+                            maxLength: 60,
+                            decoration: const InputDecoration(
+                              labelText: 'Label promo',
+                              hintText: 'Contoh: Promo Hari Ini',
+                              prefixIcon: Icon(
+                                Icons.local_fire_department_rounded,
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _promoMessageCtrl,
+                            maxLength: 180,
+                            maxLines: 2,
+                            decoration: const InputDecoration(
+                              labelText: 'Pesan promo',
+                              hintText:
+                                  'Contoh: Pesan Sekarang, Nikmati Kemudahannya!',
+                              prefixIcon: Icon(Icons.campaign_rounded),
+                              helperText:
+                                  'Teks ini ditampilkan pada banner promo di halaman pelanggan.',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
@@ -657,7 +712,9 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: activeThemeColor.withValues(alpha: 0.12),
+                                  color: activeThemeColor.withValues(
+                                    alpha: 0.12,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -721,21 +778,29 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         width: 70,
                                         height: 70,
                                         decoration: BoxDecoration(
-                                          color: activeThemeColor.withValues(alpha: 0.1),
-                                          borderRadius: const BorderRadius.horizontal(
-                                            left: Radius.circular(10),
+                                          color: activeThemeColor.withValues(
+                                            alpha: 0.1,
                                           ),
+                                          borderRadius:
+                                              const BorderRadius.horizontal(
+                                                left: Radius.circular(10),
+                                              ),
                                         ),
-                                        child: _buildLogoPreview(activeThemeColor),
+                                        child: _buildLogoPreview(
+                                          activeThemeColor,
+                                        ),
                                       ),
                                       Expanded(
                                         child: Padding(
@@ -751,8 +816,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                                 _metaTitleCtrl.text.isNotEmpty
                                                     ? _metaTitleCtrl.text
                                                     : (_nameCtrl.text.isNotEmpty
-                                                        ? _nameCtrl.text
-                                                        : 'Nama Kantin'),
+                                                          ? _nameCtrl.text
+                                                          : 'Nama Kantin'),
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 13,
@@ -765,9 +830,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                               Text(
                                                 _metaDescCtrl.text.isNotEmpty
                                                     ? _metaDescCtrl.text
-                                                    : (_addressCtrl.text.isNotEmpty
-                                                        ? _addressCtrl.text
-                                                        : 'Pesan menu favorit Anda langsung dari smartphone tanpa perlu antre.'),
+                                                    : (_addressCtrl
+                                                              .text
+                                                              .isNotEmpty
+                                                          ? _addressCtrl.text
+                                                          : 'Pesan menu favorit Anda langsung dari smartphone tanpa perlu antre.'),
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   color: Colors.grey.shade600,
@@ -801,9 +868,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                             controller: _metaTitleCtrl,
                             decoration: const InputDecoration(
                               labelText: 'Judul Preview Link (Meta Title)',
-                              hintText: 'Contoh: SAY COFFEE - Ngopi Santai & Nikmat',
+                              hintText:
+                                  'Contoh: SAY COFFEE - Ngopi Santai & Nikmat',
                               prefixIcon: Icon(Icons.title_rounded),
-                              helperText: 'Judul link saat dibagikan. Kosongkan jika ingin sama dengan Nama Kantin.',
+                              helperText:
+                                  'Judul link saat dibagikan. Kosongkan jika ingin sama dengan Nama Kantin.',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
@@ -814,10 +883,13 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                             controller: _metaDescCtrl,
                             maxLines: 3,
                             decoration: const InputDecoration(
-                              labelText: 'Deskripsi Preview Link (Meta Description)',
-                              hintText: 'Contoh: Pesan berbagai macam varian kopi susu aren, teh segar, dan camilan nikmat langsung dari smartphone Anda.',
+                              labelText:
+                                  'Deskripsi Preview Link (Meta Description)',
+                              hintText:
+                                  'Contoh: Pesan berbagai macam varian kopi susu aren, teh segar, dan camilan nikmat langsung dari smartphone Anda.',
                               prefixIcon: Icon(Icons.description_outlined),
-                              helperText: 'Teks deskripsi ringkasan yang muncul di bawah judul saat link dibagikan.',
+                              helperText:
+                                  'Teks deskripsi ringkasan yang muncul di bawah judul saat link dibagikan.',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),

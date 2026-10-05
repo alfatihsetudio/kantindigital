@@ -10,7 +10,7 @@ class Tenant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'subdomain', 'name', 'menu_code_prefix', 'logo_url', 'primary_color',
+        'subdomain', 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message', 'logo_url', 'primary_color',
         'address', 'meta_title', 'meta_description', 'meta_image',
         'phone', 'whatsapp', 'plan', 'expires_at', 'is_active',
     ];

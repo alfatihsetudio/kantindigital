@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/config/api_config.dart';
@@ -16,6 +18,8 @@ class TenantModel {
   final String? metaTitle;
   final String? metaDescription;
   final String? menuCodePrefix;
+  final String promoBadgeText;
+  final String promoMessage;
 
   const TenantModel({
     required this.id,
@@ -31,6 +35,8 @@ class TenantModel {
     this.metaTitle,
     this.metaDescription,
     this.menuCodePrefix = 'SAY',
+    this.promoBadgeText = 'Promo Hari Ini',
+    this.promoMessage = 'Pesan Sekarang, Nikmati Kemudahannya!',
   });
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +54,10 @@ class TenantModel {
       metaTitle: json['meta_title']?.toString(),
       metaDescription: json['meta_description']?.toString(),
       menuCodePrefix: json['menu_code_prefix']?.toString() ?? 'SAY',
+      promoBadgeText: json['promo_badge_text']?.toString() ?? 'Promo Hari Ini',
+      promoMessage:
+          json['promo_message']?.toString() ??
+          'Pesan Sekarang, Nikmati Kemudahannya!',
     );
   }
 
@@ -63,7 +73,9 @@ class TenantModel {
     }
     if (kIsWeb && str.contains('/uploads/')) {
       final parsed = Uri.tryParse(str);
-      if (parsed != null && parsed.host != Uri.base.host && parsed.path.isNotEmpty) {
+      if (parsed != null &&
+          parsed.host != Uri.base.host &&
+          parsed.path.isNotEmpty) {
         return '${ApiConfig.webBaseUrl}${parsed.path}';
       }
     }
@@ -95,6 +107,8 @@ class TenantModel {
       'meta_title': metaTitle,
       'meta_description': metaDescription,
       'menu_code_prefix': menuCodePrefix,
+      'promo_badge_text': promoBadgeText,
+      'promo_message': promoMessage,
     };
   }
 
@@ -109,4 +123,17 @@ class TenantModel {
 
   /// Default tenant jika gagal load
   static const TenantModel fallback = platformRoot;
+}
+
+ImageProvider<Object>? tenantLogoImageProvider(String? logoUrl) {
+  if (logoUrl == null || logoUrl.isEmpty) return null;
+  if (!logoUrl.startsWith('data:image/')) return NetworkImage(logoUrl);
+
+  final separator = logoUrl.indexOf(',');
+  if (separator < 0) return null;
+  try {
+    return MemoryImage(base64Decode(logoUrl.substring(separator + 1)));
+  } on FormatException {
+    return null;
+  }
 }

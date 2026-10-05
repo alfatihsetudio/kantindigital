@@ -38,6 +38,8 @@ class TenantController extends Controller
                 'meta_title' => $tenant->meta_title,
                 'meta_description' => $tenant->meta_description,
                 'menu_code_prefix' => $tenant->menu_code_prefix ?? 'SAY',
+                'promo_badge_text' => $tenant->promo_badge_text ?? 'Promo Hari Ini',
+                'promo_message' => $tenant->promo_message ?? 'Pesan Sekarang, Nikmati Kemudahannya!',
             ],
         ]);
     }
@@ -68,9 +70,15 @@ class TenantController extends Controller
             'whatsapp' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:1000',
+            'promo_badge_text' => 'nullable|string|max:60',
+            'promo_message' => 'nullable|string|max:180',
         ]);
 
-        $data = $request->only(['name', 'menu_code_prefix', 'logo_url', 'primary_color', 'address', 'phone', 'whatsapp', 'meta_title', 'meta_description']);
+        $data = $request->only([
+            'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
+            'logo_url', 'primary_color', 'address', 'phone', 'whatsapp',
+            'meta_title', 'meta_description',
+        ]);
 
         if ($request->hasFile('logo')) {
             // Handle upload file multipart dari Flutter, lalu kompres sebelum disimpan.
@@ -245,4 +253,3 @@ class TenantController extends Controller
         ]);
     }
 }
-

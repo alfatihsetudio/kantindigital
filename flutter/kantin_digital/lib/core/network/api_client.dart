@@ -152,7 +152,15 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
   }) async {
     if (DemoSessionManager.isDemoMode && !_isAlwaysRealApi(path)) {
-      return _handleDemo('POST', path, fields: fields, queryParameters: queryParameters);
+      return _handleDemo(
+        'POST',
+        path,
+        fields: fields,
+        queryParameters: queryParameters,
+        fileField: fileField,
+        fileBytes: fileBytes,
+        fileContentType: contentType,
+      );
     }
 
     final uri = _buildUri(path, queryParameters);
@@ -229,6 +237,9 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? queryParameters,
     Map<String, String>? fields,
+    String? fileField,
+    Uint8List? fileBytes,
+    String? fileContentType,
   }) {
     final clean = path.startsWith('/') ? path.substring(1) : path;
     AppLogger.debug('DemoInterceptor: $method /$clean');
@@ -479,6 +490,10 @@ class ApiClient {
     // 8. TENANT PROFILE
     if ((clean == 'tenant/update' || clean == 'tenant') && method == 'POST') {
       final data = <String, dynamic>{...?body, ...?fields};
+      if (fileField == 'logo' && fileBytes != null) {
+        data['logo_data_url'] =
+            'data:${fileContentType ?? 'image/jpeg'};base64,${base64Encode(fileBytes)}';
+      }
       DemoSessionManager.updateTenantProfile(data);
       return {
         'status': true,

@@ -22,7 +22,9 @@ class TenantProvider extends InheritedWidget {
   bool updateShouldNotify(TenantProvider oldWidget) {
     return oldWidget.tenant.id != tenant.id ||
            oldWidget.tenant.primaryColor != tenant.primaryColor ||
-           oldWidget.tenant.name != tenant.name;
+           oldWidget.tenant.name != tenant.name ||
+           oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
+           oldWidget.tenant.promoMessage != tenant.promoMessage;
   }
 }
 

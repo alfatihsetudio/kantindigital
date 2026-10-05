@@ -9,6 +9,7 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/menu_model.dart';
+import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/services/demo_session_manager.dart';
@@ -28,10 +29,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   late Future<List<MenuModel>> _future;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  
+
   String _selectedCategory = 'Semua';
   final List<String> _categories = ['Semua'];
-  
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   Color get _brandColor => TenantProvider.of(context).primaryColorValue;
@@ -50,7 +51,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     super.initState();
     _controller = local.MenuController();
     _future = _controller.fetchMenus();
-    
+
     // Animation setup
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -61,7 +62,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       curve: Curves.easeOut,
     );
     _fadeController.forward();
-    
+
     // Set status bar
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -107,23 +108,28 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
     // Urutkan sesuai urutan resmi Flyer Say Coffee
     filtered.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
-    
+
     // Filter by Category
     if (_selectedCategory != 'Semua') {
-      filtered = filtered.where((e) => e.categoryName == _selectedCategory).toList();
+      filtered = filtered
+          .where((e) => e.categoryName == _selectedCategory)
+          .toList();
     }
-    
+
     // Filter by Search Query
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      filtered = filtered.where((e) => 
-        e.name.toLowerCase().contains(q) ||
-        (e.code != null && e.code!.toLowerCase().contains(q)) ||
-        e.formattedCode(_menuPrefix).toLowerCase().contains(q) ||
-        e.sequenceNumber.contains(q)
-      ).toList();
+      filtered = filtered
+          .where(
+            (e) =>
+                e.name.toLowerCase().contains(q) ||
+                (e.code != null && e.code!.toLowerCase().contains(q)) ||
+                e.formattedCode(_menuPrefix).toLowerCase().contains(q) ||
+                e.sequenceNumber.contains(q),
+          )
+          .toList();
     }
-    
+
     return filtered;
   }
 
@@ -135,7 +141,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         children: [
           // Gradient Background Effect
           _buildBackgroundGradient(),
-          
+
           // Main Content
           SafeArea(
             child: Column(
@@ -158,7 +164,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       if (items.isEmpty) {
                         return const EmptyView(message: 'Menu tidak tersedia');
                       }
-                      
+
                       _extractCategories(items);
                       final filteredItems = _filterItems(items);
 
@@ -176,119 +182,143 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                               parent: BouncingScrollPhysics(),
                             ),
                             slivers: [
-                            // Category Chips
-                            SliverToBoxAdapter(
-                              child: _buildCategoryChips(),
-                            ),
-                            
-                            // Promo Banner (optional showcase)
-                            SliverToBoxAdapter(
-                              child: _buildPromoSection(),
-                            ),
-                            
-                            // Section Title
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _selectedCategory == 'Semua' 
-                                          ? 'Menu Populer' 
-                                          : _selectedCategory,
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
+                              // Category Chips
+                              SliverToBoxAdapter(child: _buildCategoryChips()),
+
+                              // Promo Banner (optional showcase)
+                              SliverToBoxAdapter(child: _buildPromoSection()),
+
+                              // Section Title
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    8,
+                                    20,
+                                    12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _selectedCategory == 'Semua'
+                                            ? 'Menu Populer'
+                                            : _selectedCategory,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
-                                    ),
-                                    Text(
-                                      '${filteredItems.length} item',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary,
+                                      Text(
+                                        '${filteredItems.length} item',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                            
-                            // Menu Grid
-                            // Menu Grid or Empty State
-                            filteredItems.isEmpty 
-                              ? SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(20),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.background,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            Icons.search_off_rounded,
-                                            size: 48,
-                                            color: AppColors.textSecondary.withValues(alpha: 0.5),
-                                          ),
+
+                              // Menu Grid
+                              // Menu Grid or Empty State
+                              filteredItems.isEmpty
+                                  ? SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 40,
+                                          horizontal: 20,
                                         ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'Yah, menu tidak ditemukan 😔',
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.textPrimary,
-                                          ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(20),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.background,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.search_off_rounded,
+                                                size: 48,
+                                                color: AppColors.textSecondary
+                                                    .withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Yah, menu tidak ditemukan 😔',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Coba cari dengan kata kunci lain',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Coba cari dengan kata kunci lain',
-                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : SliverPadding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  sliver: SliverGrid(
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 16,
-                                      mainAxisSpacing: 16,
-                                      childAspectRatio: 0.72,
-                                    ),
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) => _MenuCard(
-                                        menu: filteredItems[index],
-                                        index: index,
                                       ),
-                                      childCount: filteredItems.length,
+                                    )
+                                  : SliverPadding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                      ),
+                                      sliver: SliverGrid(
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 2,
+                                              crossAxisSpacing: 16,
+                                              mainAxisSpacing: 16,
+                                              childAspectRatio: 0.72,
+                                            ),
+                                        delegate: SliverChildBuilderDelegate(
+                                          (context, index) => _MenuCard(
+                                            menu: filteredItems[index],
+                                            index: index,
+                                          ),
+                                          childCount: filteredItems.length,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                            
-                            // Bottom Spacing
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 100),
-                            ),
-                          ],
+
+                              // Bottom Spacing
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 100),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
+                      );
                     },
                   ),
                 ),
               ],
             ),
           ),
-          
+
           // Floating Cart Button
           _buildFloatingCartButton(),
-          
+
           // Floating Order Status Button (when has active order)
           _buildFloatingOrderButton(),
         ],
@@ -331,7 +361,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   builder: (context) {
                     final tenant = TenantProvider.of(context);
                     final brandColor = tenant.primaryColorValue;
-                    final hasLogo = tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty;
+                    final hasLogo =
+                        tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty;
 
                     return Row(
                       children: [
@@ -360,8 +391,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                           child: hasLogo
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(11),
-                                  child: Image.network(
-                                    tenant.logoUrl!,
+                                  child: Image(
+                                    image: tenantLogoImageProvider(
+                                      tenant.logoUrl,
+                                    )!,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Icon(
                                       Icons.storefront_rounded,
@@ -383,9 +416,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                             children: [
                               Text(
                                 tenant.name,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -402,19 +434,30 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                   const SizedBox(width: 4),
                                   Text(
                                     'Buka',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.success,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: AppColors.success,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                   ),
-                                  if (tenant.address != null && tenant.address!.isNotEmpty) ...[
+                                  if (tenant.address != null &&
+                                      tenant.address!.isNotEmpty) ...[
                                     const SizedBox(width: 6),
-                                    const Text('•', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                    const Text(
+                                      '•',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
                                         tenant.address!,
-                                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 11,
+                                        ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -430,22 +473,24 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   },
                 ),
               ),
-              
+
               // Admin Button (disembunyikan saat mode demo)
-              if (!DemoSessionManager.isDemoMode && TenantService.demoSubdomain == null)
+              if (!DemoSessionManager.isDemoMode &&
+                  TenantService.demoSubdomain == null)
                 IconContainer(
                   icon: Icons.admin_panel_settings_outlined,
                   backgroundColor: Colors.white,
                   iconColor: AppColors.textSecondary,
                   size: 42,
                   iconSize: 20,
-                  onTap: () => Navigator.pushNamed(context, RouteName.adminLogin),
+                  onTap: () =>
+                      Navigator.pushNamed(context, RouteName.adminLogin),
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Search Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -456,7 +501,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             ),
             child: TextField(
               controller: _searchController,
-              textInputAction: TextInputAction.search, // Tombol keyboard jadi 'Search'
+              textInputAction:
+                  TextInputAction.search, // Tombol keyboard jadi 'Search'
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
@@ -468,9 +514,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               },
               decoration: InputDecoration(
                 hintText: 'Mau pesan apa hari ini?',
-                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textMuted,
-                ),
+                hintStyle: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: AppColors.textMuted,
@@ -482,7 +528,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     // Tombol Clear (X) - Hanya muncul jika ada text
                     if (_searchQuery.isNotEmpty)
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: AppColors.textSecondary,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() {
@@ -490,22 +540,26 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                           });
                         },
                       ),
-                    
+
                     // Tombol Cari (Visual Action)
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: _brandColor,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           'Cari',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ),
                     ),
@@ -534,7 +588,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         itemBuilder: (context, index) {
           final cat = _categories[index];
           final isSelected = _selectedCategory == cat;
-          
+
           return CategoryChip(
             label: cat,
             isSelected: isSelected,
@@ -552,6 +606,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   }
 
   Widget _buildPromoSection() {
+    final tenant = TenantProvider.of(context);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       height: 120,
@@ -561,12 +617,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           fit: StackFit.expand,
           children: [
             // Gradient Background
-            Container(
-              decoration: BoxDecoration(
-                gradient: _brandGradient,
-              ),
-            ),
-            
+            Container(decoration: BoxDecoration(gradient: _brandGradient)),
+
             // Pattern overlay
             Positioned(
               right: -20,
@@ -577,7 +629,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 color: Colors.white.withValues(alpha: 0.15),
               ),
             ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(20),
@@ -586,13 +638,16 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      '🔥 Promo Hari Ini',
+                    child: Text(
+                      '🔥 ${tenant.promoBadgeText}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -601,8 +656,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Pesan Sekarang,\nNikmati Kemudahannya!',
+                  Text(
+                    tenant.promoMessage,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -641,7 +696,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Shimmer for grid
           Expanded(
             child: GridView.builder(
@@ -676,7 +731,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         builder: (context, _) {
           final cart = CartController.instance;
           if (cart.items.isEmpty) return const SizedBox.shrink();
-          
+
           return TapScaleContainer(
             onTap: () => Navigator.pushNamed(context, RouteName.customerCart),
             child: Container(
@@ -702,7 +757,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 18),
+                        const Icon(
+                          Icons.shopping_bag_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '${cart.totalItems}',
@@ -754,12 +813,13 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         listenable: ActiveOrderStorage.instance,
         builder: (context, _) {
           final storage = ActiveOrderStorage.instance;
-          
+
           // Don't show if no active order or if cart has items (cart button takes priority)
-          if (!storage.hasActiveOrder || CartController.instance.items.isNotEmpty) {
+          if (!storage.hasActiveOrder ||
+              CartController.instance.items.isNotEmpty) {
             return const SizedBox.shrink();
           }
-          
+
           return TapScaleContainer(
             onTap: () => Navigator.pushNamed(
               context,
@@ -814,10 +874,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                       ),
                       Text(
                         'Lihat Status →',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
                       ),
                     ],
                   ),
@@ -839,10 +896,7 @@ class _MenuCard extends StatelessWidget {
   final MenuModel menu;
   final int index;
 
-  const _MenuCard({
-    required this.menu,
-    required this.index,
-  });
+  const _MenuCard({required this.menu, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -861,10 +915,9 @@ class _MenuCard extends StatelessWidget {
 
     return TapScaleContainer(
       onTap: () {
-        Navigator.of(context).pushNamed(
-          RouteName.customerMenuDetail,
-          arguments: menu,
-        );
+        Navigator.of(
+          context,
+        ).pushNamed(RouteName.customerMenuDetail, arguments: menu);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -903,7 +956,8 @@ class _MenuCard extends StatelessWidget {
                             child: Image.network(
                               menu.imageUrl!,
                               fit: BoxFit.cover,
-                               errorBuilder: (ctx, err, st) => _buildPlaceholder(brandColor),
+                              errorBuilder: (ctx, err, st) =>
+                                  _buildPlaceholder(brandColor),
                             ),
                           )
                         : _buildPlaceholder(brandColor),
@@ -914,7 +968,10 @@ class _MenuCard extends StatelessWidget {
                       top: 10,
                       left: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: brandColor,
                           borderRadius: BorderRadius.circular(8),
@@ -940,7 +997,7 @@ class _MenuCard extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Content
             Expanded(
               flex: 2,
@@ -953,7 +1010,10 @@ class _MenuCard extends StatelessWidget {
                       children: [
                         if (menuCode.isNotEmpty) ...[
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
                             decoration: BoxDecoration(
                               color: brandColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
@@ -978,9 +1038,8 @@ class _MenuCard extends StatelessWidget {
                             menu.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ],
@@ -1001,10 +1060,11 @@ class _MenuCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             CurrencyFormatter.rupiah(menu.price),
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: brandColor,
-                            ),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: brandColor,
+                                ),
                           ),
                         ),
                         Container(

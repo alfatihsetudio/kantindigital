@@ -65,7 +65,10 @@ class DemoSessionManager {
       id: 999,
       subdomain: 'demo',
       name: data['name']?.toString() ?? demoTenant.name,
-      logoUrl: data['logo_url']?.toString() ?? demoTenant.logoUrl,
+      logoUrl:
+          data['logo_data_url']?.toString() ??
+          data['logo_url']?.toString() ??
+          demoTenant.logoUrl,
       primaryColor: data['primary_color']?.toString() ?? demoTenant.primaryColor,
       address: data['address']?.toString() ?? demoTenant.address,
       phone: data['phone']?.toString() ?? demoTenant.phone,
@@ -75,6 +78,8 @@ class DemoSessionManager {
       metaTitle: data['meta_title']?.toString() ?? demoTenant.metaTitle,
       metaDescription: data['meta_description']?.toString() ?? demoTenant.metaDescription,
       menuCodePrefix: data['menu_code_prefix']?.toString() ?? demoTenant.menuCodePrefix,
+      promoBadgeText: data['promo_badge_text']?.toString() ?? demoTenant.promoBadgeText,
+      promoMessage: data['promo_message']?.toString() ?? demoTenant.promoMessage,
     );
     TenantService.clearCache();
   }
