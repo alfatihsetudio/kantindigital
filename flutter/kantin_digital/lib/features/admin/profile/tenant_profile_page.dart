@@ -174,10 +174,17 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       );
     } catch (e) {
       if (!mounted) return;
+      final errorStr = e.toString();
+      final isAuthError = errorStr.contains('401') ||
+          errorStr.toLowerCase().contains('unauthenticated') ||
+          errorStr.toLowerCase().contains('unauthorized');
+
       TopNotification.show(
-        message: 'Gagal menyimpan: $e',
+        message: isAuthError
+            ? 'Anda belum login atau sesi telah berakhir. Silakan login terlebih dahulu sebagai Admin.'
+            : 'Gagal menyimpan: $e',
         backgroundColor: AppColors.danger,
-        icon: Icons.error_rounded,
+        icon: isAuthError ? Icons.lock_outline_rounded : Icons.error_rounded,
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -203,42 +203,90 @@ class AppRouter {
           settings: const RouteSettings(name: RouteName.adminLogin),
         );
       case RouteName.adminDashboard:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminDashboardPage(),
           settings: settings,
         );
       case RouteName.adminCategories:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminCategoriesPage(),
           settings: settings,
         );
       case RouteName.adminMenus:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminMenusPage(),
           settings: settings,
         );
       case RouteName.adminToppings:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminToppingsPage(),
           settings: settings,
         );
 
       case RouteName.adminTables:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminTablesPage(),
           settings: settings,
         );
       case RouteName.adminUsers:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminUsersPage(),
           settings: settings,
         );
       case RouteName.adminQris:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const QrisSettingPage(),
           settings: settings,
         );
       case RouteName.adminTenantProfile:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => const AdminTenantProfilePage(),
           settings: settings,
