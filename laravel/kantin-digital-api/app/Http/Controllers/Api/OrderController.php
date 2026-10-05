@@ -21,10 +21,17 @@ class OrderController extends Controller
     {
         $tenantId = app()->has('tenant') ? app('tenant')->id : null;
         $tenant = app()->has('tenant') ? app('tenant') : null;
-        if ($tenant && ! StoreOpeningHours::isOpen($tenant->opening_hours)) {
+        if ($tenant && (! $tenant->is_store_open || ! StoreOpeningHours::wasOpenedDuringCurrentWindow(
+            $tenant->opening_hours,
+            $tenant->store_opened_at
+        ))) {
+            $message = StoreOpeningHours::isOpen($tenant->opening_hours)
+                ? 'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
+                : 'Toko sedang di luar jam operasional. Jam buka: '.($tenant->opening_hours ?: 'belum diatur').'.';
+
             return response()->json([
                 'status' => false,
-                'message' => 'Toko sedang tutup. Jam operasional: '.($tenant->opening_hours ?: 'belum diatur').'. Silakan pesan kembali saat toko buka.',
+                'message' => $message,
             ], 422);
         }
 

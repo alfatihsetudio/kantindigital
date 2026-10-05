@@ -38,6 +38,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool? _staffHasOpenedStore;
   Color get _brandColor => TenantProvider.of(context).primaryColorValue;
   String get _menuPrefix => TenantProvider.of(context).menuCodePrefix ?? 'SAY';
   LinearGradient get _brandGradient => LinearGradient(
@@ -65,9 +66,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       curve: Curves.easeOut,
     );
     _fadeController.forward();
-    _openingHoursTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
+    _openingHoursTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshStoreStatus(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshStoreStatus());
 
     // Set status bar
     SystemChrome.setSystemUIOverlayStyle(
@@ -94,6 +97,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       _fadeController.reset();
       _fadeController.forward();
     }
+  }
+
+  Future<void> _refreshStoreStatus() async {
+    final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
+    if (!mounted) return;
+    setState(() => _staffHasOpenedStore = tenant.isStoreOpen);
   }
 
   void _extractCategories(List<MenuModel> items) {
@@ -140,116 +149,146 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     return filtered;
   }
 
-  Widget _buildClosedPage(TenantModel tenant) {
+  Widget _buildClosedPage(
+    TenantModel tenant, {
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
     final brandColor = tenant.primaryColorValue;
     final logoProvider = tenantLogoImageProvider(tenant.logoUrl);
-    final hasSchedule = tenant.isOpenAt(DateTime.now().toUtc()) != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: brandColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: logoProvider == null
-                      ? Icon(
-                          Icons.storefront_rounded,
-                          size: 42,
-                          color: brandColor,
-                        )
-                      : Image(
-                          image: logoProvider,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Icon(
-                            Icons.storefront_rounded,
-                            size: 42,
+        child: Stack(
+          children: [
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        color: brandColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: logoProvider == null
+                          ? Icon(
+                              Icons.storefront_rounded,
+                              size: 42,
+                              color: brandColor,
+                            )
+                          : Image(
+                              image: logoProvider,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Icon(
+                                Icons.storefront_rounded,
+                                size: 42,
+                                color: brandColor,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      tenant.name,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Icon(Icons.nightlight_round, size: 54, color: brandColor),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Toko sedang tutup',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      scheduleOpen && !staffHasOpened
+                          ? 'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
+                          : !scheduleOpen
+                          ? 'Toko sedang di luar jam operasional. Silakan kembali sesuai jadwal.'
+                          : 'Jam operasional toko belum diatur dengan format yang benar. Silakan hubungi toko.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 20,
                             color: brandColor,
                           ),
-                        ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  tenant.name,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Icon(Icons.nightlight_round, size: 54, color: brandColor),
-                const SizedBox(height: 12),
-                Text(
-                  'Toko sedang tutup',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  hasSchedule
-                      ? 'Kami belum menerima pesanan saat ini. Silakan kembali pada jam operasional toko.'
-                      : 'Jam operasional toko belum diatur dengan format yang benar. Silakan hubungi toko.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 20,
-                        color: brandColor,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Jam buka: ${tenant.openingHours}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'Jam buka: ${tenant.openingHours}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (tenant.address != null &&
+                        tenant.address!.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        tenant.address!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                if (tenant.address != null && tenant.address!.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    tenant.address!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                tooltip: 'Login staf',
+                onPressed: () =>
+                    Navigator.pushNamed(context, RouteName.adminLogin),
+                icon: Icon(
+                  Icons.login_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary.withValues(alpha: 0.35),
+                ),
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -258,8 +297,14 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final tenant = TenantProvider.of(context);
-    if (tenant.isOpenAt(DateTime.now().toUtc()) != true) {
-      return _buildClosedPage(tenant);
+    final scheduleOpen = tenant.isOpenAt(DateTime.now().toUtc()) == true;
+    final staffHasOpened = _staffHasOpenedStore ?? tenant.isStoreOpen;
+    if (!scheduleOpen || !staffHasOpened) {
+      return _buildClosedPage(
+        tenant,
+        scheduleOpen: scheduleOpen,
+        staffHasOpened: staffHasOpened,
+      );
     }
 
     return Scaffold(

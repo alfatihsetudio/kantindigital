@@ -5,6 +5,7 @@ import '../../../core/widgets/top_notification.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
 import '../../../shared/services/demo_session_manager.dart';
+import '../../../shared/widgets/store_status_control.dart';
 import '../auth/login_service.dart';
 
 /// Modern Liquid Glass Drawer for Admin
@@ -357,6 +358,7 @@ class AdminDrawer extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const StoreStatusControl(),
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',

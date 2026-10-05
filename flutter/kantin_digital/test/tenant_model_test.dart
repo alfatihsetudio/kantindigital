@@ -39,9 +39,13 @@ void main() {
       'subdomain': 'saycoffee',
       'name': 'SAY COFFEE',
       'opening_hours': 'Senin-Sabtu, 08:00 - 22:00',
+      'is_store_open': true,
     });
+
     expect(tenant.openingHours, 'Senin-Sabtu, 08:00 - 22:00');
     expect(tenant.toJson()['opening_hours'], 'Senin-Sabtu, 08:00 - 22:00');
+    expect(tenant.isStoreOpen, isTrue);
+    expect(tenant.toJson()['is_store_open'], isTrue);
   });
 
   test('evaluates daily opening hours in WIB and closes at closing time', () {
@@ -90,6 +94,20 @@ void main() {
       DemoSessionManager.demoTenant.openingHours,
       'Senin-Sabtu, 08:00 - 22:00',
     );
+  });
+
+  test('demo staff can toggle the store open status', () {
+    addTearDown(() {
+      DemoSessionManager.disableDemoMode();
+      DemoSessionManager.resetDemoData();
+    });
+
+    DemoSessionManager.enableDemoMode();
+    DemoSessionManager.updateStoreOpenStatus(true);
+    expect(DemoSessionManager.demoTenant.isStoreOpen, isTrue);
+
+    DemoSessionManager.updateStoreOpenStatus(false);
+    expect(DemoSessionManager.demoTenant.isStoreOpen, isFalse);
   });
 
   test('demo profile save retains customized promo copy', () {

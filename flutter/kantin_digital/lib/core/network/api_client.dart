@@ -256,6 +256,18 @@ class ApiClient {
       return {'status': true, 'data': DemoSessionManager.getMockStats()};
     }
 
+    if (clean == 'tenant/store-status' && method == 'POST') {
+      final isOpen = body?['is_store_open'] == true ||
+          body?['is_store_open'] == 'true' ||
+          body?['is_store_open'] == 1;
+      DemoSessionManager.updateStoreOpenStatus(isOpen);
+      return {
+        'status': true,
+        'message': isOpen ? 'Toko berhasil dibuka.' : 'Toko berhasil ditutup.',
+        'data': {'is_store_open': isOpen},
+      };
+    }
+
     // 2. KATEGORI
     if (clean == 'categories' && method == 'GET') {
       return {

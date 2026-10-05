@@ -8,6 +8,7 @@ import '../../../shared/auth/auth_session.dart';
 import '../widgets/cashier_drawer.dart';
 import '../widgets/calculator_widget.dart';
 import '../manual_order/manual_order_page.dart';
+import 'order_alert_sound.dart';
 import 'orders_service.dart';
 
 class CashierOrdersPage extends StatefulWidget {
@@ -19,6 +20,7 @@ class CashierOrdersPage extends StatefulWidget {
 
 class _CashierOrdersPageState extends State<CashierOrdersPage> {
   final CashierOrdersService _service = CashierOrdersService();
+  final OrderAlertSound _orderAlertSound = OrderAlertSound();
   Timer? _refreshTimer;
 
   // Selected Tab Index: 0=Baru, 1=Proses, 2=Siap
@@ -27,6 +29,10 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   List<CashierOrderModel> _pendingOrders = [];
   List<CashierOrderModel> _processingOrders = [];
   List<CashierOrderModel> _completedOrders = [];
+  final Set<int> _knownPendingOrderIds = {};
+  final Set<int> _unacknowledgedOrderIds = {};
+  bool _hasLoadedOrders = false;
+  bool _isFetchingOrders = false;
   bool _loading = true;
 
   bool get _isOperations => AuthSession().user?.role?.name == 'operations';
@@ -48,19 +54,37 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _orderAlertSound.dispose();
     super.dispose();
   }
 
   Future<void> _loadOrders({bool silent = false}) async {
+    if (_isFetchingOrders) return;
+    _isFetchingOrders = true;
     if (!silent) {
       if (mounted) setState(() => _loading = true);
     }
+    var newOrdersArrived = false;
     try {
       final pending = await _service.getOrders(status: 'UNPAID');
       final processing = await _service.getOrders(status: 'PROCESSING');
       final completed = await _service.getOrders(status: 'READY');
 
       if (mounted) {
+        final incomingOrders = _hasLoadedOrders
+            ? pending
+                  .where((order) => !_knownPendingOrderIds.contains(order.id))
+                  .toList()
+            : pending;
+        _knownPendingOrderIds.addAll(pending.map((order) => order.id));
+        if (incomingOrders.isNotEmpty) {
+          _unacknowledgedOrderIds.addAll(
+            incomingOrders.map((order) => order.id),
+          );
+          if (!_isOperations) _selectedIndex = 0;
+          newOrdersArrived = true;
+        }
+        _hasLoadedOrders = true;
         setState(() {
           _pendingOrders = pending;
           _processingOrders = processing;
@@ -74,12 +98,69 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
         // Silent error to avoid spamming snackbars on auto-refresh
         debugPrint('Error loading orders: $e');
       }
+    } finally {
+      _isFetchingOrders = false;
     }
+    if (newOrdersArrived && _orderAlertSound.isEnabled) {
+      await _playOrderAlert();
+    }
+  }
+
+  Future<void> _toggleOrderSound() async {
+    if (_orderAlertSound.isEnabled) {
+      _orderAlertSound.disable();
+      if (mounted) setState(() {});
+      return;
+    }
+
+    try {
+      await _orderAlertSound.enableFromUserGesture();
+      if (!mounted) return;
+      setState(() {});
+      if (_unacknowledgedOrderIds.isNotEmpty) {
+        await _playOrderAlert();
+      }
+      TopNotification.show(
+        message: 'Suara notifikasi pesanan aktif',
+        backgroundColor: AppColors.success,
+        icon: Icons.volume_up_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Suara gagal diaktifkan. Periksa izin audio browser: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.volume_off_rounded,
+      );
+    }
+  }
+
+  Future<void> _playOrderAlert() async {
+    try {
+      await _orderAlertSound.play();
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Gagal membunyikan notifikasi pesanan: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.volume_off_rounded,
+      );
+    }
+  }
+
+  void _acknowledgeAllNewOrders() {
+    _unacknowledgedOrderIds.clear();
+    _orderAlertSound.stop();
+    if (mounted) setState(() {});
   }
 
   Future<void> _updateStatus(CashierOrderModel order, String newStatus) async {
     try {
       await _service.updateOrderStatus(order.id, newStatus);
+      _unacknowledgedOrderIds.remove(order.id);
+      if (_unacknowledgedOrderIds.isEmpty) {
+        _orderAlertSound.stop();
+      }
       _loadOrders(); // Refresh immediately
       if (!mounted) return;
 
@@ -111,8 +192,6 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,6 +204,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
             child: Column(
               children: [
                 _buildAppBar(context),
+                if (_unacknowledgedOrderIds.isNotEmpty)
+                  _buildIncomingOrderAlert(),
                 _buildTabSelectors(),
                 Expanded(
                   child: _loading
@@ -146,6 +227,45 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
         label: const Text('Refresh'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildIncomingOrderAlert() {
+    final orderCount = _unacknowledgedOrderIds.length;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.notifications_active_rounded,
+            color: AppColors.danger,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$orderCount pesanan baru perlu diperiksa',
+              style: const TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _orderAlertSound.isEnabled
+                ? _acknowledgeAllNewOrders
+                : _toggleOrderSound,
+            child: Text(
+              _orderAlertSound.isEnabled ? 'Hentikan bunyi' : 'Aktifkan suara',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -280,6 +400,20 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 ),
               ],
             ),
+          IconButton(
+            tooltip: _orderAlertSound.isEnabled
+                ? 'Matikan suara pesanan'
+                : 'Aktifkan dan uji suara pesanan',
+            onPressed: _toggleOrderSound,
+            icon: Icon(
+              _orderAlertSound.isEnabled
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_rounded,
+              color: _orderAlertSound.isEnabled
+                  ? AppColors.success
+                  : AppColors.danger,
+            ),
+          ),
         ],
       ),
     );

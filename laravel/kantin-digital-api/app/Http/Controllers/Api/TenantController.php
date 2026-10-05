@@ -33,6 +33,11 @@ class TenantController extends Controller
                 'primary_color' => $tenant->primary_color,
                 'address' => $tenant->address,
                 'opening_hours' => $tenant->opening_hours ?? '08:00 - 22:00',
+                'is_store_open' => (bool) $tenant->is_store_open
+                    && StoreOpeningHours::wasOpenedDuringCurrentWindow(
+                        $tenant->opening_hours,
+                        $tenant->store_opened_at
+                    ),
                 'phone' => $tenant->phone,
                 'whatsapp' => $tenant->whatsapp,
                 'plan' => $tenant->plan,
@@ -190,6 +195,45 @@ class TenantController extends Controller
                 'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function updateStoreStatus(Request $request)
+    {
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tenant tidak ditemukan',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'is_store_open' => 'required|boolean',
+        ]);
+
+        if ($validated['is_store_open'] && ! StoreOpeningHours::isOpen($tenant->opening_hours)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Belum masuk jam operasional toko ('.$tenant->opening_hours.').',
+            ], 422);
+        }
+
+        $tenant->update([
+            'is_store_open' => $validated['is_store_open'],
+            'store_opened_at' => $validated['is_store_open']
+                ? now('UTC')->toIso8601String()
+                : null,
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => $validated['is_store_open']
+                ? 'Toko berhasil dibuka.'
+                : 'Toko berhasil ditutup.',
+            'data' => [
+                'is_store_open' => (bool) $tenant->is_store_open,
+            ],
+        ]);
     }
 
     private function storeCompressedLogo(Tenant $tenant, string $binaryData, string $extension): ?string

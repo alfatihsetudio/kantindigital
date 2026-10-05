@@ -50,6 +50,7 @@ class DemoSessionManager {
     primaryColor: '#2563EB',
     address: 'Kawasan Bisnis Demo No. 88, Jakarta',
     openingHours: '08:00 - 22:00',
+    isStoreOpen: false,
     phone: '081234567890',
     whatsapp: '6287771262100',
     plan: 'pro',
@@ -73,6 +74,9 @@ class DemoSessionManager {
       primaryColor: data['primary_color']?.toString() ?? demoTenant.primaryColor,
       address: data['address']?.toString() ?? demoTenant.address,
       openingHours: data['opening_hours']?.toString() ?? demoTenant.openingHours,
+      isStoreOpen: data['is_store_open'] == null
+          ? demoTenant.isStoreOpen
+          : data['is_store_open'] == true || data['is_store_open'] == 'true',
       phone: data['phone']?.toString() ?? demoTenant.phone,
       whatsapp: data['whatsapp']?.toString() ?? demoTenant.whatsapp,
       plan: demoTenant.plan,
@@ -88,6 +92,10 @@ class DemoSessionManager {
       promoMessage: data['promo_message']?.toString() ?? demoTenant.promoMessage,
     );
     TenantService.clearCache();
+  }
+
+  static void updateStoreOpenStatus(bool isOpen) {
+    updateTenantProfile({'is_store_open': isOpen});
   }
 
   // ── KREDENSIAL DEMO TERDAFTAR ──

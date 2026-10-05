@@ -75,8 +75,10 @@ class TenantService {
   }
 
   /// Fetch info tenant dari API
-  static Future<TenantModel> fetchTenantInfo() async {
-    if (_cached != null) return _cached!;
+  static Future<TenantModel> fetchTenantInfo({
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _cached != null) return _cached!;
 
     if (_demoSubdomain != null || DemoSessionManager.isDemoMode) {
       _cached = DemoSessionManager.demoTenant;

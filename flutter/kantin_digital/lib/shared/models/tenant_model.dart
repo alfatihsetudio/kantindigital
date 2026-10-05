@@ -15,6 +15,7 @@ class TenantModel {
   final String? phone;
   final String? whatsapp;
   final String openingHours;
+  final bool isStoreOpen;
   final String plan;
   final bool isActive;
   final String? metaTitle;
@@ -34,6 +35,7 @@ class TenantModel {
     this.phone,
     this.whatsapp,
     this.openingHours = '08:00 - 22:00',
+    this.isStoreOpen = false,
     this.plan = 'free',
     this.isActive = true,
     this.metaTitle,
@@ -58,6 +60,7 @@ class TenantModel {
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       openingHours: json['opening_hours']?.toString() ?? '08:00 - 22:00',
+      isStoreOpen: json['is_store_open'] == true || json['is_store_open'] == 1,
       plan: json['plan']?.toString() ?? 'free',
       isActive: json['is_active'] == true || json['is_active'] == 1,
       metaTitle: json['meta_title']?.toString(),
@@ -113,6 +116,7 @@ class TenantModel {
       'phone': phone,
       'whatsapp': whatsapp,
       'opening_hours': openingHours,
+      'is_store_open': isStoreOpen,
       'plan': plan,
       'is_active': isActive,
       'meta_title': metaTitle,

@@ -46,6 +46,52 @@ class StoreOpeningHours
         return false;
     }
 
+    public static function wasOpenedDuringCurrentWindow(
+        ?string $value,
+        ?string $openedAt,
+        ?CarbonInterface $at = null
+    ): bool {
+        if ($openedAt === null) {
+            return false;
+        }
+
+        $schedule = self::parse($value ?? '');
+        if ($schedule === null) {
+            return false;
+        }
+
+        $localTime = ($at ? \Carbon\Carbon::instance($at) : now())->setTimezone('Asia/Jakarta');
+        $openedTime = \Carbon\Carbon::parse($openedAt)->setTimezone('Asia/Jakarta');
+        $weekday = (int) $localTime->dayOfWeekIso;
+        $minutes = ((int) $localTime->hour * 60) + (int) $localTime->minute;
+        $interval = $schedule[$weekday] ?? null;
+        $windowStart = null;
+
+        if ($interval !== null) {
+            [$start, $end] = $interval;
+            if ($start < $end && $minutes >= $start && $minutes < $end) {
+                $windowStart = $localTime->copy()->startOfDay()->addMinutes($start);
+            } elseif ($start > $end && $minutes >= $start) {
+                $windowStart = $localTime->copy()->startOfDay()->addMinutes($start);
+            }
+        }
+
+        if ($windowStart === null) {
+            $previousWeekday = $weekday === 1 ? 7 : $weekday - 1;
+            $previousInterval = $schedule[$previousWeekday] ?? null;
+            if ($previousInterval !== null) {
+                [$start, $end] = $previousInterval;
+                if ($start > $end && $minutes < $end) {
+                    $windowStart = $localTime->copy()->startOfDay()->subDay()->addMinutes($start);
+                }
+            }
+        }
+
+        return $windowStart !== null
+            && $openedTime->greaterThanOrEqualTo($windowStart)
+            && $openedTime->lessThanOrEqualTo($localTime);
+    }
+
     private static function parse(string $value): ?array
     {
         $normalized = mb_strtolower(trim($value));

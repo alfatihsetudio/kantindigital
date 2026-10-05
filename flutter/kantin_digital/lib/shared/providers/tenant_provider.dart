@@ -24,6 +24,7 @@ class TenantProvider extends InheritedWidget {
            oldWidget.tenant.primaryColor != tenant.primaryColor ||
            oldWidget.tenant.name != tenant.name ||
            oldWidget.tenant.openingHours != tenant.openingHours ||
+           oldWidget.tenant.isStoreOpen != tenant.isStoreOpen ||
            oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
            oldWidget.tenant.promoMessage != tenant.promoMessage;
   }

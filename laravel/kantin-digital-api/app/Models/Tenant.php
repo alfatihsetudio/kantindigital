@@ -12,11 +12,12 @@ class Tenant extends Model
     protected $fillable = [
         'subdomain', 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message', 'logo_url', 'primary_color',
         'address', 'opening_hours', 'meta_title', 'meta_description', 'meta_image',
-        'phone', 'whatsapp', 'plan', 'expires_at', 'is_active',
+        'phone', 'whatsapp', 'plan', 'expires_at', 'is_active', 'is_store_open', 'store_opened_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_store_open' => 'boolean',
         'expires_at' => 'datetime',
     ];
 

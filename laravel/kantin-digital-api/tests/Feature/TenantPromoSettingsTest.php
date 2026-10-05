@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Tenant;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -73,6 +74,62 @@ class TenantPromoSettingsTest extends TestCase
             'opening_hours' => 'jam bebas',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('opening_hours');
+    }
+
+    public function test_admin_or_cashier_can_open_and_close_store_during_opening_hours(): void
+    {
+        $tenant = Tenant::where('subdomain', 'saycoffee')->firstOrFail();
+        $tenant->update([
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => false,
+            'store_opened_at' => null,
+        ]);
+        app()->instance('tenant', $tenant);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 10:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/tenant/store-status', [
+                'is_store_open' => true,
+            ])->assertOk()
+                ->assertJsonPath('data.is_store_open', true);
+
+            $this->getJson('/api/tenant/info')
+                ->assertOk()
+                ->assertJsonPath('data.is_store_open', true);
+
+            $this->postJson('/api/tenant/store-status', [
+                'is_store_open' => false,
+            ])->assertOk()
+                ->assertJsonPath('data.is_store_open', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_staff_cannot_open_store_outside_opening_hours(): void
+    {
+        $tenant = Tenant::where('subdomain', 'saycoffee')->firstOrFail();
+        $tenant->update([
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => false,
+            'store_opened_at' => null,
+        ]);
+        app()->instance('tenant', $tenant);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/tenant/store-status', [
+                'is_store_open' => true,
+            ])->assertUnprocessable()
+                ->assertJsonPath('message', 'Belum masuk jam operasional toko (08:00 - 22:00).');
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'is_store_open' => false,
+        ]);
     }
 
     public function test_tenant_meta_image_can_be_uploaded_and_compressed(): void

@@ -58,6 +58,8 @@ class OnlineOrderTest extends TestCase
         app()->instance('tenant', (object) [
             'id' => null,
             'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => true,
+            'store_opened_at' => Carbon::parse('2026-10-05 08:00:00', 'Asia/Jakarta')->toIso8601String(),
         ]);
         Carbon::setTestNow(Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta'));
 
@@ -74,7 +76,39 @@ class OnlineOrderTest extends TestCase
             ])->assertUnprocessable()
                 ->assertJsonPath(
                     'message',
-                    'Toko sedang tutup. Jam operasional: 08:00 - 22:00. Silakan pesan kembali saat toko buka.'
+                    'Toko sedang di luar jam operasional. Jam buka: 08:00 - 22:00.'
+                );
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_public_order_is_rejected_until_a_staff_member_opens_the_store(): void
+    {
+        $tenant = new \App\Models\Tenant([
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => false,
+        ]);
+        $tenant->store_opened_at = null;
+        app()->instance('tenant', $tenant);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 10:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/orders', [
+                'order_type' => 'pickup',
+                'items' => [
+                    [
+                        'menu_id' => $this->menu->id,
+                        'quantity' => 1,
+                        'topping_ids' => [],
+                    ],
+                ],
+            ])->assertUnprocessable()
+                ->assertJsonPath(
+                    'message',
+                    'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
                 );
         } finally {
             Carbon::setTestNow();
@@ -95,6 +129,18 @@ class OnlineOrderTest extends TestCase
         $this->assertFalse(StoreOpeningHours::isOpen(
             'Senin-Sabtu 08:00-22:00; Minggu tutup',
             $sundayMorning
+        ));
+        $openedAt = Carbon::parse('2026-10-05 08:00:00', 'Asia/Jakarta')
+            ->toIso8601String();
+        $this->assertTrue(StoreOpeningHours::wasOpenedDuringCurrentWindow(
+            '08:00 - 22:00',
+            $openedAt,
+            Carbon::parse('2026-10-05 09:00:00', 'Asia/Jakarta')
+        ));
+        $this->assertFalse(StoreOpeningHours::wasOpenedDuringCurrentWindow(
+            '08:00 - 22:00',
+            $openedAt,
+            Carbon::parse('2026-10-06 09:00:00', 'Asia/Jakarta')
         ));
         $this->assertFalse(StoreOpeningHours::isValid('jam bebas'));
     }
