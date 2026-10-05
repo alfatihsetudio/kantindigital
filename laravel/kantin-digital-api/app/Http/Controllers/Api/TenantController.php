@@ -50,106 +50,107 @@ class TenantController extends Controller
      */
     public function update(Request $request)
     {
-        $tenant = app()->has('tenant') ? app('tenant') : null;
-
-        if (! $tenant) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Tenant tidak ditemukan',
-            ], 404);
-        }
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'menu_code_prefix' => 'nullable|string|max:20',
-            'primary_color' => 'nullable|string',
-            'logo_url' => 'nullable|string',
-            'logo' => 'nullable|image|max:2048',
-            'logo_base64' => 'nullable|string',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'whatsapp' => 'nullable|string',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:1000',
-            'meta_image' => 'nullable|image|max:5120',
-            'meta_image_url' => 'nullable|string',
-            'meta_image_base64' => 'nullable|string',
-            'promo_badge_text' => 'nullable|string|max:60',
-            'promo_message' => 'nullable|string|max:180',
-        ]);
-
-        $data = $request->only([
-            'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
-            'logo_url', 'primary_color', 'address', 'phone', 'whatsapp',
-            'meta_title', 'meta_description',
-        ]);
-
-        if ($request->hasFile('logo')) {
-            // Handle upload file multipart dari Flutter, lalu kompres sebelum disimpan.
-            $file = $request->file('logo');
-            $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-            $logoUrl = $this->storeCompressedLogo(
-                $tenant,
-                file_get_contents($file->getRealPath()),
-                $extension
-            );
-
-            if ($logoUrl) {
-                $data['logo_url'] = $logoUrl;
-            }
-        } elseif ($request->filled('logo_base64')) {
-            // Backward compatible untuk client lama yang masih mengirim Base64.
-            $base64String = $request->input('logo_base64');
-            $extension = 'jpg';
-            if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
-                $extension = strtolower($matches[1]);
-                $base64String = substr($base64String, strpos($base64String, ',') + 1);
-            }
-
-            $binaryData = base64_decode($base64String);
-            if ($binaryData !== false) {
-                $logoUrl = $this->storeCompressedLogo($tenant, $binaryData, $extension);
-                if ($logoUrl) {
-                    $data['logo_url'] = $logoUrl;
-                }
-            }
-        }
-
-        // Handle upload gambar meta preview link (OpenGraph / WhatsApp share preview)
-        if ($request->hasFile('meta_image')) {
-            $file = $request->file('meta_image');
-            $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-            $metaImageUrl = $this->storeCompressedMetaImage(
-                $tenant,
-                file_get_contents($file->getRealPath()),
-                $extension
-            );
-
-            if ($metaImageUrl) {
-                $data['meta_image'] = $metaImageUrl;
-            }
-        } elseif ($request->filled('meta_image_base64')) {
-            $base64String = $request->input('meta_image_base64');
-            $extension = 'jpg';
-            if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
-                $extension = strtolower($matches[1]);
-                $base64String = substr($base64String, strpos($base64String, ',') + 1);
-            }
-
-            $binaryData = base64_decode($base64String);
-            if ($binaryData !== false) {
-                $metaImageUrl = $this->storeCompressedMetaImage($tenant, $binaryData, $extension);
-                if ($metaImageUrl) {
-                    $data['meta_image'] = $metaImageUrl;
-                }
-            }
-        } elseif ($request->has('meta_image_url')) {
-            // Jika kosong string (""), berarti reset ke default (logo tenant)
-            $metaUrlVal = $request->input('meta_image_url');
-            $data['meta_image'] = !empty($metaUrlVal) ? $metaUrlVal : null;
-        }
-
         try {
+            $tenant = app()->has('tenant') ? app('tenant') : null;
+
+            if (! $tenant) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Tenant tidak ditemukan',
+                ], 404);
+            }
+
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'menu_code_prefix' => 'nullable|string|max:20',
+                'primary_color' => 'nullable|string',
+                'logo_url' => 'nullable|string',
+                'logo' => 'nullable|image|max:2048',
+                'logo_base64' => 'nullable|string',
+                'address' => 'nullable|string',
+                'phone' => 'nullable|string',
+                'whatsapp' => 'nullable|string',
+                'meta_title' => 'nullable|string|max:255',
+                'meta_description' => 'nullable|string|max:1000',
+                'meta_image' => 'nullable|image|max:5120',
+                'meta_image_url' => 'nullable|string',
+                'meta_image_base64' => 'nullable|string',
+                'promo_badge_text' => 'nullable|string|max:60',
+                'promo_message' => 'nullable|string|max:180',
+            ]);
+
+            $data = $request->only([
+                'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
+                'logo_url', 'primary_color', 'address', 'phone', 'whatsapp',
+                'meta_title', 'meta_description',
+            ]);
+
+            if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+                $file = $request->file('logo');
+                $realPath = $file->getRealPath();
+                if ($realPath && file_exists($realPath)) {
+                    $rawBytes = @file_get_contents($realPath);
+                    if ($rawBytes) {
+                        $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                        $logoUrl = $this->storeCompressedLogo($tenant, $rawBytes, $extension);
+                        if ($logoUrl) {
+                            $data['logo_url'] = $logoUrl;
+                        }
+                    }
+                }
+            } elseif ($request->filled('logo_base64')) {
+                // Backward compatible untuk client lama yang masih mengirim Base64.
+                $base64String = $request->input('logo_base64');
+                $extension = 'jpg';
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                    $extension = strtolower($matches[1]);
+                    $base64String = substr($base64String, strpos($base64String, ',') + 1);
+                }
+
+                $binaryData = base64_decode($base64String);
+                if ($binaryData !== false) {
+                    $logoUrl = $this->storeCompressedLogo($tenant, $binaryData, $extension);
+                    if ($logoUrl) {
+                        $data['logo_url'] = $logoUrl;
+                    }
+                }
+            }
+
+            // Handle upload gambar meta preview link (OpenGraph / WhatsApp share preview)
+            if ($request->hasFile('meta_image') && $request->file('meta_image')->isValid()) {
+                $file = $request->file('meta_image');
+                $realPath = $file->getRealPath();
+                if ($realPath && file_exists($realPath)) {
+                    $rawBytes = @file_get_contents($realPath);
+                    if ($rawBytes) {
+                        $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                        $metaImageUrl = $this->storeCompressedMetaImage($tenant, $rawBytes, $extension);
+                        if ($metaImageUrl) {
+                            $data['meta_image'] = $metaImageUrl;
+                        }
+                    }
+                }
+            } elseif ($request->filled('meta_image_base64')) {
+                $base64String = $request->input('meta_image_base64');
+                $extension = 'jpg';
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                    $extension = strtolower($matches[1]);
+                    $base64String = substr($base64String, strpos($base64String, ',') + 1);
+                }
+
+                $binaryData = base64_decode($base64String);
+                if ($binaryData !== false) {
+                    $metaImageUrl = $this->storeCompressedMetaImage($tenant, $binaryData, $extension);
+                    if ($metaImageUrl) {
+                        $data['meta_image'] = $metaImageUrl;
+                    }
+                }
+            } elseif ($request->has('meta_image_url')) {
+                // Jika kosong string (""), berarti reset ke default (logo tenant)
+                $metaUrlVal = $request->input('meta_image_url');
+                $data['meta_image'] = !empty($metaUrlVal) ? $metaUrlVal : null;
+            }
+
             // Filter hanya kolom yang benar-benar ada di tabel tenants server
             // Mencegah SQL Error 1054 jika server belum menjalankan artisan migrate
             $filteredData = [];
@@ -160,19 +161,21 @@ class TenantController extends Controller
             }
 
             $tenant->update($filteredData);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Profil kantin berhasil diperbarui',
+                'data' => $tenant,
+            ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Tenant update DB error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Tenant update error: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
             return response()->json([
                 'status' => false,
-                'message' => 'Gagal menyimpan ke database: ' . $e->getMessage(),
+                'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Profil kantin berhasil diperbarui',
-            'data' => $tenant,
-        ]);
     }
 
     private function storeCompressedLogo(Tenant $tenant, string $binaryData, string $extension): ?string
