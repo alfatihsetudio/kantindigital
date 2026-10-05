@@ -7,14 +7,18 @@ class ApiConfig {
     if (kIsWeb) {
       final uri = Uri.base;
       if (uri.host.isNotEmpty) {
-        // Jika di local development (localhost, 127.0.0.1, atau *.test), arahkan ke Laravel di port 8000
-        if (uri.host == 'localhost' ||
-            uri.host == '127.0.0.1' ||
-            uri.host.endsWith('.test')) {
-          final host = (uri.host == 'localhost' || uri.host == '127.0.0.1')
-              ? uri.host
-              : '127.0.0.1';
-          return '${uri.scheme}://$host:8000/api';
+        // Jika dibuka dari domain atau Laragon virtual host (*.test, *.my.id, dll),
+        // gunakan host yang sama agar same-origin dan bebas dari blokir CORS / Private Network
+        if (uri.host.endsWith('.test') || uri.host.contains('.')) {
+          final port = (uri.port == 80 || uri.port == 443 || uri.port == 0) ? '' : ':${uri.port}';
+          return '${uri.scheme}://${uri.host}$port/api';
+        }
+        // Jika di local development via flutter run dev server (localhost / 127.0.0.1 port non-80)
+        if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
+          if (uri.port == 80 || uri.port == 0) {
+            return '${uri.scheme}://${uri.host}/api';
+          }
+          return '${uri.scheme}://${uri.host}:8000/api';
         }
         final port = (uri.port == 80 || uri.port == 443 || uri.port == 0) ? '' : ':${uri.port}';
         return '${uri.scheme}://${uri.host}$port/api';
