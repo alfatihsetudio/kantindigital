@@ -149,6 +149,7 @@ class ApiClient {
     Uint8List? fileBytes,
     String? filename,
     String? contentType,
+    List<http.MultipartFile>? files,
     Map<String, dynamic>? queryParameters,
   }) async {
     if (DemoSessionManager.isDemoMode && !_isAlwaysRealApi(path)) {
@@ -171,7 +172,9 @@ class ApiClient {
     request.headers.addAll(headers);
     request.fields.addAll(fields);
 
-    if (fileField != null && fileBytes != null && filename != null) {
+    if (files != null && files.isNotEmpty) {
+      request.files.addAll(files);
+    } else if (fileField != null && fileBytes != null && filename != null) {
       request.files.add(
         http.MultipartFile.fromBytes(
           fileField,

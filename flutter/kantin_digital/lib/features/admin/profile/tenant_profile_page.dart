@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_upload_helper.dart';
@@ -24,6 +26,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _whatsappCtrl = TextEditingController();
   final _metaTitleCtrl = TextEditingController();
   final _metaDescCtrl = TextEditingController();
+  final _metaImageCtrl = TextEditingController();
   final _menuCodePrefixCtrl = TextEditingController();
   final _promoBadgeCtrl = TextEditingController();
   final _promoMessageCtrl = TextEditingController();
@@ -31,7 +34,10 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isCompressing = false;
+  bool _isCompressingMeta = false;
+  bool _clearMetaImage = false;
   CompressedImageFile? _newLogo;
+  CompressedImageFile? _newMetaImage;
   String _selectedColor = '#6F4E37';
 
   // Preset warna populer untuk brand makanan / kafe
@@ -74,6 +80,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _whatsappCtrl.dispose();
     _metaTitleCtrl.dispose();
     _metaDescCtrl.dispose();
+    _metaImageCtrl.dispose();
     _menuCodePrefixCtrl.dispose();
     _promoBadgeCtrl.dispose();
     _promoMessageCtrl.dispose();
@@ -94,6 +101,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _whatsappCtrl.text = tenant.whatsapp ?? '';
       _metaTitleCtrl.text = tenant.metaTitle ?? '';
       _metaDescCtrl.text = tenant.metaDescription ?? '';
+      _metaImageCtrl.text = tenant.metaImageUrl ?? '';
+      _clearMetaImage = false;
       _promoBadgeCtrl.text = tenant.promoBadgeText;
       _promoMessageCtrl.text = tenant.promoMessage;
     } catch (e) {
@@ -122,6 +131,43 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     }
   }
 
+  Future<void> _pickMetaImage() async {
+    setState(() => _isCompressingMeta = true);
+    try {
+      final compressed = await ImageUploadHelper.pickAndCompressImage(
+        maxDimension: 1200,
+        quality: 82,
+      );
+      if (compressed != null) {
+        setState(() {
+          _newMetaImage = compressed;
+          _clearMetaImage = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking meta image: $e');
+      if (mounted) {
+        try {
+          TopNotification.show(
+            message: 'Gagal memilih gambar: $e',
+            backgroundColor: AppColors.danger,
+            icon: Icons.error_rounded,
+          );
+        } catch (_) {}
+      }
+    } finally {
+      if (mounted) setState(() => _isCompressingMeta = false);
+    }
+  }
+
+  void _resetMetaImageToDefault() {
+    setState(() {
+      _newMetaImage = null;
+      _metaImageCtrl.text = '';
+      _clearMetaImage = true;
+    });
+  }
+
   Future<void> _saveTenant() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -145,21 +191,55 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         fields['logo_url'] = _logoCtrl.text.trim();
       }
 
+      if (_clearMetaImage) {
+        fields['meta_image_url'] = '';
+      } else if (_newMetaImage == null) {
+        fields['meta_image_url'] = _metaImageCtrl.text.trim();
+      }
+
+      final files = <http.MultipartFile>[];
+      if (_newLogo != null) {
+        files.add(
+          http.MultipartFile.fromBytes(
+            'logo',
+            _newLogo!.bytes,
+            filename: _newLogo!.filename,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      }
+      if (_newMetaImage != null) {
+        files.add(
+          http.MultipartFile.fromBytes(
+            'meta_image',
+            _newMetaImage!.bytes,
+            filename: _newMetaImage!.filename,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      }
+
       final response = await client.postMultipart(
         '/tenant/update',
         fields: fields,
-        fileField: _newLogo == null ? null : 'logo',
-        fileBytes: _newLogo?.bytes,
-        filename: _newLogo?.filename,
-        contentType: _newLogo?.mimeType,
+        files: files.isNotEmpty ? files : null,
       );
 
       // Update URL dari server jika baru diupload
-      if (response != null &&
-          response['data'] != null &&
-          response['data']['logo_url'] != null) {
-        _logoCtrl.text = response['data']['logo_url'].toString();
-        _newLogo = null;
+      if (response != null && response['data'] != null) {
+        if (response['data']['logo_url'] != null) {
+          _logoCtrl.text = response['data']['logo_url'].toString();
+          _newLogo = null;
+        }
+        if (response['data']['meta_image'] != null) {
+          _metaImageCtrl.text = response['data']['meta_image'].toString();
+          _newMetaImage = null;
+          _clearMetaImage = false;
+        } else if (_clearMetaImage) {
+          _metaImageCtrl.text = '';
+          _newMetaImage = null;
+          _clearMetaImage = false;
+        }
       }
 
       // Clear cache agar data baru diambil kembali
@@ -169,7 +249,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       if (!mounted) return;
       try {
         TopNotification.show(
-          message: 'Profil kantin, logo, dan promo berhasil disimpan!',
+          message: 'Profil kantin, logo, promo, & meta data berhasil disimpan!',
           backgroundColor: AppColors.success,
           icon: Icons.check_circle_rounded,
         );
@@ -177,7 +257,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Profil kantin, logo, dan promo berhasil disimpan!'),
+              content: Text('Profil kantin, logo, promo, & meta data berhasil disimpan!'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -250,6 +330,37 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     }
 
     return Icon(Icons.storefront_rounded, color: activeThemeColor, size: 26);
+  }
+
+  Widget _buildMetaImagePreview(Color activeThemeColor) {
+    if (_newMetaImage != null) {
+      try {
+        return Image.memory(
+          _newMetaImage!.bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildLogoPreview(activeThemeColor),
+        );
+      } catch (_) {}
+    }
+
+    if (!_clearMetaImage && _metaImageCtrl.text.isNotEmpty) {
+      final imageProvider = tenantLogoImageProvider(_metaImageCtrl.text);
+      if (imageProvider != null) {
+        return Image(
+          image: imageProvider,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildLogoPreview(activeThemeColor),
+        );
+      }
+    }
+
+    return _buildLogoPreview(activeThemeColor);
   }
 
   @override
@@ -816,7 +927,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                                 left: Radius.circular(10),
                                               ),
                                         ),
-                                        child: _buildLogoPreview(
+                                        child: _buildMetaImagePreview(
                                           activeThemeColor,
                                         ),
                                       ),
@@ -881,7 +992,198 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // 6a. Judul Preview Link (Meta Title)
+                          // 6a. Upload Gambar Preview Link (Meta Image / OG Image)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      size: 18,
+                                      color: activeThemeColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Gambar Preview Link (Meta Image)',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (_isCompressingMeta)
+                                      Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: activeThemeColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Mengompres...',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: activeThemeColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Gambar thumbnail yang tampil saat link website dibagikan ke WhatsApp, Facebook, dsb. Gambar akan otomatis dikompres ke resolusi optimal (~1200px) agar sangat ringan dan cepat dibuka.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    // Thumbnail preview
+                                    Container(
+                                      width: 68,
+                                      height: 68,
+                                      decoration: BoxDecoration(
+                                        color: activeThemeColor.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(9),
+                                        child: _buildMetaImagePreview(
+                                          activeThemeColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      activeThemeColor,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(8),
+                                                  ),
+                                                ),
+                                                onPressed: _isCompressingMeta
+                                                    ? null
+                                                    : _pickMetaImage,
+                                                icon: const Icon(
+                                                  Icons.cloud_upload_outlined,
+                                                  size: 16,
+                                                ),
+                                                label: Text(
+                                                  _isCompressingMeta
+                                                      ? 'Mengompres...'
+                                                      : 'Upload & Kompres Gambar',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (_newMetaImage != null ||
+                                                  (!_clearMetaImage &&
+                                                      _metaImageCtrl.text.isNotEmpty))
+                                                OutlinedButton.icon(
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor:
+                                                        Colors.red.shade700,
+                                                    side: BorderSide(
+                                                      color:
+                                                          Colors.red.shade200,
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 10,
+                                                    ),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                  ),
+                                                  onPressed:
+                                                      _resetMetaImageToDefault,
+                                                  icon: const Icon(
+                                                    Icons.delete_outline_rounded,
+                                                    size: 16,
+                                                  ),
+                                                  label: const Text(
+                                                    'Gunakan Logo Saja',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            _newMetaImage != null
+                                                ? '✨ Gambar baru siap disimpan (terkompresi optimal).'
+                                                : ((!_clearMetaImage &&
+                                                        _metaImageCtrl.text.isNotEmpty)
+                                                    ? '✅ Menggunakan gambar preview khusus.'
+                                                    : 'ℹ️ Belum ada gambar khusus (otomatis memakai logo kantin).'),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontStyle: FontStyle.italic,
+                                              color: _newMetaImage != null
+                                                  ? Colors.green.shade700
+                                                  : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 6b. Judul Preview Link (Meta Title)
                           TextFormField(
                             controller: _metaTitleCtrl,
                             decoration: const InputDecoration(
@@ -896,7 +1198,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // 6b. Deskripsi Preview Link (Meta Description)
+                          // 6c. Deskripsi Preview Link (Meta Description)
                           TextFormField(
                             controller: _metaDescCtrl,
                             maxLines: 3,

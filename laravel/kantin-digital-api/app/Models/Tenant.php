@@ -36,6 +36,22 @@ class Tenant extends Model
         return $value;
     }
 
+    public function getMetaImageAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+        $path = parse_url($value, PHP_URL_PATH);
+        if (! empty($path) && str_starts_with($path, '/uploads/')) {
+            $host = request()->header('x-forwarded-host') ?? request()->header('host') ?? request()->getHost();
+            $scheme = (request()->isSecure() || request()->header('x-forwarded-proto') === 'https' || ! app()->isLocal()) ? 'https' : 'http';
+
+            return "{$scheme}://{$host}{$path}";
+        }
+
+        return $value;
+    }
+
     public function categories()
     {
         return $this->hasMany(Category::class);

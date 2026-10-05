@@ -37,6 +37,7 @@ class TenantController extends Controller
                 'is_active' => $tenant->is_active,
                 'meta_title' => $tenant->meta_title,
                 'meta_description' => $tenant->meta_description,
+                'meta_image' => $tenant->meta_image,
                 'menu_code_prefix' => $tenant->menu_code_prefix ?? 'SAY',
                 'promo_badge_text' => $tenant->promo_badge_text ?? 'Promo Hari Ini',
                 'promo_message' => $tenant->promo_message ?? 'Pesan Sekarang, Nikmati Kemudahannya!',
@@ -70,6 +71,9 @@ class TenantController extends Controller
             'whatsapp' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:1000',
+            'meta_image' => 'nullable|image|max:5120',
+            'meta_image_url' => 'nullable|string',
+            'meta_image_base64' => 'nullable|string',
             'promo_badge_text' => 'nullable|string|max:60',
             'promo_message' => 'nullable|string|max:180',
         ]);
@@ -109,6 +113,40 @@ class TenantController extends Controller
                     $data['logo_url'] = $logoUrl;
                 }
             }
+        }
+
+        // Handle upload gambar meta preview link (OpenGraph / WhatsApp share preview)
+        if ($request->hasFile('meta_image')) {
+            $file = $request->file('meta_image');
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $metaImageUrl = $this->storeCompressedMetaImage(
+                $tenant,
+                file_get_contents($file->getRealPath()),
+                $extension
+            );
+
+            if ($metaImageUrl) {
+                $data['meta_image'] = $metaImageUrl;
+            }
+        } elseif ($request->filled('meta_image_base64')) {
+            $base64String = $request->input('meta_image_base64');
+            $extension = 'jpg';
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                $extension = strtolower($matches[1]);
+                $base64String = substr($base64String, strpos($base64String, ',') + 1);
+            }
+
+            $binaryData = base64_decode($base64String);
+            if ($binaryData !== false) {
+                $metaImageUrl = $this->storeCompressedMetaImage($tenant, $binaryData, $extension);
+                if ($metaImageUrl) {
+                    $data['meta_image'] = $metaImageUrl;
+                }
+            }
+        } elseif ($request->has('meta_image_url')) {
+            // Jika kosong string (""), berarti reset ke default (logo tenant)
+            $metaUrlVal = $request->input('meta_image_url');
+            $data['meta_image'] = !empty($metaUrlVal) ? $metaUrlVal : null;
         }
 
         $tenant->update($data);
@@ -179,6 +217,67 @@ class TenantController extends Controller
         imagedestroy($src);
 
         return url('uploads/logos/'.$filename);
+    }
+
+    private function storeCompressedMetaImage(Tenant $tenant, string $binaryData, string $extension): ?string
+    {
+        $extension = strtolower($extension);
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
+        }
+
+        $extension = in_array($extension, ['jpg', 'png', 'webp'], true) ? $extension : 'jpg';
+        $directory = public_path('uploads/meta');
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $filename = 'meta_'.$tenant->id.'_'.time().'.'.$extension;
+        $targetPath = $directory.DIRECTORY_SEPARATOR.$filename;
+
+        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
+            file_put_contents($targetPath, $binaryData);
+
+            return url('uploads/meta/'.$filename);
+        }
+
+        $src = @imagecreatefromstring($binaryData);
+        if (! $src) {
+            return null;
+        }
+
+        $width = imagesx($src);
+        $height = imagesy($src);
+        // Social media meta images are typically 1200x630 or max 1200 px
+        $maxDim = 1200;
+
+        if ($width > $maxDim || $height > $maxDim) {
+            $ratio = min($maxDim / $width, $maxDim / $height);
+            $newWidth = max(1, (int) round($width * $ratio));
+            $newHeight = max(1, (int) round($height * $ratio));
+        } else {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+
+        $dst = imagecreatetruecolor($newWidth, $newHeight);
+        if ($extension === 'png') {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            imagepng($dst, $targetPath, 8);
+        } else {
+            $white = imagecolorallocate($dst, 255, 255, 255);
+            imagefill($dst, 0, 0, $white);
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            imagejpeg($dst, $targetPath, 84);
+        }
+
+        imagedestroy($dst);
+        imagedestroy($src);
+
+        return url('uploads/meta/'.$filename);
     }
 
     /**

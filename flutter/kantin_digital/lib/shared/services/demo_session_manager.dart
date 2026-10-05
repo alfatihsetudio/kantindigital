@@ -77,6 +77,10 @@ class DemoSessionManager {
       isActive: true,
       metaTitle: data['meta_title']?.toString() ?? demoTenant.metaTitle,
       metaDescription: data['meta_description']?.toString() ?? demoTenant.metaDescription,
+      metaImageUrl: data['meta_image_data_url']?.toString() ??
+          data['meta_image']?.toString() ??
+          data['meta_image_url']?.toString() ??
+          demoTenant.metaImageUrl,
       menuCodePrefix: data['menu_code_prefix']?.toString() ?? demoTenant.menuCodePrefix,
       promoBadgeText: data['promo_badge_text']?.toString() ?? demoTenant.promoBadgeText,
       promoMessage: data['promo_message']?.toString() ?? demoTenant.promoMessage,

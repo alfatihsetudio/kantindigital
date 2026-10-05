@@ -17,6 +17,7 @@ class TenantModel {
   final bool isActive;
   final String? metaTitle;
   final String? metaDescription;
+  final String? metaImageUrl;
   final String? menuCodePrefix;
   final String promoBadgeText;
   final String promoMessage;
@@ -34,6 +35,7 @@ class TenantModel {
     this.isActive = true,
     this.metaTitle,
     this.metaDescription,
+    this.metaImageUrl,
     this.menuCodePrefix = 'SAY',
     this.promoBadgeText = 'Promo Hari Ini',
     this.promoMessage = 'Pesan Sekarang, Nikmati Kemudahannya!',
@@ -53,6 +55,7 @@ class TenantModel {
       isActive: json['is_active'] == true || json['is_active'] == 1,
       metaTitle: json['meta_title']?.toString(),
       metaDescription: json['meta_description']?.toString(),
+      metaImageUrl: _resolveUrl(json['meta_image'] ?? json['meta_image_url']),
       menuCodePrefix: json['menu_code_prefix']?.toString() ?? 'SAY',
       promoBadgeText: json['promo_badge_text']?.toString() ?? 'Promo Hari Ini',
       promoMessage:
@@ -106,6 +109,7 @@ class TenantModel {
       'is_active': isActive,
       'meta_title': metaTitle,
       'meta_description': metaDescription,
+      'meta_image': metaImageUrl,
       'menu_code_prefix': menuCodePrefix,
       'promo_badge_text': promoBadgeText,
       'promo_message': promoMessage,
