@@ -110,13 +110,32 @@ class MenuController extends Controller
 
     private function storeCompressedImage(UploadedFile $image): string
     {
-        if (! extension_loaded('gd') || ! function_exists('imagecreatefromstring')) {
-            throw new \RuntimeException('Kompresi gambar tidak tersedia di server.');
+        $directory = public_path('uploads/menus');
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new \RuntimeException('Folder upload gambar menu tidak dapat dibuat.');
         }
 
-        $source = imagecreatefromstring(file_get_contents($image->getRealPath()));
+        if (! is_writable($directory)) {
+            throw new \RuntimeException('Folder uploads/menus tidak memiliki izin tulis untuk PHP.');
+        }
+
+        $extension = strtolower($image->extension() ?: 'jpg');
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
+        }
+        if (! in_array($extension, ['jpg', 'png', 'webp'], true)) {
+            throw new \RuntimeException('Format foto menu tidak didukung.');
+        }
+
+        $canCompress = extension_loaded('gd') && function_exists('imagecreatefromstring');
+        $source = $canCompress
+            ? @imagecreatefromstring(file_get_contents($image->getRealPath()))
+            : false;
         if ($source === false) {
-            abort(422, 'File gambar tidak dapat diproses.');
+            $filename = 'menu_'.Str::uuid().'.'.$extension;
+            $image->move($directory, $filename);
+
+            return url('uploads/menus/'.$filename);
         }
 
         $width = imagesx($source);
@@ -140,13 +159,6 @@ class MenuController extends Controller
             $width,
             $height
         );
-
-        $directory = public_path('uploads/menus');
-        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-            imagedestroy($compressed);
-            imagedestroy($source);
-            throw new \RuntimeException('Folder upload gambar tidak dapat dibuat.');
-        }
 
         $filename = 'menu_'.Str::uuid().'.jpg';
         $path = $directory.DIRECTORY_SEPARATOR.$filename;
