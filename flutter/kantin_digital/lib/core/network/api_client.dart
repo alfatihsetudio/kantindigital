@@ -212,6 +212,10 @@ class ApiClient {
       return decoded;
     }
 
+    if (response.statusCode == 401) {
+      AuthSession().clear();
+    }
+
     final message =
         _extractErrorMessage(decoded) ?? 'Terjadi kesalahan pada server';
     throw ApiException(

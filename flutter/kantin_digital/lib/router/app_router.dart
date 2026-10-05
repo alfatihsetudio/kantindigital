@@ -136,45 +136,6 @@ class AppRouter {
 
       // admin
       case RouteName.adminLogin:
-        if (session.isAuthenticated && session.role != null) {
-          if (session.user?.mustChangePassword == true) {
-            return MaterialPageRoute(
-              builder: (_) => const ForcePasswordChangePage(),
-              settings: const RouteSettings(
-                name: RouteName.forcePasswordChange,
-              ),
-            );
-          }
-          switch (session.role!) {
-            case UserRole.superadmin:
-              return MaterialPageRoute(
-                builder: (_) => const SuperAdminDashboardPage(),
-                settings: const RouteSettings(
-                  name: RouteName.superAdminDashboard,
-                ),
-              );
-            case UserRole.admin:
-              return MaterialPageRoute(
-                builder: (_) => const AdminDashboardPage(),
-                settings: const RouteSettings(name: RouteName.adminDashboard),
-              );
-            case UserRole.cashier:
-              return MaterialPageRoute(
-                builder: (_) => const CashierOrdersPage(),
-                settings: const RouteSettings(name: RouteName.cashierOrders),
-              );
-            case UserRole.operations:
-              return MaterialPageRoute(
-                builder: (_) => const CashierOrdersPage(),
-                settings: const RouteSettings(name: RouteName.cashierOrders),
-              );
-            case UserRole.manager:
-              return MaterialPageRoute(
-                builder: (_) => const ManagerDashboardPage(),
-                settings: const RouteSettings(name: RouteName.managerDashboard),
-              );
-          }
-        }
         return MaterialPageRoute(
           builder: (_) => const AdminLoginPage(),
           settings: settings,
