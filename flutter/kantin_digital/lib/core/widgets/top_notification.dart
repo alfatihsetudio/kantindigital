@@ -12,13 +12,14 @@ class TopNotification {
   }) {
     // Schedule after frame to ensure overlay is available
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      final context = navigatorKey.currentContext;
-      if (context == null) {
-        debugPrint('TopNotification: context is null');
+      final overlay = navigatorKey.currentState?.overlay ??
+          (navigatorKey.currentContext != null
+              ? Overlay.maybeOf(navigatorKey.currentContext!)
+              : null);
+      if (overlay == null) {
+        debugPrint('TopNotification: overlay is null');
         return;
       }
-      
-      final overlay = Overlay.of(context);
 
       final entry = OverlayEntry(
         builder: (context) => _TopNotificationWidget(
@@ -28,7 +29,7 @@ class TopNotification {
           icon: icon,
         ),
       );
-      
+
       overlay.insert(entry);
       Future.delayed(duration + const Duration(milliseconds: 300), () {
         if (entry.mounted) {

@@ -167,11 +167,22 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       await TenantService.fetchTenantInfo();
 
       if (!mounted) return;
-      TopNotification.show(
-        message: 'Profil kantin, logo, dan promo berhasil disimpan!',
-        backgroundColor: AppColors.success,
-        icon: Icons.check_circle_rounded,
-      );
+      try {
+        TopNotification.show(
+          message: 'Profil kantin, logo, dan promo berhasil disimpan!',
+          backgroundColor: AppColors.success,
+          icon: Icons.check_circle_rounded,
+        );
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profil kantin, logo, dan promo berhasil disimpan!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       final errorStr = e.toString();
