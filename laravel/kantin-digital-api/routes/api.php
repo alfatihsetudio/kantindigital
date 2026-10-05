@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::middleware('role:admin')->group(function () {
             Route::apiResource('menus', MenuController::class)->except(['index']);
+            Route::post('/menus/{id}', [MenuController::class, 'update']);
             Route::apiResource('categories', CategoryController::class);
             Route::post('/categories/{id}/toggle', [CategoryController::class, 'toggle']);
             Route::apiResource('tables', TableController::class);
