@@ -62,6 +62,21 @@ class TenantPromoSettingsTest extends TestCase
             'id' => $tenant->id,
             'opening_hours' => 'Senin-Sabtu, 08:00 - 22:00',
         ]);
+
+        $this->postJson('/api/tenant/update', [
+            'name' => $tenant->name,
+            'opening_hours' => 'Setiap hari, 09:30 - 23:00',
+        ])->assertOk()
+            ->assertJsonPath('data.opening_hours', 'Setiap hari, 09:30 - 23:00');
+
+        $this->getJson('/api/tenant/info')
+            ->assertOk()
+            ->assertJsonPath('data.opening_hours', 'Setiap hari, 09:30 - 23:00');
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'opening_hours' => 'Setiap hari, 09:30 - 23:00',
+        ]);
     }
 
     public function test_invalid_tenant_opening_hours_are_rejected(): void

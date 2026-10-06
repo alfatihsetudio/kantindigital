@@ -7,6 +7,7 @@ import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
+import '../../../shared/utils/store_opening_hours.dart';
 import '../widgets/admin_drawer.dart';
 
 class AdminTenantProfilePage extends StatefulWidget {
@@ -92,7 +93,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   Future<void> _loadTenantData() async {
     setState(() => _isLoading = true);
     try {
-      final tenant = await TenantService.fetchTenantInfo();
+      final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
       _nameCtrl.text = tenant.name;
       _menuCodePrefixCtrl.text = tenant.menuCodePrefix ?? 'SAY';
       _logoCtrl.text = tenant.logoUrl ?? '';
@@ -114,6 +115,65 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _pickDailyOpeningHours() async {
+    final currentRange = RegExp(
+      r'(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})',
+    ).firstMatch(_openingHoursCtrl.text);
+    final start =
+        _parseTimeOfDay(currentRange?.group(1)) ??
+        const TimeOfDay(hour: 8, minute: 0);
+    final end =
+        _parseTimeOfDay(currentRange?.group(2)) ??
+        const TimeOfDay(hour: 22, minute: 0);
+
+    final openingTime = await _showWibTimePicker(
+      title: 'Pilih jam buka (WIB)',
+      initialTime: start,
+    );
+    if (openingTime == null || !mounted) return;
+
+    final closingTime = await _showWibTimePicker(
+      title: 'Pilih jam tutup (WIB)',
+      initialTime: end,
+    );
+    if (closingTime == null || !mounted) return;
+
+    setState(() {
+      _openingHoursCtrl.text =
+          'Setiap hari, ${_formatTimeOfDay(openingTime)} - ${_formatTimeOfDay(closingTime)}';
+    });
+  }
+
+  Future<TimeOfDay?> _showWibTimePicker({
+    required String title,
+    required TimeOfDay initialTime,
+  }) {
+    return showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: title,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+  }
+
+  TimeOfDay? _parseTimeOfDay(String? value) {
+    if (value == null) return null;
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
   Future<void> _pickLogo() async {
     setState(() => _isCompressing = true);
@@ -229,6 +289,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         files: files.isNotEmpty ? files : null,
       );
 
+      final savedOpeningHours = response?['data']?['opening_hours']?.toString();
+      if (savedOpeningHours != null) {
+        _openingHoursCtrl.text = savedOpeningHours;
+      }
+
       // Update URL dari server jika baru diupload
       if (response != null && response['data'] != null) {
         if (response['data']['logo_url'] != null) {
@@ -248,7 +313,10 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
       // Clear cache agar data baru diambil kembali
       TenantService.clearCache();
-      await TenantService.fetchTenantInfo();
+      final savedTenant = await TenantService.fetchTenantInfo(
+        forceRefresh: true,
+      );
+      _openingHoursCtrl.text = savedOpeningHours ?? savedTenant.openingHours;
 
       if (!mounted) return;
       try {
@@ -848,13 +916,28 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                             controller: _openingHoursCtrl,
                             maxLength: 100,
                             decoration: const InputDecoration(
-                              labelText: 'Jam buka toko',
+                              labelText: 'Jam buka toko (WIB)',
                               hintText: 'Contoh: Setiap hari, 08:00 - 22:00',
                               prefixIcon: Icon(Icons.access_time_rounded),
                               helperText:
-                                  'Format: 08:00-22:00 (setiap hari) atau Senin-Sabtu 08:00-22:00; Minggu tutup. Di luar jam ini toko tidak menerima pesanan.',
+                                  'Gunakan WIB (Asia/Jakarta). Bisa atur jam harian dengan pemilih, atau isi jadwal per hari, mis. Senin-Sabtu 08:00-22:00; Minggu tutup.',
                             ),
+                            validator: (value) =>
+                                StoreOpeningHours.isValid(value ?? '')
+                                ? null
+                                : 'Format jam tidak valid. Contoh: Setiap hari, 08:00 - 22:00',
                             onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: _pickDailyOpeningHours,
+                              icon: const Icon(Icons.schedule_rounded),
+                              label: const Text(
+                                'Atur jam buka & tutup harian (WIB)',
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 24),
                           const Divider(),

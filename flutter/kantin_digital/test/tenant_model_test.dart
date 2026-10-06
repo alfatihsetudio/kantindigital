@@ -61,6 +61,20 @@ void main() {
     );
   });
 
+  test('updated daily closing time is interpreted in WIB', () {
+    const hours = 'Setiap hari, 09:30 - 23:00';
+
+    expect(StoreOpeningHours.isValid(hours), isTrue);
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 5, 15, 59)),
+      isTrue,
+    );
+    expect(
+      StoreOpeningHours.isOpenAt(hours, DateTime.utc(2026, 10, 5, 16, 0)),
+      isFalse,
+    );
+  });
+
   test('evaluates day-specific hours and closed weekdays', () {
     const hours = 'Senin-Sabtu 08:00-22:00; Minggu tutup';
 

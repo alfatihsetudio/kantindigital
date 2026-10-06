@@ -28,7 +28,8 @@ class StoreOpeningHours
             return false;
         }
 
-        $localTime = ($at ? \Carbon\Carbon::instance($at) : now())->setTimezone('Asia/Jakarta');
+        $localTime = ($at ? \Carbon\Carbon::instance($at) : now('Asia/Jakarta'))
+            ->setTimezone('Asia/Jakarta');
         $weekday = (int) $localTime->dayOfWeekIso;
         $minutes = ((int) $localTime->hour * 60) + (int) $localTime->minute;
         $interval = $schedule[$weekday] ?? null;
@@ -60,8 +61,10 @@ class StoreOpeningHours
             return false;
         }
 
-        $localTime = ($at ? \Carbon\Carbon::instance($at) : now())->setTimezone('Asia/Jakarta');
-        $openedTime = \Carbon\Carbon::parse($openedAt)->setTimezone('Asia/Jakarta');
+        $localTime = ($at ? \Carbon\Carbon::instance($at) : now('Asia/Jakarta'))
+            ->setTimezone('Asia/Jakarta');
+        $openedTime = \Carbon\Carbon::parse($openedAt, 'UTC')
+            ->setTimezone('Asia/Jakarta');
         $weekday = (int) $localTime->dayOfWeekIso;
         $minutes = ((int) $localTime->hour * 60) + (int) $localTime->minute;
         $interval = $schedule[$weekday] ?? null;

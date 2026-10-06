@@ -45,5 +45,5 @@ if ('serviceWorker' in navigator) {
     for (var r of regs) { r.unregister(); }
   });
 }
-_flutter.buildConfig.builds[0].mainJsPath = "main.dart.js?v=20261005_13";
+_flutter.buildConfig.builds[0].mainJsPath = "main.dart.js?v=20261006_02";
 _flutter.loader.load();

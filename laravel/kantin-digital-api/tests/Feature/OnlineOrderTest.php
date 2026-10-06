@@ -145,6 +145,20 @@ class OnlineOrderTest extends TestCase
         $this->assertFalse(StoreOpeningHours::isValid('jam bebas'));
     }
 
+    public function test_opening_hours_use_jakarta_timezone_and_updated_closing_time(): void
+    {
+        $this->assertSame('Asia/Jakarta', config('app.timezone'));
+        Carbon::setTestNow(Carbon::parse('2026-10-05 22:59:00', 'Asia/Jakarta'));
+
+        try {
+            $this->assertTrue(StoreOpeningHours::isOpen('Setiap hari, 09:30 - 23:00'));
+            Carbon::setTestNow(Carbon::parse('2026-10-05 23:00:00', 'Asia/Jakarta'));
+            $this->assertFalse(StoreOpeningHours::isOpen('Setiap hari, 09:30 - 23:00'));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_delivery_order_requires_an_address(): void
     {
         $response = $this->postJson('/api/orders', [
