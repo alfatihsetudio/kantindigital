@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -5,9 +7,11 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
+import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/store_opening_hours.dart';
+import '../../customer/menu/menu_service.dart';
 import '../widgets/admin_drawer.dart';
 
 class AdminTenantProfilePage extends StatefulWidget {
@@ -32,6 +36,12 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _menuCodePrefixCtrl = TextEditingController();
   final _promoBadgeCtrl = TextEditingController();
   final _promoMessageCtrl = TextEditingController();
+  final _promoDiscountCtrl = TextEditingController();
+  final Set<int> _promoMenuIds = {};
+  List<MenuModel> _promoMenus = [];
+  bool _promoAppliesToAll = true;
+  bool _promoMenusLoading = true;
+  String? _promoMenusError;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -87,6 +97,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _menuCodePrefixCtrl.dispose();
     _promoBadgeCtrl.dispose();
     _promoMessageCtrl.dispose();
+    _promoDiscountCtrl.dispose();
     super.dispose();
   }
 
@@ -109,6 +120,20 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _clearMetaImage = false;
       _promoBadgeCtrl.text = tenant.promoBadgeText;
       _promoMessageCtrl.text = tenant.promoMessage;
+      _promoDiscountCtrl.text = tenant.promoDiscountPercent.toString();
+      _promoAppliesToAll = tenant.promoScope != 'selected';
+      _promoMenuIds
+        ..clear()
+        ..addAll(tenant.promoMenuIds);
+      try {
+        _promoMenus = await MenuService(
+          ApiClient(),
+        ).fetchMenus(includeUnavailable: true);
+        _promoMenusError = null;
+      } catch (e) {
+        _promoMenusError = e.toString();
+      }
+      _promoMenusLoading = false;
     } catch (e) {
       debugPrint('Error loading tenant: $e');
     } finally {
@@ -242,6 +267,13 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         'menu_code_prefix': _menuCodePrefixCtrl.text.trim().toUpperCase(),
         'promo_badge_text': _promoBadgeCtrl.text.trim(),
         'promo_message': _promoMessageCtrl.text.trim(),
+        'promo_discount_percent': _promoDiscountCtrl.text.trim().isEmpty
+            ? '0'
+            : _promoDiscountCtrl.text.trim(),
+        'promo_scope': _promoAppliesToAll ? 'all' : 'selected',
+        'promo_menu_ids': jsonEncode(
+          _promoAppliesToAll ? <int>[] : _promoMenuIds.toList(),
+        ),
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'opening_hours': _openingHoursCtrl.text.trim(),
@@ -288,6 +320,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         fields: fields,
         files: files.isNotEmpty ? files : null,
       );
+
+      if (response?['data']?['promo_discount_percent'] != null) {
+        _promoDiscountCtrl.text = response!['data']['promo_discount_percent']
+            .toString();
+      }
 
       final savedOpeningHours = response?['data']?['opening_hours']?.toString();
       if (savedOpeningHours != null) {
@@ -364,6 +401,83 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     } catch (_) {
       return AppColors.primary;
     }
+  }
+
+  Widget _buildPromoDiscountSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _promoDiscountCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Diskon promo (%)',
+            hintText: 'Contoh: 10',
+            prefixIcon: Icon(Icons.percent_rounded),
+            helperText:
+                'Isi 0 jika tidak ada diskon. Diskon berlaku otomatis saat pembayaran.',
+          ),
+          validator: (value) {
+            final percent = int.tryParse(value?.trim() ?? '');
+            if (percent == null || percent < 0 || percent > 100) {
+              return 'Masukkan persentase diskon antara 0 sampai 100.';
+            }
+            if (percent > 0 && !_promoAppliesToAll && _promoMenuIds.isEmpty) {
+              return 'Pilih minimal satu menu untuk promo varian tertentu.';
+            }
+            return null;
+          },
+          onChanged: (_) => setState(() {}),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Berlaku untuk semua menu'),
+          subtitle: const Text('Matikan untuk memilih menu/varian tertentu.'),
+          value: _promoAppliesToAll,
+          onChanged: (value) => setState(() => _promoAppliesToAll = value),
+        ),
+        if (!_promoAppliesToAll) ...[
+          const SizedBox(height: 4),
+          if (_promoMenusLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_promoMenusError != null)
+            Text(
+              'Daftar menu gagal dimuat: $_promoMenusError',
+              style: const TextStyle(color: AppColors.danger),
+            )
+          else if (_promoMenus.isEmpty)
+            const Text('Belum ada menu yang bisa dipilih.')
+          else
+            Container(
+              constraints: const BoxConstraints(maxHeight: 240),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: _promoMenus.map((menu) {
+                  return CheckboxListTile(
+                    dense: true,
+                    title: Text(menu.name),
+                    subtitle: Text(menu.categoryName),
+                    value: _promoMenuIds.contains(menu.id),
+                    onChanged: (selected) => setState(() {
+                      if (selected == true) {
+                        _promoMenuIds.add(menu.id);
+                      } else {
+                        _promoMenuIds.remove(menu.id);
+                      }
+                    }),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ],
+    );
   }
 
   Widget _buildLogoPreview(Color activeThemeColor) {
@@ -662,6 +776,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
+                          _buildPromoDiscountSettings(),
                           const SizedBox(height: 20),
 
                           // 2. UPLOAD LOGO KANTIN

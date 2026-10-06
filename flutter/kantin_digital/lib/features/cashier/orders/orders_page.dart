@@ -792,12 +792,36 @@ class _OrderTicketCard extends StatelessWidget {
             child: ListView.separated(
               padding: EdgeInsets.all(isCompact ? 10 : 16),
               itemCount: order.items.length,
-              separatorBuilder: (_, __) => Divider(height: isCompact ? 10 : 16),
+              separatorBuilder: (_, _) => Divider(height: isCompact ? 10 : 16),
               itemBuilder: (context, index) {
                 final item = order.items[index];
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (order.discountAmount > 0)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: isCompact ? 4 : 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Diskon promo',
+                              style: TextStyle(
+                                color: AppColors.success,
+                                fontSize: isCompact ? 10 : 12,
+                              ),
+                            ),
+                            Text(
+                              '- ${CurrencyFormatter.rupiah(order.discountAmount)}',
+                              style: TextStyle(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w700,
+                                fontSize: isCompact ? 10 : 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

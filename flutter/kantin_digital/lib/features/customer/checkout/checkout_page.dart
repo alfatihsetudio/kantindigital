@@ -7,6 +7,9 @@ import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/table_model.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/services/tenant_service.dart';
+import '../../../shared/utils/promo_discount_calculator.dart';
 import '../../admin/tables/tables_service.dart';
 import '../cart/cart_controller.dart';
 import 'checkout_controller.dart';
@@ -24,6 +27,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   TableModel? _selectedTable;
   bool _tablesLoading = true;
   final _controller = CheckoutController();
+  TenantModel _promoTenant = TenantService.current;
   bool _loading = false;
   String _selectedPayment = 'qris';
   String _selectedOrderType = 'pickup';
@@ -39,6 +43,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void initState() {
     super.initState();
+    _loadPromoSettings();
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
@@ -60,6 +65,25 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _tablesLoading = false;
     }
   }
+
+  Future<void> _loadPromoSettings() async {
+    final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
+    if (mounted) setState(() => _promoTenant = tenant);
+  }
+
+  int _discountFor(CartController cart) {
+    return PromoDiscountCalculator.calculate(
+      items: cart.items,
+      percent: _promoTenant.promoDiscountPercent,
+      appliesToAllMenus: _promoTenant.promoScope != 'selected',
+      menuIds: _promoTenant.promoMenuIds.toSet(),
+    );
+  }
+
+  int _totalAfterDiscount(CartController cart) =>
+      (cart.totalAmount - _discountFor(cart))
+          .clamp(0, cart.totalAmount)
+          .toInt();
 
   @override
   void dispose() {
@@ -663,6 +687,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ],
           ),
+          if (_discountFor(cart) > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Diskon promo (${_promoTenant.promoDiscountPercent}%)',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.success),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.rupiah(_discountFor(cart))}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1070,7 +1115,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ),
                   ),
                   Text(
-                    CurrencyFormatter.rupiah(cart.totalAmount),
+                    CurrencyFormatter.rupiah(_totalAfterDiscount(cart)),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,

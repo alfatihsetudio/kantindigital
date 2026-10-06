@@ -7,12 +7,13 @@ use App\Models\Menu;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class MenuController extends Controller
 {
     public function index()
     {
-        $menus = Menu::with('category')
+        $menus = Menu::with(['category', 'toppings'])
             ->whereHas('category', function ($q) {
                 $q->where('is_active', true);
             })
@@ -28,6 +29,8 @@ class MenuController extends Controller
                     'category_name' => optional($menu->category)->name ?? 'Tanpa Kategori',
                     'image_url' => $menu->image_url,
                     'is_available' => $menu->is_available,
+                    'note_options' => $menu->note_options ?? [],
+                    'topping_ids' => $menu->toppings->pluck('id')->values(),
                 ];
             });
 
@@ -39,6 +42,8 @@ class MenuController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizeNoteOptions($request);
+        $tenantId = app()->has('tenant') ? app('tenant')->id : null;
         $request->validate([
             'code' => 'nullable|string|max:50',
             'name' => 'required|string|max:255',
@@ -46,28 +51,38 @@ class MenuController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'is_available' => 'sometimes|boolean',
+            'note_options' => 'nullable|array|max:20',
+            'note_options.*' => 'required|string|max:80',
+            'topping_ids' => 'nullable|array',
+            'topping_ids.*' => [
+                'integer',
+                Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
+            ],
             'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
         ]);
 
         $data = $request->only([
-            'code', 'name', 'category_id', 'price', 'description', 'is_available',
+            'code', 'name', 'category_id', 'price', 'description', 'is_available', 'note_options',
         ]);
         if ($request->hasFile('image')) {
             $data['image_url'] = $this->storeCompressedImage($request->file('image'));
         }
 
         $menu = Menu::create($data);
+        $menu->toppings()->sync($this->toppingSyncPayload($request->input('topping_ids', [])));
 
         return response()->json(['status' => true, 'message' => 'Created', 'data' => $menu]);
     }
 
     public function update(Request $request, $id)
     {
+        $this->normalizeNoteOptions($request);
         $menu = Menu::find($id);
         if (! $menu) {
             return response()->json(['status' => false, 'message' => 'Not found'], 404);
         }
 
+        $tenantId = app()->has('tenant') ? app('tenant')->id : null;
         $request->validate([
             'code' => 'nullable|string|max:50',
             'name' => 'sometimes|required|string|max:255',
@@ -75,11 +90,18 @@ class MenuController extends Controller
             'price' => 'sometimes|required|numeric|min:0',
             'description' => 'nullable|string',
             'is_available' => 'sometimes|boolean',
+            'note_options' => 'nullable|array|max:20',
+            'note_options.*' => 'required|string|max:80',
+            'topping_ids' => 'nullable|array',
+            'topping_ids.*' => [
+                'integer',
+                Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
+            ],
             'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
         ]);
 
         $data = $request->only([
-            'code', 'name', 'category_id', 'price', 'description', 'is_available',
+            'code', 'name', 'category_id', 'price', 'description', 'is_available', 'note_options',
         ]);
         if ($request->hasFile('image')) {
             $previousImage = $menu->image_url;
@@ -89,9 +111,41 @@ class MenuController extends Controller
         }
 
         $menu->update($data);
+        if ($request->has('topping_ids')) {
+            $menu->toppings()->sync($this->toppingSyncPayload($request->input('topping_ids', [])));
+        }
         $this->deleteStoredImage($previousImage);
 
         return response()->json(['status' => true, 'message' => 'Updated', 'data' => $menu]);
+    }
+
+    private function normalizeNoteOptions(Request $request): void
+    {
+        $rawOptions = $request->input('note_options');
+        if (is_string($rawOptions)) {
+            $decoded = json_decode($rawOptions, true);
+            if (is_array($decoded)) {
+                $request->merge(['note_options' => $decoded]);
+            }
+        }
+
+        $rawToppingIds = $request->input('topping_ids');
+        if (is_string($rawToppingIds)) {
+            $decoded = json_decode($rawToppingIds, true);
+            if (is_array($decoded)) {
+                $request->merge(['topping_ids' => $decoded]);
+            }
+        }
+    }
+
+    private function toppingSyncPayload(array $toppingIds): array
+    {
+        return collect($toppingIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->mapWithKeys(fn ($id) => [$id => ['min' => 0, 'max' => 0]])
+            ->all();
     }
 
     public function destroy($id)

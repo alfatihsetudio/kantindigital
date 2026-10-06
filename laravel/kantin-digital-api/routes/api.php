@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 // Public (customer & self-service registration)
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
+Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
 Route::get('/orders/{code}', [OrderController::class, 'show']);
 Route::post('/login', [AuthController::class, 'login']);

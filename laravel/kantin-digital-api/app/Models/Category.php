@@ -20,4 +20,10 @@ class Category extends Model
     {
         return $this->hasMany(Menu::class);
     }
+
+    public function toppings()
+    {
+        return $this->belongsToMany(Topping::class, 'category_topping')
+            ->withTimestamps();
+    }
 }

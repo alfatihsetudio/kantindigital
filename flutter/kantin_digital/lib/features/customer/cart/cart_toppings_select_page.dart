@@ -11,10 +11,7 @@ import 'cart_controller.dart';
 class CartToppingsSelectPage extends StatefulWidget {
   final int cartItemIndex;
 
-  const CartToppingsSelectPage({
-    super.key,
-    required this.cartItemIndex,
-  });
+  const CartToppingsSelectPage({super.key, required this.cartItemIndex});
 
   @override
   State<CartToppingsSelectPage> createState() => _CartToppingsSelectPageState();
@@ -29,14 +26,16 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
   @override
   void initState() {
     super.initState();
-    // Copy current 
+    // Copy current
     _selectedToppings = List.from(cart.items[widget.cartItemIndex].toppings);
-    
+
     // Initialize MenuService with ApiClient
     _menuService = MenuService(ApiClient());
-    
+
     // Fetch toppings
-    _toppingsFuture = _menuService.fetchToppings();
+    _toppingsFuture = _menuService.fetchToppings(
+      cart.items[widget.cartItemIndex].menu.id,
+    );
   }
 
   void _onToppingQuantityChanged(ToppingModel topping, int newQuantity) {
@@ -54,12 +53,14 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
           _selectedToppings.removeAt(index);
         }
       } else if (newQuantity > 0) {
-        _selectedToppings.add(ToppingModel(
-          id: topping.id,
-          name: topping.name,
-          price: topping.price,
-          quantity: newQuantity,
-        ));
+        _selectedToppings.add(
+          ToppingModel(
+            id: topping.id,
+            name: topping.name,
+            price: topping.price,
+            quantity: newQuantity,
+          ),
+        );
       }
     });
   }
@@ -92,7 +93,7 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
               child: CircularProgressIndicator(color: AppColors.primary),
             );
           }
-          
+
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -105,9 +106,9 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
               ),
             );
           }
-          
+
           final toppings = snapshot.data ?? [];
-          
+
           return Stack(
             children: [
               // Toppings list
@@ -117,9 +118,13 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
                 itemBuilder: (context, index) {
                   final topping = toppings[index];
                   // Check if this topping is already selected in cart
-                  final selectedIndex = _selectedToppings.indexWhere((t) => t.id == topping.id);
-                  final selectedQuantity = selectedIndex >= 0 ? _selectedToppings[selectedIndex].quantity : 0;
-                  
+                  final selectedIndex = _selectedToppings.indexWhere(
+                    (t) => t.id == topping.id,
+                  );
+                  final selectedQuantity = selectedIndex >= 0
+                      ? _selectedToppings[selectedIndex].quantity
+                      : 0;
+
                   return _ToppingSelectionCard(
                     topping: topping,
                     selectedQuantity: selectedQuantity,
@@ -260,8 +265,15 @@ class _ToppingSelectionCardState extends State<_ToppingSelectionCard> {
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                   ),
                 )
               : Container(
@@ -285,8 +297,15 @@ class _ToppingSelectionCardState extends State<_ToppingSelectionCard> {
                           );
                         }),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          child: const Icon(Icons.remove_rounded, size: 14, color: AppColors.textMuted),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          child: const Icon(
+                            Icons.remove_rounded,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                       SizedBox(
@@ -294,25 +313,43 @@ class _ToppingSelectionCardState extends State<_ToppingSelectionCard> {
                         child: Text(
                           '$_quantity',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => setState(() {
-                          _quantity++;
-                          widget.onQuantityChanged(
-                            ToppingModel(
-                              id: widget.topping.id,
-                              name: widget.topping.name,
-                              price: widget.topping.price,
-                              quantity: _quantity,
-                            ),
-                            _quantity,
-                          );
-                        }),
+                        onTap:
+                            widget.topping.maxQuantity > 0 &&
+                                _quantity >= widget.topping.maxQuantity
+                            ? null
+                            : () => setState(() {
+                                _quantity++;
+                                widget.onQuantityChanged(
+                                  ToppingModel(
+                                    id: widget.topping.id,
+                                    name: widget.topping.name,
+                                    price: widget.topping.price,
+                                    quantity: _quantity,
+                                  ),
+                                  _quantity,
+                                );
+                              }),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          child: Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            size: 14,
+                            color:
+                                widget.topping.maxQuantity > 0 &&
+                                    _quantity >= widget.topping.maxQuantity
+                                ? AppColors.textMuted
+                                : AppColors.primary,
+                          ),
                         ),
                       ),
                     ],

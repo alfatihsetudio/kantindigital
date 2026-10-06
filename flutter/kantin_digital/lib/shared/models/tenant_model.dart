@@ -24,6 +24,9 @@ class TenantModel {
   final String? menuCodePrefix;
   final String promoBadgeText;
   final String promoMessage;
+  final int promoDiscountPercent;
+  final String promoScope;
+  final List<int> promoMenuIds;
 
   const TenantModel({
     required this.id,
@@ -44,6 +47,9 @@ class TenantModel {
     this.menuCodePrefix = 'SAY',
     this.promoBadgeText = 'Promo Hari Ini',
     this.promoMessage = 'Pesan Sekarang, Nikmati Kemudahannya!',
+    this.promoDiscountPercent = 0,
+    this.promoScope = 'all',
+    this.promoMenuIds = const [],
   });
 
   bool? isOpenAt(DateTime utcInstant) =>
@@ -71,6 +77,13 @@ class TenantModel {
       promoMessage:
           json['promo_message']?.toString() ??
           'Pesan Sekarang, Nikmati Kemudahannya!',
+      promoDiscountPercent:
+          (json['promo_discount_percent'] as num?)?.toInt() ?? 0,
+      promoScope: json['promo_scope']?.toString() ?? 'all',
+      promoMenuIds: (json['promo_menu_ids'] as List? ?? const [])
+          .whereType<num>()
+          .map((id) => id.toInt())
+          .toList(),
     );
   }
 
@@ -125,6 +138,9 @@ class TenantModel {
       'menu_code_prefix': menuCodePrefix,
       'promo_badge_text': promoBadgeText,
       'promo_message': promoMessage,
+      'promo_discount_percent': promoDiscountPercent,
+      'promo_scope': promoScope,
+      'promo_menu_ids': promoMenuIds,
     };
   }
 

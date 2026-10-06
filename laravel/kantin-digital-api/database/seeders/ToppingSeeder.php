@@ -112,11 +112,13 @@ class ToppingSeeder extends Seeder
             }
 
             if (!empty($categoryIds)) {
+                $topping->categories()->syncWithoutDetaching($categoryIds);
+
                 // Find menus in these categories
                 $menus = \App\Models\Menu::whereIn('category_id', $categoryIds)->get();
                 if ($menus->isNotEmpty()) {
                     // Attach to all found menus
-                    $topping->menus()->attach($menus->pluck('id'));
+                    $topping->menus()->syncWithoutDetaching($menus->pluck('id'));
                 }
             }
         }

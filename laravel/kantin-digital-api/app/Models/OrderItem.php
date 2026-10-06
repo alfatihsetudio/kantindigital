@@ -9,7 +9,9 @@ class OrderItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['order_id', 'menu_id', 'menu_name', 'price', 'quantity', 'notes'];
+    protected $fillable = [
+        'order_id', 'menu_id', 'menu_name', 'price', 'quantity', 'notes', 'discount_amount',
+    ];
 
     public function order()
     {
@@ -21,4 +23,3 @@ class OrderItem extends Model
         return $this->hasMany(OrderItemTopping::class);
     }
 }
-

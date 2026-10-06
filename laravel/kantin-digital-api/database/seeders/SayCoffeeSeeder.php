@@ -143,6 +143,7 @@ class SayCoffeeSeeder extends Seeder
 
         foreach (array_merge($kopiMenus, $nonKopiMenus) as $menuData) {
             $menuData['tenant_id'] = $tenantId;
+            $menuData['note_options'] = ['Simple Sirup', 'Palm Sugar'];
             $existingMenu = Menu::withoutGlobalScopes()
                 ->where('name', $menuData['name'])
                 ->where('tenant_id', $tenantId)
@@ -175,10 +176,11 @@ class SayCoffeeSeeder extends Seeder
         ];
 
         foreach ($toppings as $top) {
-            Topping::withoutGlobalScopes()->updateOrCreate(
+            $topping = Topping::withoutGlobalScopes()->updateOrCreate(
                 ['name' => $top['name'], 'tenant_id' => $tenantId],
                 $top
             );
+            $topping->categories()->syncWithoutDetaching([$catKopi->id, $catNonKopi->id]);
         }
 
         Category::withoutGlobalScopes()

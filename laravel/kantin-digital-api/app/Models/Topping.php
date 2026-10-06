@@ -22,4 +22,10 @@ class Topping extends Model
                     ->withPivot('min', 'max')
                     ->withTimestamps();
     }
+
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class, 'category_topping')
+            ->withTimestamps();
+    }
 }

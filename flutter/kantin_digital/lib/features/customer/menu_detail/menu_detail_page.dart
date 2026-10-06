@@ -8,6 +8,7 @@ import '../../../core/widgets/glass_components.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
+import '../menu/menu_service.dart';
 import '../cart/cart_controller.dart';
 
 import '../../../shared/models/topping_model.dart';
@@ -23,12 +24,12 @@ class MenuDetailPage extends StatefulWidget {
 
 class _MenuDetailPageState extends State<MenuDetailPage> {
   int _qty = 1;
-  final TextEditingController _notesController = TextEditingController();
-  final ApiClient _client = ApiClient();
-  
+  final MenuService _menuService = MenuService(ApiClient());
   List<ToppingModel> _allToppings = [];
   final Map<int, int> _selectedToppings = {}; // Map<ToppingID, Quantity>
+  String? _selectedNote;
   bool _loadingToppings = true;
+  String? _toppingsError;
 
   @override
   void initState() {
@@ -38,14 +39,18 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
 
   Future<void> _loadToppings() async {
     try {
-      final response = await _client.get('/toppings?menu_id=${widget.menu.id}');
-      final data = response['data'] as List;
+      final data = await _menuService.fetchToppings(widget.menu.id);
+      if (!mounted) return;
       setState(() {
-        _allToppings = data.map((e) => ToppingModel.fromJson(e)).toList();
+        _allToppings = data;
         _loadingToppings = false;
       });
     } catch (e) {
-      setState(() => _loadingToppings = false);
+      if (!mounted) return;
+      setState(() {
+        _loadingToppings = false;
+        _toppingsError = e.toString();
+      });
     }
   }
 
@@ -77,17 +82,21 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
     final selectedToppings = _allToppings
         .where((t) => _selectedToppings.containsKey(t.id))
         .toList();
-    
+
     CartController.instance.addMenu(
-      widget.menu, 
+      widget.menu,
       quantity: _qty,
-      notes: _notesController.text,
-      toppings: selectedToppings.map((t) => {
-        'id': t.id, 
-        'name': t.name, 
-        'price': t.price,
-        'quantity': _selectedToppings[t.id] ?? 1,
-      }).toList(),
+      notes: _selectedNote,
+      toppings: selectedToppings
+          .map(
+            (t) => {
+              'id': t.id,
+              'name': t.name,
+              'price': t.price,
+              'quantity': _selectedToppings[t.id] ?? 1,
+            },
+          )
+          .toList(),
     );
     Navigator.of(context).pop();
     TopNotification.show(
@@ -100,7 +109,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
   @override
   Widget build(BuildContext context) {
     final menu = widget.menu;
-    
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -110,25 +119,19 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             physics: const BouncingScrollPhysics(),
             slivers: [
               // Hero Image
-              SliverToBoxAdapter(
-                child: _buildHeroImage(menu),
-              ),
-              
+              SliverToBoxAdapter(child: _buildHeroImage(menu)),
+
               // Content
-              SliverToBoxAdapter(
-                child: _buildContent(menu),
-              ),
-              
+              SliverToBoxAdapter(child: _buildContent(menu)),
+
               // Bottom spacing for button
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 120),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
-          
+
           // Back Button
           _buildBackButton(),
-          
+
           // Bottom Add to Cart
           _buildBottomBar(),
         ],
@@ -143,9 +146,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
         Container(
           height: 320,
           width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.background,
-          ),
+          decoration: BoxDecoration(color: AppColors.background),
           child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
               ? Image.network(
                   menu.imageUrl!,
@@ -154,7 +155,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                 )
               : _buildImagePlaceholder(),
         ),
-        
+
         // Bottom gradient overlay
         Positioned(
           bottom: 0,
@@ -166,10 +167,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  AppColors.background,
-                ],
+                colors: [Colors.transparent, AppColors.background],
               ),
             ),
           ),
@@ -217,9 +215,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
   Widget _buildContent(MenuModel menu) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-      ),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -232,7 +228,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                 children: [
                   if (codeText.isNotEmpty) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(20),
@@ -249,7 +248,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                     const SizedBox(width: 8),
                   ],
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(20),
@@ -267,7 +269,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             },
           ),
           const SizedBox(height: 12),
-          
+
           // Name and Price
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +294,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               ),
             ],
           ),
-          
+
           // Description
           if (menu.description != null && menu.description!.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -304,16 +306,16 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               ),
             ),
           ],
-          
+
           const SizedBox(height: 24),
-          
-          // Toppings Section
-          _buildToppingSection(),
-          
-          const SizedBox(height: 24),
-          
-          // Notes Section
-          _buildNotesSection(),
+
+          if (_loadingToppings ||
+              _allToppings.isNotEmpty ||
+              _toppingsError != null) ...[
+            _buildToppingSection(),
+            const SizedBox(height: 24),
+          ],
+          if (menu.noteOptions.isNotEmpty) _buildNotesSection(),
         ],
       ),
     );
@@ -367,7 +369,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           if (_loadingToppings)
             const Center(
               child: Padding(
@@ -375,7 +377,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else if (_allToppings.isEmpty)
+          else if (_toppingsError != null)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -384,13 +386,18 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded, 
-                    color: AppColors.textMuted, size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
-                  Text(
-                    'Tidak ada topping tersedia',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                  Expanded(
+                    child: Text(
+                      'Topping gagal dimuat. Periksa koneksi lalu coba lagi.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.danger),
                     ),
                   ),
                 ],
@@ -403,15 +410,19 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               children: _allToppings.map((topping) {
                 final qty = _selectedToppings[topping.id] ?? 0;
                 final isSelected = qty > 0;
-                
+
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary.withValues(alpha: 0.05) : Colors.white,
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.05)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.borderLight,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.borderLight,
                       width: 1.5,
                     ),
                   ),
@@ -435,7 +446,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Quantity Controls
                       if (!isSelected)
                         GestureDetector(
@@ -445,7 +456,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                             });
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(50),
@@ -481,14 +495,22 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                                   border: Border.all(color: AppColors.border),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.remove, size: 14, color: AppColors.textPrimary),
+                                child: const Icon(
+                                  Icons.remove,
+                                  size: 14,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Text(
                                 '$qty',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             GestureDetector(
@@ -503,7 +525,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                                   color: AppColors.primary,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.add, size: 14, color: Colors.white),
+                                child: const Icon(
+                                  Icons.add,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ],
@@ -549,13 +575,13 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Catatan Pesanan',
+                      'Pilih Opsi Menu',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      'Opsional',
+                      'Opsional - khusus ${widget.menu.displayName}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                       ),
@@ -565,21 +591,24 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _notesController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: 'Contoh: Tidak pedas, tanpa bawang...',
-              hintStyle: TextStyle(color: AppColors.textMuted),
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Tanpa pilihan'),
+                selected: _selectedNote == null,
+                onSelected: (_) => setState(() => _selectedNote = null),
               ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
+              ...widget.menu.noteOptions.map(
+                (option) => ChoiceChip(
+                  label: Text(option),
+                  selected: _selectedNote == option,
+                  onSelected: (_) => setState(() => _selectedNote = option),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -626,9 +655,8 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                       child: Text(
                         '$_qty',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                     ),
                     _QuantityButton(
@@ -640,7 +668,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Add to Cart Button
               Expanded(
                 child: TapScaleContainer(
@@ -661,8 +689,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_shopping_cart_rounded, 
-                          color: Colors.white, size: 20),
+                        const Icon(
+                          Icons.add_shopping_cart_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                         const SizedBox(width: 10),
                         Text(
                           CurrencyFormatter.rupiah(_itemTotal),
@@ -711,8 +742,8 @@ class _QuantityButton extends StatelessWidget {
         child: Icon(
           icon,
           size: 20,
-          color: isPrimary 
-              ? Colors.white 
+          color: isPrimary
+              ? Colors.white
               : (enabled ? AppColors.textPrimary : AppColors.textMuted),
         ),
       ),

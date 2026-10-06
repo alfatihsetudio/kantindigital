@@ -11,7 +11,11 @@ class Menu extends Model
 
     protected $fillable = [
         'tenant_id', 'category_id', 'code',
-        'name', 'price', 'description', 'image_url', 'is_available',
+        'name', 'price', 'description', 'image_url', 'is_available', 'note_options',
+    ];
+
+    protected $casts = [
+        'note_options' => 'array',
     ];
 
     public function category()

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TenantController extends Controller
 {
@@ -48,6 +49,9 @@ class TenantController extends Controller
                 'menu_code_prefix' => $tenant->menu_code_prefix ?? 'SAY',
                 'promo_badge_text' => $tenant->promo_badge_text ?? 'Promo Hari Ini',
                 'promo_message' => $tenant->promo_message ?? 'Pesan Sekarang, Nikmati Kemudahannya!',
+                'promo_discount_percent' => (int) ($tenant->promo_discount_percent ?? 0),
+                'promo_scope' => $tenant->promo_scope ?? 'all',
+                'promo_menu_ids' => $tenant->promo_menu_ids ?? [],
             ],
         ]);
     }
@@ -65,6 +69,15 @@ class TenantController extends Controller
                     'status' => false,
                     'message' => 'Tenant tidak ditemukan',
                 ], 404);
+            }
+
+            if ($request->has('promo_menu_ids') && is_string($request->input('promo_menu_ids'))) {
+                $menuIds = json_decode($request->input('promo_menu_ids'), true);
+                $request->merge([
+                    'promo_menu_ids' => is_array($menuIds)
+                        ? $menuIds
+                        : $request->input('promo_menu_ids'),
+                ]);
             }
 
             $request->validate([
@@ -94,10 +107,27 @@ class TenantController extends Controller
                 'meta_image_base64' => 'nullable|string',
                 'promo_badge_text' => 'nullable|string|max:60',
                 'promo_message' => 'nullable|string|max:180',
+                'promo_discount_percent' => 'nullable|integer|min:0|max:100',
+                'promo_scope' => 'nullable|in:all,selected',
+                'promo_menu_ids' => 'nullable|array',
+                'promo_menu_ids.*' => [
+                    'integer',
+                    'distinct',
+                    Rule::exists('menus', 'id')->where('tenant_id', $tenant->id),
+                ],
             ]);
+
+            if ((int) $request->input('promo_discount_percent', 0) > 0
+                && $request->input('promo_scope', 'all') === 'selected'
+                && empty($request->input('promo_menu_ids'))) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'promo_menu_ids' => ['Pilih minimal satu menu untuk promo varian tertentu.'],
+                ]);
+            }
 
             $data = $request->only([
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
+                'promo_discount_percent', 'promo_scope', 'promo_menu_ids',
                 'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);

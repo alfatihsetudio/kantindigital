@@ -2,14 +2,56 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kantin_digital/shared/models/menu_model.dart';
 
 void main() {
+  test('parses menu-specific optional note choices', () {
+    final menu = MenuModel.fromJson({
+      'id': 1,
+      'name': 'Say Aren',
+      'category_name': 'Kopi',
+      'price': 15000,
+      'note_options': ['Simple Sirup', 'Palm Sugar'],
+    });
+
+    expect(menu.noteOptions, ['Simple Sirup', 'Palm Sugar']);
+  });
+
   group('MenuModel sequenceNumber & flyerOrder tests', () {
     test('Matches Coffee flyer items correctly', () {
-      const m1 = MenuModel(id: 1, name: 'SAY AREN', categoryName: 'Kopi', price: 15000);
-      const m2 = MenuModel(id: 2, name: 'SAY BUTTER BLISS', categoryName: 'Kopi', price: 15000);
-      const m3 = MenuModel(id: 3, name: 'SAY HAZEL HUG', categoryName: 'Kopi', price: 15000);
-      const m4 = MenuModel(id: 4, name: 'SAY MILKY BREW', categoryName: 'Kopi', price: 15000);
-      const m5 = MenuModel(id: 5, name: 'SAY SWEET CREAM', categoryName: 'Kopi', price: 18000);
-      const m6 = MenuModel(id: 6, name: 'SAY BLACK BREW', categoryName: 'Kopi', price: 12000);
+      const m1 = MenuModel(
+        id: 1,
+        name: 'SAY AREN',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
+      const m2 = MenuModel(
+        id: 2,
+        name: 'SAY BUTTER BLISS',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
+      const m3 = MenuModel(
+        id: 3,
+        name: 'SAY HAZEL HUG',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
+      const m4 = MenuModel(
+        id: 4,
+        name: 'SAY MILKY BREW',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
+      const m5 = MenuModel(
+        id: 5,
+        name: 'SAY SWEET CREAM',
+        categoryName: 'Kopi',
+        price: 18000,
+      );
+      const m6 = MenuModel(
+        id: 6,
+        name: 'SAY BLACK BREW',
+        categoryName: 'Kopi',
+        price: 12000,
+      );
 
       expect(m1.sequenceNumber, '01');
       expect(m2.sequenceNumber, '02');
@@ -27,9 +69,24 @@ void main() {
     });
 
     test('Matches Non-Coffee flyer items correctly', () {
-      const n1 = MenuModel(id: 7, name: 'SAY MATCHA MOOD', categoryName: 'Non Kopi', price: 15000);
-      const n2 = MenuModel(id: 8, name: 'SAY CHOCO STORY', categoryName: 'Non Kopi', price: 18000);
-      const n3 = MenuModel(id: 9, name: 'SAY CHOCO HAZEL', categoryName: 'Non Kopi', price: 18000);
+      const n1 = MenuModel(
+        id: 7,
+        name: 'SAY MATCHA MOOD',
+        categoryName: 'Non Kopi',
+        price: 15000,
+      );
+      const n2 = MenuModel(
+        id: 8,
+        name: 'SAY CHOCO STORY',
+        categoryName: 'Non Kopi',
+        price: 18000,
+      );
+      const n3 = MenuModel(
+        id: 9,
+        name: 'SAY CHOCO HAZEL',
+        categoryName: 'Non Kopi',
+        price: 18000,
+      );
 
       expect(n1.sequenceNumber, '01');
       expect(n2.sequenceNumber, '02');
@@ -42,10 +99,30 @@ void main() {
 
     test('Correctly sorts mixed list according to flyer sequence', () {
       final list = [
-        const MenuModel(id: 9, name: 'SAY CHOCO HAZEL', categoryName: 'Non Kopi', price: 18000),
-        const MenuModel(id: 6, name: 'SAY BLACK BREW', categoryName: 'Kopi', price: 12000),
-        const MenuModel(id: 1, name: 'SAY AREN', categoryName: 'Kopi', price: 15000),
-        const MenuModel(id: 7, name: 'SAY MATCHA MOOD', categoryName: 'Non Kopi', price: 15000),
+        const MenuModel(
+          id: 9,
+          name: 'SAY CHOCO HAZEL',
+          categoryName: 'Non Kopi',
+          price: 18000,
+        ),
+        const MenuModel(
+          id: 6,
+          name: 'SAY BLACK BREW',
+          categoryName: 'Kopi',
+          price: 12000,
+        ),
+        const MenuModel(
+          id: 1,
+          name: 'SAY AREN',
+          categoryName: 'Kopi',
+          price: 15000,
+        ),
+        const MenuModel(
+          id: 7,
+          name: 'SAY MATCHA MOOD',
+          categoryName: 'Non Kopi',
+          price: 15000,
+        ),
       ];
 
       list.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
@@ -59,16 +136,33 @@ void main() {
     });
 
     test('Correctly formats code with prefix and database code', () {
-      const m = MenuModel(id: 1, code: '01', name: 'SAY AREN', categoryName: 'Kopi', price: 15000);
+      const m = MenuModel(
+        id: 1,
+        code: '01',
+        name: 'SAY AREN',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
       expect(m.formattedCode('SAY'), 'SAY-01');
       expect(m.formattedCode('CAFE'), 'CAFE-01');
 
       // Test with custom prefix in code already
-      const mCustom = MenuModel(id: 2, code: 'SAY-02', name: 'SAY BUTTER BLISS', categoryName: 'Kopi', price: 15000);
+      const mCustom = MenuModel(
+        id: 2,
+        code: 'SAY-02',
+        name: 'SAY BUTTER BLISS',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
       expect(mCustom.formattedCode('SAY'), 'SAY-02');
 
       // Test fallback to sequenceNumber if code is null
-      const mFallback = MenuModel(id: 3, name: 'SAY HAZEL HUG', categoryName: 'Kopi', price: 15000);
+      const mFallback = MenuModel(
+        id: 3,
+        name: 'SAY HAZEL HUG',
+        categoryName: 'Kopi',
+        price: 15000,
+      );
       expect(mFallback.formattedCode('SAY'), 'SAY-03');
     });
   });

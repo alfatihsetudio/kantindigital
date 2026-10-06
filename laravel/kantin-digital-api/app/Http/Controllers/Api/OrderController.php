@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderItemTopping;
 use App\Models\Table;
-use App\Models\Topping;
 use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +54,14 @@ class OrderController extends Controller
                 'distinct',
                 Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
             ],
+            'items.*.toppings' => ['sometimes', 'array', 'max:5'],
+            'items.*.toppings.*.topping_id' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
+            ],
+            'items.*.toppings.*.quantity' => ['required', 'integer', 'min:1', 'max:20'],
             'items.*.notes' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -93,7 +100,7 @@ class OrderController extends Controller
             $tableId = null;
         }
 
-        $order = DB::transaction(function () use ($request, $tableId, $orderType) {
+        $order = DB::transaction(function () use ($request, $tableId, $orderType, $tenant) {
             $order = Order::create([
                 'code' => strtoupper(Str::random(8)),
                 'customer_name' => $request->customer_name,
@@ -106,14 +113,32 @@ class OrderController extends Controller
                 'status' => 'UNPAID',
                 'payment_method' => $request->payment_method ?? 'qris',
                 'total_amount' => 0,
+                'discount_amount' => 0,
             ]);
 
             $total = 0;
+            $totalDiscount = 0;
+            $promoPercent = min(100, max(0, (int) ($tenant?->promo_discount_percent ?? 0)));
+            $promoScope = $tenant?->promo_scope ?? 'all';
+            $promoMenuIds = collect($tenant?->promo_menu_ids ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
             foreach ($request->items as $itemData) {
                 /** @var \App\Models\Menu $menu */
-                $menu = Menu::findOrFail($itemData['menu_id']);
+                $menu = Menu::with('toppings')->findOrFail($itemData['menu_id']);
                 $quantity = (int) $itemData['quantity'];
+                $note = trim((string) ($itemData['notes'] ?? ''));
+                $noteOptions = $menu->note_options ?? [];
+                if ($note !== '' && $noteOptions !== [] && ! in_array($note, $noteOptions, true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'items' => ["Pilihan catatan untuk menu {$menu->name} tidak valid."],
+                    ]);
+                }
+                $lineDiscount = $promoPercent > 0
+                    && ($promoScope !== 'selected' || in_array($menu->id, $promoMenuIds, true))
+                    ? intdiv(($menu->price * $quantity * $promoPercent) + 50, 100)
+                    : 0;
 
                 $orderItem = OrderItem::create([
                     'order_id' => $order->id,
@@ -121,29 +146,51 @@ class OrderController extends Controller
                     'menu_name' => $menu->name,
                     'price' => $menu->price,
                     'quantity' => $quantity,
-                    'notes' => $itemData['notes'] ?? null,
+                    'notes' => $note !== '' ? $note : null,
+                    'discount_amount' => $lineDiscount,
                 ]);
 
                 $lineTotal = $menu->price * $quantity;
 
-                $toppingIds = $itemData['topping_ids'] ?? [];
-                if (count($toppingIds)) {
-                    $toppings = Topping::whereIn('id', $toppingIds)->get();
-                    foreach ($toppings as $topping) {
-                        OrderItemTopping::create([
-                            'order_item_id' => $orderItem->id,
-                            'topping_id' => $topping->id,
-                            'topping_name' => $topping->name,
-                            'topping_price' => $topping->price,
+                $toppingSelections = $itemData['toppings'] ?? collect(
+                    $itemData['topping_ids'] ?? []
+                )->map(fn ($id) => ['topping_id' => $id, 'quantity' => 1])->all();
+
+                foreach ($toppingSelections as $selection) {
+                    $toppingId = (int) ($selection['topping_id'] ?? 0);
+                    $topping = $menu->toppings->firstWhere('id', $toppingId);
+                    if (! $topping) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'items' => ["Toping {$toppingId} tidak tersedia untuk menu {$menu->name}."],
                         ]);
-                        $lineTotal += $topping->price;
                     }
+
+                    $toppingQuantity = (int) ($selection['quantity'] ?? 1);
+                    $maxQuantity = (int) $topping->pivot->max;
+                    if ($maxQuantity > 0 && $toppingQuantity > $maxQuantity) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'items' => ["Jumlah toping {$topping->name} melebihi batas menu."],
+                        ]);
+                    }
+
+                    OrderItemTopping::create([
+                        'order_item_id' => $orderItem->id,
+                        'topping_id' => $topping->id,
+                        'topping_name' => $topping->name,
+                        'topping_price' => $topping->price,
+                        'quantity' => $toppingQuantity,
+                    ]);
+                    $lineTotal += $topping->price * $toppingQuantity;
                 }
 
-                $total += $lineTotal;
+                $total += $lineTotal - $lineDiscount;
+                $totalDiscount += $lineDiscount;
             }
 
-            $order->update(['total_amount' => $total]);
+            $order->update([
+                'total_amount' => $total,
+                'discount_amount' => $totalDiscount,
+            ]);
 
             return $order;
         });
@@ -192,6 +239,7 @@ class OrderController extends Controller
             'status' => $order->status,
             'payment_method' => $order->payment_method ?? 'qris',
             'total_amount' => $order->total_amount,
+            'discount_amount' => $order->discount_amount,
             'qris' => [
                 'merchant_name' => $merchantName,
                 'merchant_city' => $merchantCity,
@@ -218,6 +266,7 @@ class OrderController extends Controller
                             'topping_id' => $topping->topping_id,
                             'topping_name' => $topping->topping_name,
                             'topping_price' => $topping->topping_price,
+                            'quantity' => $topping->quantity,
                         ];
                     })->values(),
                 ];
@@ -282,6 +331,7 @@ class OrderController extends Controller
                     'status' => $order->status,
                     'payment_method' => $order->payment_method ?? 'qris',
                     'total_amount' => $order->total_amount,
+                    'discount_amount' => $order->discount_amount,
                     'created_at' => $order->created_at->toIso8601String(),
                     'order_type' => $order->order_type,
                     'delivery_address' => $order->delivery_address,
@@ -295,11 +345,13 @@ class OrderController extends Controller
                             'menu_name' => $item->menu_name,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
+                            'discount_amount' => $item->discount_amount,
                             'notes' => $item->notes,
                             'toppings' => $item->toppings->map(function (OrderItemTopping $topping) {
                                 return [
                                     'topping_name' => $topping->topping_name,
                                     'topping_price' => $topping->topping_price,
+                                    'quantity' => $topping->quantity,
                                 ];
                             })->values(),
                         ];
@@ -378,7 +430,9 @@ class OrderController extends Controller
         $averageOrderValue = $totalOrders > 0 ? (int) round($totalRevenue / $totalOrders) : 0;
 
         // Top selling menus (last 30 days)
-        $topMenus = OrderItem::selectRaw('menu_name, SUM(quantity) as total_qty, SUM(price * quantity) as total_sales')
+        $topMenus = OrderItem::selectRaw(
+            'menu_name, SUM(quantity) as total_qty, SUM(price * quantity - discount_amount) as total_sales'
+        )
             ->whereHas('order', function ($query) use ($paidStatuses) {
                 $query->where('created_at', '>=', now()->subDays(30))
                     ->whereIn('status', $paidStatuses);

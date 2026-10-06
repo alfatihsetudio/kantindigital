@@ -5,6 +5,7 @@ class CashierOrderModel {
   final String? customerPhone;
   final String status;
   final int totalAmount;
+  final int discountAmount;
   final String tableCode;
   final String orderType;
   final String? deliveryAddress;
@@ -18,6 +19,7 @@ class CashierOrderModel {
     this.customerPhone,
     required this.status,
     required this.totalAmount,
+    this.discountAmount = 0,
     required this.tableCode,
     required this.orderType,
     this.deliveryAddress,
@@ -33,7 +35,8 @@ class CashierOrderModel {
       customerName: json['customer_name'] as String?,
       customerPhone: json['customer_phone'] as String?,
       status: json['status'] as String,
-      totalAmount: json['total_amount'] as int,
+      totalAmount: (json['total_amount'] as num).toInt(),
+      discountAmount: (json['discount_amount'] as num?)?.toInt() ?? 0,
       tableCode: json['table']?['code'] ?? '-',
       orderType: (json['order_type'] ?? 'dine_in').toString(),
       deliveryAddress: json['delivery_address']?.toString(),

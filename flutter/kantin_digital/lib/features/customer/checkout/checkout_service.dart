@@ -39,7 +39,14 @@ class CheckoutService {
             (e) => {
               'menu_id': e.menu.id,
               'quantity': e.quantity,
-              'topping_ids': e.toppings.map((t) => t.id).toList(),
+              'toppings': e.toppings
+                  .map(
+                    (topping) => {
+                      'topping_id': topping.id,
+                      'quantity': topping.quantity,
+                    },
+                  )
+                  .toList(),
               'notes': e.notes,
             },
           )

@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kantin_digital/shared/models/tenant_model.dart';
 import 'package:kantin_digital/shared/services/demo_session_manager.dart';
 import 'package:kantin_digital/shared/utils/store_opening_hours.dart';
+import 'package:kantin_digital/shared/utils/promo_discount_calculator.dart';
+import 'package:kantin_digital/shared/models/cart_item_model.dart';
+import 'package:kantin_digital/shared/models/menu_model.dart';
 
 void main() {
   group('TenantModel promo settings', () {
@@ -46,6 +49,64 @@ void main() {
     expect(tenant.toJson()['opening_hours'], 'Senin-Sabtu, 08:00 - 22:00');
     expect(tenant.isStoreOpen, isTrue);
     expect(tenant.toJson()['is_store_open'], isTrue);
+  });
+
+  test('reads promo discount scope and selected menus', () {
+    final tenant = TenantModel.fromJson({
+      'id': 1,
+      'subdomain': 'saycoffee',
+      'name': 'SAY COFFEE',
+      'promo_discount_percent': 20,
+      'promo_scope': 'selected',
+      'promo_menu_ids': [3, 8],
+    });
+
+    expect(tenant.promoDiscountPercent, 20);
+    expect(tenant.promoScope, 'selected');
+    expect(tenant.promoMenuIds, [3, 8]);
+    expect(tenant.toJson()['promo_menu_ids'], [3, 8]);
+  });
+
+  test('promo calculator discounts all menus or only selected menu ids', () {
+    final items = [
+      CartItemModel(
+        menu: const MenuModel(
+          id: 3,
+          name: 'Menu A',
+          categoryName: 'Kopi',
+          price: 5000,
+        ),
+        quantity: 2,
+      ),
+      CartItemModel(
+        menu: const MenuModel(
+          id: 8,
+          name: 'Menu B',
+          categoryName: 'Kopi',
+          price: 3000,
+        ),
+        quantity: 1,
+      ),
+    ];
+
+    expect(
+      PromoDiscountCalculator.calculate(
+        items: items,
+        percent: 10,
+        appliesToAllMenus: true,
+        menuIds: {},
+      ),
+      1300,
+    );
+    expect(
+      PromoDiscountCalculator.calculate(
+        items: items,
+        percent: 10,
+        appliesToAllMenus: false,
+        menuIds: {3},
+      ),
+      1000,
+    );
   });
 
   test('evaluates daily opening hours in WIB and closes at closing time', () {

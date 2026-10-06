@@ -15,6 +15,8 @@ import '../models/tenant_model.dart';
 import '../models/topping_model.dart';
 import '../models/user_model.dart';
 import '../models/cashier_order_model.dart';
+import '../models/cart_item_model.dart';
+import '../utils/promo_discount_calculator.dart';
 
 import 'tenant_service.dart';
 
@@ -71,9 +73,11 @@ class DemoSessionManager {
           data['logo_data_url']?.toString() ??
           data['logo_url']?.toString() ??
           demoTenant.logoUrl,
-      primaryColor: data['primary_color']?.toString() ?? demoTenant.primaryColor,
+      primaryColor:
+          data['primary_color']?.toString() ?? demoTenant.primaryColor,
       address: data['address']?.toString() ?? demoTenant.address,
-      openingHours: data['opening_hours']?.toString() ?? demoTenant.openingHours,
+      openingHours:
+          data['opening_hours']?.toString() ?? demoTenant.openingHours,
       isStoreOpen: data['is_store_open'] == null
           ? demoTenant.isStoreOpen
           : data['is_store_open'] == true || data['is_store_open'] == 'true',
@@ -82,14 +86,29 @@ class DemoSessionManager {
       plan: demoTenant.plan,
       isActive: true,
       metaTitle: data['meta_title']?.toString() ?? demoTenant.metaTitle,
-      metaDescription: data['meta_description']?.toString() ?? demoTenant.metaDescription,
-      metaImageUrl: data['meta_image_data_url']?.toString() ??
+      metaDescription:
+          data['meta_description']?.toString() ?? demoTenant.metaDescription,
+      metaImageUrl:
+          data['meta_image_data_url']?.toString() ??
           data['meta_image']?.toString() ??
           data['meta_image_url']?.toString() ??
           demoTenant.metaImageUrl,
-      menuCodePrefix: data['menu_code_prefix']?.toString() ?? demoTenant.menuCodePrefix,
-      promoBadgeText: data['promo_badge_text']?.toString() ?? demoTenant.promoBadgeText,
-      promoMessage: data['promo_message']?.toString() ?? demoTenant.promoMessage,
+      menuCodePrefix:
+          data['menu_code_prefix']?.toString() ?? demoTenant.menuCodePrefix,
+      promoBadgeText:
+          data['promo_badge_text']?.toString() ?? demoTenant.promoBadgeText,
+      promoMessage:
+          data['promo_message']?.toString() ?? demoTenant.promoMessage,
+      promoDiscountPercent:
+          int.tryParse(data['promo_discount_percent']?.toString() ?? '') ??
+          demoTenant.promoDiscountPercent,
+      promoScope: data['promo_scope']?.toString() ?? demoTenant.promoScope,
+      promoMenuIds: data['promo_menu_ids'] is List
+          ? (data['promo_menu_ids'] as List)
+                .map((id) => int.tryParse(id.toString()) ?? 0)
+                .where((id) => id > 0)
+                .toList()
+          : demoTenant.promoMenuIds,
     );
     TenantService.clearCache();
   }
@@ -113,7 +132,8 @@ class DemoSessionManager {
       email: 'admin@gmail.com',
       password: 'admin123',
       role: UserRole.admin,
-      description: 'Kelola daftar menu, harga, nomor meja, QRIS, & pengaturan toko.',
+      description:
+          'Kelola daftar menu, harga, nomor meja, QRIS, & pengaturan toko.',
       badgeColor: 0xFF2563EB,
     ),
     DemoCredential(
@@ -121,7 +141,8 @@ class DemoSessionManager {
       email: 'manager@gmail.com',
       password: 'admin123',
       role: UserRole.manager,
-      description: 'Pantau grafik omzet penjualan realtime, laba harian, & produk terlaris.',
+      description:
+          'Pantau grafik omzet penjualan realtime, laba harian, & produk terlaris.',
       badgeColor: 0xFF9333EA,
     ),
     DemoCredential(
@@ -194,8 +215,10 @@ class DemoSessionManager {
       name: 'Nasi Goreng Wagyu Spesial',
       categoryName: 'Makanan',
       price: 38000,
-      imageUrl: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80',
-      description: 'Nasi goreng harum rempah nusantara dengan potongan wagyu empuk, telur mata sapi, dan acar segar.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Nasi goreng harum rempah nusantara dengan potongan wagyu empuk, telur mata sapi, dan acar segar.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -204,8 +227,10 @@ class DemoSessionManager {
       name: 'Smash Cheeseburger & Crispy Fries',
       categoryName: 'Makanan',
       price: 35000,
-      imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
-      description: '100% daging sapi Australia juicy dengan double cheddar cheese lumer, saus spesial, dan selada renyah.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
+      description:
+          '100% daging sapi Australia juicy dengan double cheddar cheese lumer, saus spesial, dan selada renyah.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -214,8 +239,10 @@ class DemoSessionManager {
       name: 'Beef Ramen Shoyu Komplit',
       categoryName: 'Makanan',
       price: 42000,
-      imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80',
-      description: 'Mie kenyal kuah kaldu shoyu autentik dengan topping chashu beef lembut, ajitsuke tamago, nori, dan daun bawang.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Mie kenyal kuah kaldu shoyu autentik dengan topping chashu beef lembut, ajitsuke tamago, nori, dan daun bawang.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -224,8 +251,10 @@ class DemoSessionManager {
       name: 'Spaghetti Creamy Carbonara',
       categoryName: 'Makanan',
       price: 34000,
-      imageUrl: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=600&q=80',
-      description: 'Pasta al dente berpadu saus keju parmesan gurih, potongan smoked beef tebal, dan taburan parsley harum.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Pasta al dente berpadu saus keju parmesan gurih, potongan smoked beef tebal, dan taburan parsley harum.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -234,8 +263,10 @@ class DemoSessionManager {
       name: 'Crispy Golden Fried Chicken Sambal Matah',
       categoryName: 'Makanan',
       price: 28000,
-      imageUrl: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80',
-      description: 'Ayam goreng keemasan super renyah di luar juicy di dalam, disajikan dengan racikan sambal matah Bali segar.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Ayam goreng keemasan super renyah di luar juicy di dalam, disajikan dengan racikan sambal matah Bali segar.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -244,8 +275,10 @@ class DemoSessionManager {
       name: 'Pizza Margherita Napolitana (Personal)',
       categoryName: 'Makanan',
       price: 45000,
-      imageUrl: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=600&q=80',
-      description: 'Adonan tipis berkerak renyah dipanggang dengan saus tomat pomodoro, keju mozzarella mulur, dan daun basil segar.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Adonan tipis berkerak renyah dipanggang dengan saus tomat pomodoro, keju mozzarella mulur, dan daun basil segar.',
       isAvailable: true,
     ),
 
@@ -256,8 +289,10 @@ class DemoSessionManager {
       name: 'Iced Kopi Susu Gula Aren Spesial',
       categoryName: 'Kopi',
       price: 18000,
-      imageUrl: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=600&q=80',
-      description: 'Espresso house blend arabica dipadukan susu creamy dingin dan legitnya gula aren organik pilihan.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Espresso house blend arabica dipadukan susu creamy dingin dan legitnya gula aren organik pilihan.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -266,8 +301,10 @@ class DemoSessionManager {
       name: 'Caramel Macchiato Double Shot',
       categoryName: 'Kopi',
       price: 24000,
-      imageUrl: 'https://images.unsplash.com/photo-1485808191679-5f86510681a2?auto=format&fit=crop&w=600&q=80',
-      description: 'Kombinasi vanila segar, susu berbusa lembut, double shot espresso, dan topping saus karamel lezat.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1485808191679-5f86510681a2?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Kombinasi vanila segar, susu berbusa lembut, double shot espresso, dan topping saus karamel lezat.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -276,8 +313,10 @@ class DemoSessionManager {
       name: 'Kyoto Matcha Espresso Fusion',
       categoryName: 'Kopi',
       price: 25000,
-      imageUrl: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80',
-      description: 'Lapisan cantik matcha murni Uji Kyoto Jepang berpadu espresso harum dan fresh milk dingin.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Lapisan cantik matcha murni Uji Kyoto Jepang berpadu espresso harum dan fresh milk dingin.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -286,8 +325,10 @@ class DemoSessionManager {
       name: 'Americano Classic Cold Brew',
       categoryName: 'Kopi',
       price: 16000,
-      imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80',
-      description: 'Kopi hitam cold brew segar tanpa ampas dengan aroma bunga dan hint citrus yang membangkitkan fokus.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Kopi hitam cold brew segar tanpa ampas dengan aroma bunga dan hint citrus yang membangkitkan fokus.',
       isAvailable: true,
     ),
 
@@ -298,8 +339,10 @@ class DemoSessionManager {
       name: 'Signature Dark Chocolate Fudge',
       categoryName: 'Non Kopi',
       price: 22000,
-      imageUrl: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?auto=format&fit=crop&w=600&q=80',
-      description: 'Cokelat Belgia pekat kaya rasa berpadu susu segar dingin, nikmat, manis pas, dan tidak bikin eneg.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Cokelat Belgia pekat kaya rasa berpadu susu segar dingin, nikmat, manis pas, dan tidak bikin eneg.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -308,8 +351,10 @@ class DemoSessionManager {
       name: 'Brown Sugar Boba Fresh Milk',
       categoryName: 'Non Kopi',
       price: 20000,
-      imageUrl: 'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=600&q=80',
-      description: 'Susu sapi murni dingin berpadu mutiara boba tapioka kenyal hangat berbalut sirup gula aren kental.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Susu sapi murni dingin berpadu mutiara boba tapioka kenyal hangat berbalut sirup gula aren kental.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -318,8 +363,10 @@ class DemoSessionManager {
       name: 'Fresh Berry Mojito Sparkle',
       categoryName: 'Non Kopi',
       price: 18000,
-      imageUrl: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80',
-      description: 'Soda dingin menyegarkan dengan perasan jeruk nipis asli, daun mint segar, dan sirup buah strawberry.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Soda dingin menyegarkan dengan perasan jeruk nipis asli, daun mint segar, dan sirup buah strawberry.',
       isAvailable: true,
     ),
 
@@ -330,8 +377,10 @@ class DemoSessionManager {
       name: 'Truffle French Fries with Cheese Mayo',
       categoryName: 'Snack & Dessert',
       price: 18000,
-      imageUrl: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=600&q=80',
-      description: 'Kentang goreng impor garing harum aroma minyak truffle, disajikan dengan cocolan keju mayo gurih.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Kentang goreng impor garing harum aroma minyak truffle, disajikan dengan cocolan keju mayo gurih.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -340,8 +389,10 @@ class DemoSessionManager {
       name: 'Dimsum Ayam Mentai Mozzarella (4 pcs)',
       categoryName: 'Snack & Dessert',
       price: 22000,
-      imageUrl: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=600&q=80',
-      description: 'Siomay paha ayam tebal juicy dilapisi saus mentai gurih manis dan keju mozzarella yang dibakar harum.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Siomay paha ayam tebal juicy dilapisi saus mentai gurih manis dan keju mozzarella yang dibakar harum.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -350,8 +401,10 @@ class DemoSessionManager {
       name: 'Warm Butter Croissant Flaky',
       categoryName: 'Snack & Dessert',
       price: 16000,
-      imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80',
-      description: 'Pastry Perancis berlapis-lapis renyah dengan wangi butter premium yang meleleh di mulut.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Pastry Perancis berlapis-lapis renyah dengan wangi butter premium yang meleleh di mulut.',
       isAvailable: true,
     ),
     const MenuModel(
@@ -360,8 +413,10 @@ class DemoSessionManager {
       name: 'Red Velvet Cheesecake Slice',
       categoryName: 'Snack & Dessert',
       price: 25000,
-      imageUrl: 'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=600&q=80',
-      description: 'Sponge cake red velvet lembut berpadu krim keju tebal gurih manis yang lumer di lidah.',
+      imageUrl:
+          'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=600&q=80',
+      description:
+          'Sponge cake red velvet lembut berpadu krim keju tebal gurih manis yang lumer di lidah.',
       isAvailable: true,
     ),
   ];
@@ -379,13 +434,23 @@ class DemoSessionManager {
       id: newId,
       code: data['code']?.toString() ?? 'DEMO-$newId',
       name: (data['name'] ?? '').toString(),
-      categoryName: (data['category_name'] ??
-          (data['category_id'] != null ? _resolveCategoryName(data['category_id']) : 'Makanan')).toString(),
+      categoryName:
+          (data['category_name'] ??
+                  (data['category_id'] != null
+                      ? _resolveCategoryName(data['category_id'])
+                      : 'Makanan'))
+              .toString(),
       price: int.tryParse(data['price']?.toString() ?? '0') ?? 0,
-      imageUrl: data['image_url']?.toString() ??
+      imageUrl:
+          data['image_url']?.toString() ??
           'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
       description: data['description']?.toString() ?? '',
-      isAvailable: data['is_available'] == true || data['is_available'] == 1 || data['is_available'] == '1',
+      isAvailable:
+          data['is_available'] == true ||
+          data['is_available'] == 1 ||
+          data['is_available'] == '1',
+      noteOptions: _parseMenuNoteOptions(data['note_options']),
+      toppingIds: _parseMenuToppingIds(data['topping_ids']),
     );
     demoMenus.add(newMenu);
     return newMenu;
@@ -399,14 +464,25 @@ class DemoSessionManager {
         id: old.id,
         code: data['code']?.toString() ?? old.code,
         name: data['name']?.toString() ?? old.name,
-        categoryName: data['category_name']?.toString() ??
-            (data['category_id'] != null ? _resolveCategoryName(data['category_id']) : old.categoryName),
+        categoryName:
+            data['category_name']?.toString() ??
+            (data['category_id'] != null
+                ? _resolveCategoryName(data['category_id'])
+                : old.categoryName),
         price: int.tryParse(data['price']?.toString() ?? '') ?? old.price,
         imageUrl: data['image_url']?.toString() ?? old.imageUrl,
         description: data['description']?.toString() ?? old.description,
         isAvailable: data['is_available'] != null
-            ? (data['is_available'] == true || data['is_available'] == 1 || data['is_available'] == '1')
+            ? (data['is_available'] == true ||
+                  data['is_available'] == 1 ||
+                  data['is_available'] == '1')
             : old.isAvailable,
+        noteOptions: data['note_options'] == null
+            ? old.noteOptions
+            : _parseMenuNoteOptions(data['note_options']),
+        toppingIds: data['topping_ids'] == null
+            ? old.toppingIds
+            : _parseMenuToppingIds(data['topping_ids']),
       );
       demoMenus[idx] = updated;
       return updated;
@@ -418,19 +494,75 @@ class DemoSessionManager {
     demoMenus.removeWhere((m) => m.id == id);
   }
 
+  static List<String> _parseMenuNoteOptions(dynamic value) {
+    if (value is List) {
+      return value
+          .map((option) => option.toString().trim())
+          .where((option) => option.isNotEmpty)
+          .toList();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return value
+          .split(RegExp(r'[\r\n]+'))
+          .map((option) => option.trim())
+          .where((option) => option.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
+  static List<int> _parseMenuToppingIds(dynamic value) {
+    if (value is List) {
+      return value
+          .map((id) => int.tryParse(id.toString()))
+          .whereType<int>()
+          .toSet()
+          .toList();
+    }
+    return const [];
+  }
+
   static String _resolveCategoryName(dynamic catId) {
     final id = int.tryParse(catId.toString());
-    final cat = demoCategories.firstWhere((c) => c.id == id, orElse: () => demoCategories.first);
+    final cat = demoCategories.firstWhere(
+      (c) => c.id == id,
+      orElse: () => demoCategories.first,
+    );
     return cat.name;
   }
 
   // ── DAFTAR TOPPING DEMO ──
   static final List<ToppingModel> _initialToppings = [
-    const ToppingModel(id: 1, name: 'Extra Shot Espresso', price: 5000),
-    const ToppingModel(id: 2, name: 'Boba Pearl Kenyal', price: 4000),
-    const ToppingModel(id: 3, name: 'Keju Mozzarella Melt', price: 6000),
-    const ToppingModel(id: 4, name: 'Telur Mata Sapi Setengah Matang', price: 5000),
-    const ToppingModel(id: 5, name: 'Ekstra Sambal Matah', price: 3000),
+    const ToppingModel(
+      id: 1,
+      name: 'Extra Shot Espresso',
+      price: 5000,
+      categoryIds: [2, 3],
+    ),
+    const ToppingModel(
+      id: 2,
+      name: 'Boba Pearl Kenyal',
+      price: 4000,
+      categoryIds: [2, 3],
+    ),
+    const ToppingModel(
+      id: 3,
+      name: 'Keju Mozzarella Melt',
+      price: 6000,
+      categoryIds: [1, 4],
+    ),
+    const ToppingModel(
+      id: 4,
+      name: 'Telur Mata Sapi Setengah Matang',
+      price: 5000,
+      categoryIds: [1],
+    ),
+    const ToppingModel(
+      id: 5,
+      name: 'Ekstra Sambal Matah',
+      price: 3000,
+      categoryIds: [1],
+    ),
   ];
 
   static List<ToppingModel> demoToppings = List.from(_initialToppings);
@@ -447,6 +579,7 @@ class DemoSessionManager {
       name: (data['name'] ?? '').toString(),
       price: int.tryParse(data['price']?.toString() ?? '0') ?? 0,
       quantity: int.tryParse(data['quantity']?.toString() ?? '1') ?? 1,
+      categoryIds: _parseMenuToppingIds(data['category_ids']),
     );
     demoToppings.add(topping);
     return topping;
@@ -460,7 +593,11 @@ class DemoSessionManager {
         id: old.id,
         name: data['name']?.toString() ?? old.name,
         price: int.tryParse(data['price']?.toString() ?? '') ?? old.price,
-        quantity: int.tryParse(data['quantity']?.toString() ?? '') ?? old.quantity,
+        quantity:
+            int.tryParse(data['quantity']?.toString() ?? '') ?? old.quantity,
+        categoryIds: data['category_ids'] == null
+            ? old.categoryIds
+            : _parseMenuToppingIds(data['category_ids']),
       );
       demoToppings[idx] = updated;
       return updated;
@@ -610,7 +747,8 @@ class DemoSessionManager {
     merchantName: 'DEMO RESTO & CAFE',
     merchantCity: 'JAKARTA',
     whatsappNumber: '6287771262100',
-    basePayload: '00020101021226680016ID.CO.QRIS.WWW01189360052300000000005204581253033605802ID5914DEMO RESTO CAFE6007JAKARTA61051234062070703A016304ABCD',
+    basePayload:
+        '00020101021226680016ID.CO.QRIS.WWW01189360052300000000005204581253033605802ID5914DEMO RESTO CAFE6007JAKARTA61051234062070703A016304ABCD',
     isActive: true,
   );
 
@@ -657,7 +795,11 @@ class DemoSessionManager {
             quantity: 1,
             price: 38000,
             toppings: [
-              CashierOrderTopping(toppingName: 'Telur Mata Sapi Setengah Matang', toppingPrice: 5000, quantity: 1),
+              CashierOrderTopping(
+                toppingName: 'Telur Mata Sapi Setengah Matang',
+                toppingPrice: 5000,
+                quantity: 1,
+              ),
             ],
             notes: 'Pedas sedang',
           ),
@@ -702,7 +844,7 @@ class DemoSessionManager {
     String? tableCode,
     required String orderType,
     String? deliveryAddress,
-    required List<dynamic> items,
+    required List<CartItemModel> items,
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
@@ -715,15 +857,17 @@ class DemoSessionManager {
     final cashierItems = <CashierOrderItem>[];
 
     for (final item in items) {
-      final menu = item.menu as MenuModel;
-      final qty = item.quantity as int;
-      final notes = item.notes as String?;
-      final toppings = (item.toppings as List)
-          .map((t) => CashierOrderTopping(
-                toppingName: t.name as String,
-                toppingPrice: t.price as int,
-                quantity: t.quantity as int,
-              ))
+      final menu = item.menu;
+      final qty = item.quantity;
+      final notes = item.notes;
+      final toppings = item.toppings
+          .map(
+            (topping) => CashierOrderTopping(
+              toppingName: topping.name,
+              toppingPrice: topping.price,
+              quantity: topping.quantity,
+            ),
+          )
           .toList();
 
       int itemSubtotal = menu.price * qty;
@@ -743,13 +887,23 @@ class DemoSessionManager {
       );
     }
 
+    final discount = PromoDiscountCalculator.calculate(
+      items: items,
+      percent: demoTenant.promoDiscountPercent,
+      appliesToAllMenus: demoTenant.promoScope != 'selected',
+      menuIds: demoTenant.promoMenuIds.toSet(),
+    );
+
     final newOrder = CashierOrderModel(
       id: newId,
       code: code,
-      customerName: customerName.isNotEmpty ? customerName : 'Pelanggan Meja $tableCode',
+      customerName: customerName.isNotEmpty
+          ? customerName
+          : 'Pelanggan Meja $tableCode',
       customerPhone: customerPhone,
       status: 'UNPAID',
-      totalAmount: total,
+      totalAmount: total - discount,
+      discountAmount: discount,
       tableCode: tableCode ?? '-',
       orderType: orderType,
       deliveryAddress: deliveryAddress,
@@ -758,7 +912,9 @@ class DemoSessionManager {
     );
 
     _orders.insert(0, newOrder);
-    debugPrint('DemoSessionManager: order baru dibuat $code (Total: Rp $total)');
+    debugPrint(
+      'DemoSessionManager: order baru dibuat $code (Total: Rp ${total - discount})',
+    );
     return code;
   }
 
@@ -789,31 +945,40 @@ class DemoSessionManager {
       int itemToppingsPrice = 0;
 
       for (final tid in toppingIds) {
-        final top = demoToppings.firstWhere((t) => t.id == tid, orElse: () => demoToppings.first);
-        toppings.add(CashierOrderTopping(
-          toppingName: top.name,
-          toppingPrice: top.price,
-          quantity: 1,
-        ));
+        final top = demoToppings.firstWhere(
+          (t) => t.id == tid,
+          orElse: () => demoToppings.first,
+        );
+        toppings.add(
+          CashierOrderTopping(
+            toppingName: top.name,
+            toppingPrice: top.price,
+            quantity: 1,
+          ),
+        );
         itemToppingsPrice += top.price;
       }
 
       final subtotal = (menu.price * qty) + (itemToppingsPrice * qty);
       total += subtotal;
 
-      cashierItems.add(CashierOrderItem(
-        menuName: menu.name,
-        quantity: qty,
-        price: menu.price,
-        toppings: toppings,
-        notes: notes,
-      ));
+      cashierItems.add(
+        CashierOrderItem(
+          menuName: menu.name,
+          quantity: qty,
+          price: menu.price,
+          toppings: toppings,
+          notes: notes,
+        ),
+      );
     }
 
     final newOrder = CashierOrderModel(
       id: newId,
       code: code,
-      customerName: customerName.isNotEmpty ? customerName : 'Pelanggan POS Meja $tableCode',
+      customerName: customerName.isNotEmpty
+          ? customerName
+          : 'Pelanggan POS Meja $tableCode',
       customerPhone: customerPhone,
       status: 'PAID',
       totalAmount: total,
@@ -854,7 +1019,9 @@ class DemoSessionManager {
         createdAt: old.createdAt,
         items: old.items,
       );
-      debugPrint('DemoSessionManager: order ${old.code} status diubah jadi $newStatus');
+      debugPrint(
+        'DemoSessionManager: order ${old.code} status diubah jadi $newStatus',
+      );
     }
   }
 
@@ -877,13 +1044,15 @@ class DemoSessionManager {
             price: i.price,
             quantity: i.quantity,
             toppings: i.toppings
-                .map((t) => OrderItemToppingModel(
-                      id: 1,
-                      toppingId: 1,
-                      toppingName: t.toppingName,
-                      toppingPrice: t.toppingPrice,
-                      quantity: t.quantity,
-                    ))
+                .map(
+                  (t) => OrderItemToppingModel(
+                    id: 1,
+                    toppingId: 1,
+                    toppingName: t.toppingName,
+                    toppingPrice: t.toppingPrice,
+                    quantity: t.quantity,
+                  ),
+                )
                 .toList(),
             notes: i.notes,
           ),
@@ -929,8 +1098,8 @@ class DemoSessionManager {
       id: cred.role == UserRole.cashier
           ? 2
           : (cred.role == UserRole.manager
-              ? 4
-              : (cred.role == UserRole.operations ? 3 : 1)),
+                ? 4
+                : (cred.role == UserRole.operations ? 3 : 1)),
       name: cred.roleName,
       email: cred.email,
       role: cred.role,
@@ -958,7 +1127,9 @@ class DemoSessionManager {
     final totalOrders = todayOrdersCount + 312;
     final monthRevenue = todayRevenue + 18450000;
     final monthOrders = todayOrdersCount + 420;
-    final averageOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders).round() : 38000;
+    final averageOrderValue = totalOrders > 0
+        ? (totalRevenue / totalOrders).round()
+        : 38000;
 
     final now = DateTime.now();
     final dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Tenant;
+use App\Models\Category;
+use App\Models\Menu;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,19 +29,26 @@ class TenantPromoSettingsTest extends TestCase
             'name' => $tenant->name,
             'promo_badge_text' => 'Promo Akhir Pekan',
             'promo_message' => 'Beli dua gratis satu!',
+            'promo_discount_percent' => 15,
+            'promo_scope' => 'all',
+            'promo_menu_ids' => [],
         ])->assertOk()
             ->assertJsonPath('data.promo_badge_text', 'Promo Akhir Pekan')
-            ->assertJsonPath('data.promo_message', 'Beli dua gratis satu!');
+            ->assertJsonPath('data.promo_message', 'Beli dua gratis satu!')
+            ->assertJsonPath('data.promo_discount_percent', 15)
+            ->assertJsonPath('data.promo_scope', 'all');
 
         $this->getJson('/api/tenant/info')
             ->assertOk()
             ->assertJsonPath('data.promo_badge_text', 'Promo Akhir Pekan')
-            ->assertJsonPath('data.promo_message', 'Beli dua gratis satu!');
+            ->assertJsonPath('data.promo_message', 'Beli dua gratis satu!')
+            ->assertJsonPath('data.promo_discount_percent', 15);
 
         $this->assertDatabaseHas('tenants', [
             'id' => $tenant->id,
             'promo_badge_text' => 'Promo Akhir Pekan',
             'promo_message' => 'Beli dua gratis satu!',
+            'promo_discount_percent' => 15,
         ]);
     }
 
@@ -89,6 +98,44 @@ class TenantPromoSettingsTest extends TestCase
             'opening_hours' => 'jam bebas',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('opening_hours');
+    }
+
+    public function test_selected_menu_promo_requires_and_persists_tenant_menus(): void
+    {
+        $tenant = Tenant::where('subdomain', 'saycoffee')->firstOrFail();
+        app()->instance('tenant', $tenant);
+        $category = Category::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Menu promo',
+        ]);
+        $menu = Menu::create([
+            'tenant_id' => $tenant->id,
+            'category_id' => $category->id,
+            'name' => 'Menu diskon',
+            'price' => 10000,
+        ]);
+
+        $this->postJson('/api/tenant/update', [
+            'name' => $tenant->name,
+            'promo_discount_percent' => 20,
+            'promo_scope' => 'selected',
+            'promo_menu_ids' => [$menu->id],
+        ])->assertOk()
+            ->assertJsonPath('data.promo_scope', 'selected')
+            ->assertJsonPath('data.promo_menu_ids.0', $menu->id);
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'promo_scope' => 'selected',
+        ]);
+
+        $this->postJson('/api/tenant/update', [
+            'name' => $tenant->name,
+            'promo_discount_percent' => 20,
+            'promo_scope' => 'selected',
+            'promo_menu_ids' => [],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('promo_menu_ids');
     }
 
     public function test_admin_or_cashier_can_open_and_close_store_during_opening_hours(): void

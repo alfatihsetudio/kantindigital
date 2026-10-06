@@ -1,6 +1,7 @@
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/category_model.dart';
+import '../../../shared/models/topping_model.dart';
 import 'menus_service.dart';
 
 class AdminMenusController {
@@ -8,6 +9,7 @@ class AdminMenusController {
 
   Future<List<MenuModel>> fetchMenus() => _service.getMenus();
   Future<List<CategoryModel>> fetchCategories() => _service.getCategories();
+  Future<List<ToppingModel>> fetchToppings() => _service.getToppings();
 
   Future<void> addMenu(
     Map<String, dynamic> data, {

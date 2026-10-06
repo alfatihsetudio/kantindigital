@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/category_model.dart';
+import '../../../shared/models/topping_model.dart';
 import '../../../shared/services/demo_session_manager.dart';
 
 class AdminMenusService {
@@ -84,6 +87,23 @@ class AdminMenusService {
     return data.map((json) => CategoryModel.fromJson(json)).toList();
   }
 
-  Map<String, String> _stringFields(Map<String, dynamic> data) =>
-      data.map((key, value) => MapEntry(key, value?.toString() ?? ''));
+  Future<List<ToppingModel>> getToppings() async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.getToppings();
+    }
+    final response = await _client.get('/toppings');
+    final data = response['data'] as List;
+    return data.map((json) => ToppingModel.fromJson(json)).toList();
+  }
+
+  Map<String, String> _stringFields(Map<String, dynamic> data) => data.map(
+    (key, value) => MapEntry(
+      key,
+      value == null
+          ? ''
+          : key == 'note_options' || key == 'topping_ids'
+          ? jsonEncode(value)
+          : value.toString(),
+    ),
+  );
 }

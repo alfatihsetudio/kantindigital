@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Menu;
+use App\Models\Topping;
 use App\Support\StoreOpeningHours;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,6 +51,216 @@ class OnlineOrderTest extends TestCase
             'order_type' => 'delivery',
             'delivery_address' => 'Jl. Merdeka No. 10',
             'table_id' => null,
+        ]);
+    }
+
+    public function test_customer_can_load_menu_toppings_without_staff_login(): void
+    {
+        $topping = Topping::create(['name' => 'Extra shot', 'price' => 2000]);
+        $otherTopping = Topping::create(['name' => 'Jelly', 'price' => 1000]);
+        $this->menu->toppings()->attach($topping->id, ['min' => 0, 'max' => 2]);
+
+        $this->getJson("/api/menus/{$this->menu->id}/toppings")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $topping->id)
+            ->assertJsonPath('data.0.max', 2)
+            ->assertJsonMissing(['id' => $otherTopping->id]);
+    }
+
+    public function test_menu_note_options_are_public_and_optional_on_orders(): void
+    {
+        $this->menu->update([
+            'note_options' => ['Simple Sirup', 'Palm Sugar'],
+        ]);
+
+        $this->getJson('/api/menus')
+            ->assertOk()
+            ->assertJsonPath('data.0.note_options', ['Simple Sirup', 'Palm Sugar']);
+
+        $this->postJson('/api/orders', [
+            'order_type' => 'pickup',
+            'items' => [
+                ['menu_id' => $this->menu->id, 'quantity' => 1],
+            ],
+        ])->assertCreated();
+
+        $this->postJson('/api/orders', [
+            'order_type' => 'pickup',
+            'items' => [
+                [
+                    'menu_id' => $this->menu->id,
+                    'quantity' => 1,
+                    'notes' => 'Tanpa gula',
+                ],
+            ],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+    }
+
+    public function test_menu_note_options_can_be_saved_from_admin_menu_form_payload(): void
+    {
+        $response = $this->postJson('/api/menus', [
+            'name' => 'Kopi Pilihan Gula',
+            'category_id' => $this->menu->category_id,
+            'price' => 15000,
+            'note_options' => '["Simple Sirup","Palm Sugar"]',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.note_options', ['Simple Sirup', 'Palm Sugar']);
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $response->json('data.id'),
+            'note_options' => json_encode(['Simple Sirup', 'Palm Sugar']),
+        ]);
+    }
+
+    public function test_menu_toppings_can_be_selected_from_admin_menu_form_payload(): void
+    {
+        $extraShot = Topping::create(['name' => 'Extra shot', 'price' => 2000]);
+        $jelly = Topping::create(['name' => 'Jelly', 'price' => 1000]);
+
+        $response = $this->postJson('/api/menus', [
+            'name' => 'Kopi Topping Pilihan',
+            'category_id' => $this->menu->category_id,
+            'price' => 15000,
+            'topping_ids' => json_encode([$extraShot->id, $jelly->id]),
+        ]);
+
+        $response->assertOk();
+
+        $menuId = $response->json('data.id');
+        $this->assertDatabaseHas('menu_toppings', [
+            'menu_id' => $menuId,
+            'topping_id' => $extraShot->id,
+        ]);
+        $this->assertDatabaseHas('menu_toppings', [
+            'menu_id' => $menuId,
+            'topping_id' => $jelly->id,
+        ]);
+
+        $this->getJson('/api/menus')
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => 'Kopi Topping Pilihan',
+                'topping_ids' => [$extraShot->id, $jelly->id],
+            ]);
+    }
+
+    public function test_toppings_can_be_linked_to_multiple_categories(): void
+    {
+        $kopi = Category::create(['name' => 'Kopi']);
+        $nonKopi = Category::create(['name' => 'Non Kopi']);
+
+        $response = $this->postJson('/api/toppings', [
+            'name' => 'Extra Syrup',
+            'price' => 3000,
+            'category_ids' => [$kopi->id, $nonKopi->id],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.category_ids', [$kopi->id, $nonKopi->id]);
+
+        $this->assertDatabaseHas('category_topping', [
+            'category_id' => $kopi->id,
+            'topping_id' => $response->json('data.id'),
+        ]);
+        $this->assertDatabaseHas('category_topping', [
+            'category_id' => $nonKopi->id,
+            'topping_id' => $response->json('data.id'),
+        ]);
+
+        $this->getJson("/api/toppings?category_id={$kopi->id}")
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Extra Syrup']);
+    }
+
+    public function test_order_applies_promo_and_charged_topping_quantity(): void
+    {
+        $topping = Topping::create(['name' => 'Extra shot', 'price' => 2000]);
+        $this->menu->toppings()->attach($topping->id, ['min' => 0, 'max' => 3]);
+        app()->instance('tenant', (object) [
+            'id' => null,
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => true,
+            'store_opened_at' => Carbon::parse('2026-10-05 08:00:00', 'Asia/Jakarta')->toIso8601String(),
+            'promo_discount_percent' => 10,
+            'promo_scope' => 'all',
+            'promo_menu_ids' => [],
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 10:00:00', 'Asia/Jakarta'));
+
+        try {
+            $response = $this->postJson('/api/orders', [
+                'order_type' => 'pickup',
+                'items' => [[
+                    'menu_id' => $this->menu->id,
+                    'quantity' => 2,
+                    'toppings' => [[
+                        'topping_id' => $topping->id,
+                        'quantity' => 2,
+                    ]],
+                ]],
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('orders', [
+            'total_amount' => 13000,
+            'discount_amount' => 1000,
+        ]);
+        $orderCode = $response->json('data.code');
+        $this->getJson("/api/orders/{$orderCode}")
+            ->assertOk()
+            ->assertJsonPath('data.total_amount', 13000)
+            ->assertJsonPath('data.discount_amount', 1000)
+            ->assertJsonPath('data.qris.amount', 13000);
+        $this->assertDatabaseHas('order_items', [
+            'price' => 5000,
+            'quantity' => 2,
+            'discount_amount' => 1000,
+        ]);
+        $this->assertDatabaseHas('order_item_toppings', [
+            'topping_id' => $topping->id,
+            'quantity' => 2,
+        ]);
+    }
+
+    public function test_selected_menu_promo_does_not_discount_other_menu_items(): void
+    {
+        $otherMenu = Menu::create([
+            'category_id' => $this->menu->category_id,
+            'name' => 'Kopi Susu',
+            'price' => 3000,
+        ]);
+        app()->instance('tenant', (object) [
+            'id' => null,
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => true,
+            'store_opened_at' => Carbon::parse('2026-10-05 08:00:00', 'Asia/Jakarta')->toIso8601String(),
+            'promo_discount_percent' => 10,
+            'promo_scope' => 'selected',
+            'promo_menu_ids' => [$this->menu->id],
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 10:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/orders', [
+                'order_type' => 'pickup',
+                'items' => [
+                    ['menu_id' => $this->menu->id, 'quantity' => 1],
+                    ['menu_id' => $otherMenu->id, 'quantity' => 1],
+                ],
+            ])->assertCreated();
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseHas('orders', [
+            'total_amount' => 7500,
+            'discount_amount' => 500,
         ]);
     }
 

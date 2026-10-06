@@ -12,7 +12,7 @@ class Order extends Model
     protected $fillable = [
         'tenant_id', 'code', 'customer_name', 'customer_phone',
         'table_id', 'order_type', 'delivery_address', 'status',
-        'payment_method', 'total_amount'
+        'payment_method', 'total_amount', 'discount_amount'
     ];
 
     public function table()

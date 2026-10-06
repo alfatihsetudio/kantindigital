@@ -25,7 +25,7 @@ class _CartPageState extends State<CartPage> {
         children: [
           // Background gradient
           _buildBackgroundGradient(),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -37,11 +37,11 @@ class _CartPageState extends State<CartPage> {
                     builder: (context, _) {
                       final cart = CartController.instance;
                       final items = cart.items;
-                      
+
                       if (items.isEmpty) {
                         return _buildEmptyState();
                       }
-                      
+
                       return ListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 180),
                         physics: const BouncingScrollPhysics(),
@@ -63,7 +63,7 @@ class _CartPageState extends State<CartPage> {
               ],
             ),
           ),
-          
+
           // Bottom checkout bar
           _buildBottomBar(),
         ],
@@ -116,9 +116,9 @@ class _CartPageState extends State<CartPage> {
           Expanded(
             child: Text(
               'Keranjang',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           ListenableBuilder(
@@ -126,7 +126,10 @@ class _CartPageState extends State<CartPage> {
             builder: (context, _) {
               final count = CartController.instance.totalItems;
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(20),
@@ -166,16 +169,16 @@ class _CartPageState extends State<CartPage> {
           const SizedBox(height: 24),
           Text(
             'Keranjang Kosong',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
             'Yuk mulai pesan menu favoritmu!',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 32),
           GradientButton(
@@ -199,12 +202,14 @@ class _CartPageState extends State<CartPage> {
         builder: (context, _) {
           final cart = CartController.instance;
           if (cart.isEmpty) return const SizedBox.shrink();
-          
+
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
@@ -226,17 +231,17 @@ class _CartPageState extends State<CartPage> {
                         children: [
                           Text(
                             'Total Pembayaran',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             CurrencyFormatter.rupiah(cart.totalAmount),
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
                           ),
                         ],
                       ),
@@ -246,7 +251,10 @@ class _CartPageState extends State<CartPage> {
                         width: 160,
                         height: 52,
                         onPressed: () {
-                          Navigator.pushNamed(context, RouteName.customerCheckout);
+                          Navigator.pushNamed(
+                            context,
+                            RouteName.customerCheckout,
+                          );
                         },
                       ),
                     ],
@@ -285,20 +293,6 @@ class _CartItemCard extends StatefulWidget {
 }
 
 class _CartItemCardState extends State<_CartItemCard> {
-  late TextEditingController _notesController;
-
-  @override
-  void initState() {
-    super.initState();
-    _notesController = TextEditingController(text: widget.item.notes ?? '');
-  }
-
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
-  }
-
   void _updateNotes(String value) {
     CartController.instance.updateNotes(widget.index, value);
   }
@@ -382,7 +376,7 @@ class _CartItemCardState extends State<_CartItemCard> {
               ),
             ],
           ),
-          
+
           // Toppings if any
           if (widget.item.toppings.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -390,111 +384,152 @@ class _CartItemCardState extends State<_CartItemCard> {
               padding: const EdgeInsets.only(left: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: widget.item.toppings.map((topping) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              // Remove topping button
-                              GestureDetector(
-                                onTap: () {
-                                  CartController.instance.removeTopping(widget.index, topping.id);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.dangerLight,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Icon(Icons.close_rounded, size: 12, color: AppColors.danger),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${topping.name}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
+                children: widget.item.toppings
+                    .map((topping) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.background,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+                            Expanded(
                               child: Row(
                                 children: [
+                                  // Remove topping button
                                   GestureDetector(
                                     onTap: () {
-                                      if (topping.quantity > 1) {
-                                        CartController.instance.updateToppingQuantity(
-                                          widget.index, topping.id, topping.quantity - 1);
-                                      } else {
-                                        // Remove topping if quantity becomes 0
-                                        CartController.instance.removeTopping(widget.index, topping.id);
-                                      }
+                                      CartController.instance.removeTopping(
+                                        widget.index,
+                                        topping.id,
+                                      );
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                      child: const Icon(Icons.remove_rounded, size: 14, color: AppColors.textMuted),
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.dangerLight,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 12,
+                                        color: AppColors.danger,
+                                      ),
                                     ),
                                   ),
-                                  SizedBox(
-                                    width: 24,
+                                  const SizedBox(width: 8),
+                                  Expanded(
                                     child: Text(
-                                      '${topping.quantity}',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      CartController.instance.updateToppingQuantity(
-                                        widget.index, topping.id, topping.quantity + 1);
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                      child: Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                                      '${topping.name}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 70,
-                              child: Text(
-                                CurrencyFormatter.rupiah(topping.price * topping.quantity),
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
+                            Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (topping.quantity > 1) {
+                                            CartController.instance
+                                                .updateToppingQuantity(
+                                                  widget.index,
+                                                  topping.id,
+                                                  topping.quantity - 1,
+                                                );
+                                          } else {
+                                            // Remove topping if quantity becomes 0
+                                            CartController.instance
+                                                .removeTopping(
+                                                  widget.index,
+                                                  topping.id,
+                                                );
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 4,
+                                          ),
+                                          child: const Icon(
+                                            Icons.remove_rounded,
+                                            size: 14,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 24,
+                                        child: Text(
+                                          '${topping.quantity}',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () {
+                                          CartController.instance
+                                              .updateToppingQuantity(
+                                                widget.index,
+                                                topping.id,
+                                                topping.quantity + 1,
+                                              );
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 4,
+                                          ),
+                                          child: Icon(
+                                            Icons.add_rounded,
+                                            size: 14,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 70,
+                                  child: Text(
+                                    CurrencyFormatter.rupiah(
+                                      topping.price * topping.quantity,
+                                    ),
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  );
-                }).toList().cast<Widget>(),
+                      );
+                    })
+                    .toList()
+                    .cast<Widget>(),
               ),
             ),
           ],
-          
+
           // Add topping button
           const SizedBox(height: 8),
           GestureDetector(
@@ -522,33 +557,39 @@ class _CartItemCardState extends State<_CartItemCard> {
               ),
             ),
           ),
-          
-          // Notes textbox
-          const SizedBox(height: 8),
-          TextField(
-            controller: _notesController,
-            onChanged: _updateNotes,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: 'Tambahkan catatan (opsional)',
-              hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.textMuted, width: 0.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: AppColors.primary, width: 1),
+
+          if (widget.item.menu.noteOptions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Pilihan ${widget.item.menu.displayName} (opsional)',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            style: const TextStyle(fontSize: 12),
-          ),
-          
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                ChoiceChip(
+                  label: const Text('Tanpa pilihan'),
+                  selected:
+                      widget.item.notes == null || widget.item.notes!.isEmpty,
+                  onSelected: (_) => _updateNotes(''),
+                ),
+                ...widget.item.menu.noteOptions.map(
+                  (option) => ChoiceChip(
+                    label: Text(option),
+                    selected: widget.item.notes == option,
+                    onSelected: (_) => _updateNotes(option),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
           // Total for this menu item
           const SizedBox(height: 8),
           Row(
@@ -572,9 +613,9 @@ class _CartItemCardState extends State<_CartItemCard> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Quantity controls for menu
           Container(
             decoration: BoxDecoration(

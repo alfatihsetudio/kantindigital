@@ -5,6 +5,7 @@ import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/category_model.dart';
+import '../../../shared/models/topping_model.dart';
 import '../../admin/widgets/admin_drawer.dart';
 import 'menus_controller.dart';
 
@@ -88,14 +89,20 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
     final nameCtrl = TextEditingController(text: menu?.name ?? '');
     final priceCtrl = TextEditingController(text: menu?.price.toString() ?? '');
     final descCtrl = TextEditingController(text: menu?.description ?? '');
+    final noteOptionsCtrl = TextEditingController(
+      text: menu?.noteOptions.join('\n') ?? '',
+    );
     CompressedImageFile? selectedImage;
     bool isCompressing = false;
     bool isAvailable = menu?.isAvailable ?? true;
+    final selectedToppingIds = <int>{...menu?.toppingIds ?? const []};
 
     // We need to fetch categories for the dropdown
     List<CategoryModel> categories = [];
+    List<ToppingModel> toppings = [];
     try {
       categories = await _controller.fetchCategories();
+      toppings = await _controller.fetchToppings();
     } catch (e) {
       if (!mounted) return;
       TopNotification.show(
@@ -311,8 +318,20 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                           child: Text(c.name),
                         );
                       }).toList(),
-                      onChanged: (val) =>
-                          setState(() => selectedCategory = val),
+                      onChanged: (val) => setState(() {
+                        selectedCategory = val;
+                        selectedToppingIds.removeWhere((id) {
+                          ToppingModel? topping;
+                          for (final item in toppings) {
+                            if (item.id == id) {
+                              topping = item;
+                              break;
+                            }
+                          }
+                          return topping == null ||
+                              !topping.categoryIds.contains(val);
+                        });
+                      }),
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -338,6 +357,29 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                         prefixIcon: const Icon(Icons.description),
                       ),
                       maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: noteOptionsCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Pilihan catatan (Opsional)',
+                        hintText: 'Simple Sirup\nPalm Sugar',
+                        helperText:
+                            'Satu pilihan per baris. Contoh: Simple Sirup, Palm Sugar.',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.checklist_rounded),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildToppingPicker(
+                      toppings: toppings,
+                      selectedCategoryId: selectedCategory,
+                      selectedToppingIds: selectedToppingIds,
+                      onChanged: () => setState(() {}),
                     ),
                     const SizedBox(height: 24),
                     SwitchListTile(
@@ -397,6 +439,13 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                 'category_id': selectedCategory,
                                 'description': descCtrl.text.trim(),
                                 'is_available': isAvailable ? 1 : 0,
+                                'note_options': noteOptionsCtrl.text
+                                    .split(RegExp(r'[\r\n]+'))
+                                    .map((option) => option.trim())
+                                    .where((option) => option.isNotEmpty)
+                                    .toSet()
+                                    .toList(),
+                                'topping_ids': selectedToppingIds.toList(),
                               };
 
                               Navigator.pop(dialogContext);
@@ -453,6 +502,108 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
             ),
           );
         },
+      ),
+    );
+    codeCtrl.dispose();
+    nameCtrl.dispose();
+    priceCtrl.dispose();
+    descCtrl.dispose();
+    noteOptionsCtrl.dispose();
+  }
+
+  Widget _buildToppingPicker({
+    required List<ToppingModel> toppings,
+    required int? selectedCategoryId,
+    required Set<int> selectedToppingIds,
+    required VoidCallback onChanged,
+  }) {
+    final visibleToppings = selectedCategoryId == null
+        ? toppings
+        : toppings
+              .where(
+                (topping) =>
+                    topping.categoryIds.contains(selectedCategoryId) ||
+                    selectedToppingIds.contains(topping.id),
+              )
+              .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.layers_rounded, color: AppColors.textSecondary),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Topping Menu (Opsional)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Centang topping yang bisa dipilih pelanggan untuk menu ini.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (selectedCategoryId == null)
+            const Text(
+              'Pilih kategori menu terlebih dahulu.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            )
+          else if (visibleToppings.isEmpty)
+            const Text(
+              'Belum ada topping untuk kategori ini. Tambahkan dulu dari menu Kelola Topping.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: visibleToppings.map((topping) {
+                final selected = selectedToppingIds.contains(topping.id);
+                return FilterChip(
+                  label: Text(
+                    '${topping.name} +${CurrencyFormatter.rupiah(topping.price)}',
+                  ),
+                  selected: selected,
+                  onSelected: (value) {
+                    if (value) {
+                      selectedToppingIds.add(topping.id);
+                    } else {
+                      selectedToppingIds.remove(topping.id);
+                    }
+                    onChanged();
+                  },
+                  selectedColor: AppColors.primaryLight,
+                  checkmarkColor: AppColors.primary,
+                  side: BorderSide(
+                    color: selected ? AppColors.primary : AppColors.border,
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
       ),
     );
   }
@@ -588,17 +739,20 @@ class _AdminMenusPageState extends State<AdminMenusPage> {
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                                    child:
+                                        menu.imageUrl != null &&
+                                            menu.imageUrl!.isNotEmpty
                                         ? Image.network(
                                             menu.imageUrl!,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (ctx, err, st) => const Center(
-                                              child: Icon(
-                                                Icons.fastfood_rounded,
-                                                color: AppColors.textMuted,
-                                                size: 32,
-                                              ),
-                                            ),
+                                            errorBuilder: (ctx, err, st) =>
+                                                const Center(
+                                                  child: Icon(
+                                                    Icons.fastfood_rounded,
+                                                    color: AppColors.textMuted,
+                                                    size: 32,
+                                                  ),
+                                                ),
                                           )
                                         : const Center(
                                             child: Icon(

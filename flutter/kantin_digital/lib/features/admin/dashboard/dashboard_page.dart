@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../admin/widgets/admin_drawer.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -77,6 +78,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   @override
   Widget build(BuildContext context) {
     final user = AuthSession().user;
+    final tenant = TenantProvider.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -96,7 +98,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         opacity: _fadeAnimation,
                         child: SlideTransition(
                           position: _slideAnimation,
-                          child: _buildWelcomeCard(user?.name ?? 'Owner'),
+                          child: _buildWelcomeCard(
+                            tenant.name,
+                            user?.name ?? 'Owner',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -234,7 +239,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildWelcomeCard(String name) {
+  Widget _buildWelcomeCard(String storeName, String ownerName) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -282,7 +287,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               ),
               const SizedBox(height: 16),
               Text(
-                name,
+                storeName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -291,6 +296,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               ),
               const SizedBox(height: 8),
+              Text(
+                'Owner: $ownerName',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
               Text(
                 'Kelola usaha, pantau pemasukan, dan atur operasional dari satu tempat.',
                 style: TextStyle(

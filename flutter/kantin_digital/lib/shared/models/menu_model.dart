@@ -10,6 +10,8 @@ class MenuModel {
   final String? imageUrl;
   final String? description;
   final bool isAvailable;
+  final List<String> noteOptions;
+  final List<int> toppingIds;
 
   const MenuModel({
     required this.id,
@@ -20,6 +22,8 @@ class MenuModel {
     this.imageUrl,
     this.description,
     this.isAvailable = true,
+    this.noteOptions = const [],
+    this.toppingIds = const [],
   });
 
   factory MenuModel.fromJson(Map<String, dynamic> json) {
@@ -32,13 +36,36 @@ class MenuModel {
       imageUrl: _resolveUrl(json['image_url']),
       description: json['description']?.toString(),
       isAvailable: _parseAvailability(json['is_available']),
+      noteOptions: _parseNoteOptions(json['note_options']),
+      toppingIds: _parseToppingIds(json['topping_ids']),
     );
   }
 
+  static List<String> _parseNoteOptions(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .map((option) => option.toString().trim())
+        .where((option) => option.isNotEmpty)
+        .toList();
+  }
+
+  static List<int> _parseToppingIds(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .map((id) => int.tryParse(id.toString()))
+        .whereType<int>()
+        .toSet()
+        .toList();
+  }
+
   static String? _resolveUrl(dynamic raw) {
-    if (raw == null) return null;
+    if (raw == null) {
+      return null;
+    }
     var str = raw.toString().trim();
-    if (str.isEmpty) return null;
+    if (str.isEmpty) {
+      return null;
+    }
     if (str.startsWith('/')) {
       return '${ApiConfig.webBaseUrl}$str';
     }
@@ -47,7 +74,9 @@ class MenuModel {
     }
     if (kIsWeb && str.contains('/uploads/')) {
       final parsed = Uri.tryParse(str);
-      if (parsed != null && parsed.host != Uri.base.host && parsed.path.isNotEmpty) {
+      if (parsed != null &&
+          parsed.host != Uri.base.host &&
+          parsed.path.isNotEmpty) {
         return '${ApiConfig.webBaseUrl}${parsed.path}';
       }
     }
@@ -78,17 +107,37 @@ class MenuModel {
     final upper = name.trim().toUpperCase();
 
     // 2. Pemetaan menu Kopi sesuai urutan Flyer (01 - 06)
-    if (upper.contains('AREN')) return '01';
-    if (upper.contains('BUTTER')) return '02';
-    if (upper.contains('HAZEL HUG') || (upper.contains('HAZEL') && !upper.contains('CHOCO'))) return '03';
-    if (upper.contains('MILKY')) return '04';
-    if (upper.contains('SWEET CREAM')) return '05';
-    if (upper.contains('BLACK BREW') || upper.contains('AMERICANO')) return '06';
+    if (upper.contains('AREN')) {
+      return '01';
+    }
+    if (upper.contains('BUTTER')) {
+      return '02';
+    }
+    if (upper.contains('HAZEL HUG') ||
+        (upper.contains('HAZEL') && !upper.contains('CHOCO'))) {
+      return '03';
+    }
+    if (upper.contains('MILKY')) {
+      return '04';
+    }
+    if (upper.contains('SWEET CREAM')) {
+      return '05';
+    }
+    if (upper.contains('BLACK BREW') || upper.contains('AMERICANO'))
+    {
+      return '06';
+    }
 
     // 3. Pemetaan menu Non Kopi sesuai urutan Flyer (01 - 03)
-    if (upper.contains('MATCHA')) return '01';
-    if (upper.contains('CHOCO STORY')) return '02';
-    if (upper.contains('CHOCO HAZEL')) return '03';
+    if (upper.contains('MATCHA')) {
+      return '01';
+    }
+    if (upper.contains('CHOCO STORY')) {
+      return '02';
+    }
+    if (upper.contains('CHOCO HAZEL')) {
+      return '03';
+    }
 
     return '';
   }
@@ -122,15 +171,34 @@ class MenuModel {
     }
 
     final upper = name.trim().toUpperCase();
-    if (upper.contains('AREN')) return 1;
-    if (upper.contains('BUTTER')) return 2;
-    if (upper.contains('HAZEL HUG') || (upper.contains('HAZEL') && !upper.contains('CHOCO'))) return 3;
-    if (upper.contains('MILKY')) return 4;
-    if (upper.contains('SWEET CREAM')) return 5;
-    if (upper.contains('BLACK BREW') || upper.contains('AMERICANO')) return 6;
-    if (upper.contains('MATCHA')) return 7;
-    if (upper.contains('CHOCO STORY')) return 8;
-    if (upper.contains('CHOCO HAZEL')) return 9;
+    if (upper.contains('AREN')) {
+      return 1;
+    }
+    if (upper.contains('BUTTER')) {
+      return 2;
+    }
+    if (upper.contains('HAZEL HUG') ||
+        (upper.contains('HAZEL') && !upper.contains('CHOCO'))) {
+      return 3;
+    }
+    if (upper.contains('MILKY')) {
+      return 4;
+    }
+    if (upper.contains('SWEET CREAM')) {
+      return 5;
+    }
+    if (upper.contains('BLACK BREW') || upper.contains('AMERICANO')) {
+      return 6;
+    }
+    if (upper.contains('MATCHA')) {
+      return 7;
+    }
+    if (upper.contains('CHOCO STORY')) {
+      return 8;
+    }
+    if (upper.contains('CHOCO HAZEL')) {
+      return 9;
+    }
 
     final match = RegExp(r'^#?(\d{1,2})[\.\s\-:]').firstMatch(name.trim());
     if (match != null) {
@@ -143,7 +211,9 @@ class MenuModel {
 
   /// Nama menu bersih tanpa awalan nomor urut ganda.
   String get displayName {
-    final clean = name.replaceFirst(RegExp(r'^#?\d{1,2}[\.\s\-:]\s*'), '').trim();
+    final clean = name
+        .replaceFirst(RegExp(r'^#?\d{1,2}[\.\s\-:]\s*'), '')
+        .trim();
     return clean.isNotEmpty ? clean : name;
   }
 }
