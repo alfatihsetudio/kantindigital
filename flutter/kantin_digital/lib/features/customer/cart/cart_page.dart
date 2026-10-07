@@ -645,17 +645,12 @@ class _CartItemCardState extends State<_CartItemCard> {
               spacing: 6,
               runSpacing: 4,
               children: [
-                ChoiceChip(
-                  label: const Text('Tanpa pilihan'),
-                  selected:
-                      widget.item.notes == null || widget.item.notes!.isEmpty,
-                  onSelected: (_) => _updateNotes(''),
-                ),
                 ...widget.item.menu.noteOptions.map(
                   (option) => ChoiceChip(
                     label: Text(option),
                     selected: widget.item.notes == option,
-                    onSelected: (_) => _updateNotes(option),
+                    onSelected: (selected) =>
+                        _updateNotes(selected ? option : ''),
                   ),
                 ),
               ],

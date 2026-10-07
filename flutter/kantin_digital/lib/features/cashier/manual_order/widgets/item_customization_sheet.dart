@@ -276,17 +276,13 @@ class _ItemCustomizationSheetState extends State<ItemCustomizationSheet> {
                   Wrap(
                     spacing: 8,
                     children: [
-                      ChoiceChip(
-                        label: const Text('Tanpa pilihan'),
-                        selected: _selectedNote == null,
-                        onSelected: (_) => setState(() => _selectedNote = null),
-                      ),
                       ...widget.menu.noteOptions.map(
                         (option) => ChoiceChip(
                           label: Text(option),
                           selected: _selectedNote == option,
-                          onSelected: (_) =>
-                              setState(() => _selectedNote = option),
+                          onSelected: (selected) => setState(
+                            () => _selectedNote = selected ? option : null,
+                          ),
                         ),
                       ),
                     ],

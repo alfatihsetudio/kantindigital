@@ -596,16 +596,12 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              ChoiceChip(
-                label: const Text('Tanpa pilihan'),
-                selected: _selectedNote == null,
-                onSelected: (_) => setState(() => _selectedNote = null),
-              ),
               ...widget.menu.noteOptions.map(
                 (option) => ChoiceChip(
                   label: Text(option),
                   selected: _selectedNote == option,
-                  onSelected: (_) => setState(() => _selectedNote = option),
+                  onSelected: (selected) =>
+                      setState(() => _selectedNote = selected ? option : null),
                 ),
               ),
             ],
