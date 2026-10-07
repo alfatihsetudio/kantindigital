@@ -252,5 +252,27 @@ class TenantPromoSettingsTest extends TestCase
             ->assertJsonPath('name', 'Toko Kopi Asik')
             ->assertJsonPath('short_name', 'Toko Kopi Asik');
     }
+
+    public function test_safe_image_rule_rejects_oversized_and_invalid_extensions(): void
+    {
+        $tenant = Tenant::where('subdomain', 'saycoffee')->firstOrFail();
+        app()->instance('tenant', $tenant);
+
+        // Test invalid extension
+        $badFile = \Illuminate\Http\UploadedFile::fake()->create('malicious.pdf', 100);
+        $response = $this->postJson('/api/tenant/update', [
+            'name' => $tenant->name,
+            'meta_image' => $badFile,
+        ]);
+        $response->assertStatus(422);
+
+        // Test oversized file (> 5MB)
+        $oversizedFile = \Illuminate\Http\UploadedFile::fake()->image('huge.jpg')->size(6000);
+        $response = $this->postJson('/api/tenant/update', [
+            'name' => $tenant->name,
+            'meta_image' => $oversizedFile,
+        ]);
+        $response->assertStatus(422);
+    }
 }
 

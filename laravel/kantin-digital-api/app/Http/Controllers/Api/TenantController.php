@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Rules\SafeImageRule;
 use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -95,7 +96,7 @@ class TenantController extends Controller
                 'menu_code_prefix' => 'nullable|string|max:20',
                 'primary_color' => 'nullable|string',
                 'logo_url' => 'nullable|string',
-                'logo' => 'nullable|image|max:2048',
+                'logo' => ['nullable', new SafeImageRule(2048)],
                 'logo_base64' => 'nullable|string',
                 'address' => 'nullable|string',
                 'opening_hours' => [
@@ -112,7 +113,7 @@ class TenantController extends Controller
                 'whatsapp' => 'nullable|string',
                 'meta_title' => 'nullable|string|max:255',
                 'meta_description' => 'nullable|string|max:1000',
-                'meta_image' => 'nullable|image|max:5120',
+                'meta_image' => ['nullable', new SafeImageRule(5120)],
                 'meta_image_url' => 'nullable|string',
                 'meta_image_base64' => 'nullable|string',
                 'promo_badge_text' => 'nullable|string|max:60',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
+use App\Rules\SafeImageRule;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
@@ -58,7 +59,7 @@ class MenuController extends Controller
                 'integer',
                 Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
             ],
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
+            'image' => ['nullable', new SafeImageRule(8192)],
         ]);
 
         $data = $request->only([
@@ -97,7 +98,7 @@ class MenuController extends Controller
                 'integer',
                 Rule::exists('toppings', 'id')->where('tenant_id', $tenantId),
             ],
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:8192',
+            'image' => ['nullable', new SafeImageRule(8192)],
         ]);
 
         $data = $request->only([
