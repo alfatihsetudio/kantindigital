@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/maps_helper.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
@@ -34,10 +35,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
+  late TextEditingController _mapsUrlController;
+  bool _fetchingLocation = false;
 
   bool get _isQrOrder {
     final tableCode = CartController.instance.tableNumber;
     return tableCode != null && tableCode.isNotEmpty;
+  }
+
+  bool _isValidWhatsAppNumber(String phone) {
+    final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleaned.isEmpty) return false;
+    // Format nomor HP Indonesia aktif WhatsApp: 08..., 628..., atau +628...
+    return RegExp(r'^(?:\+62|62|0)8[1-9][0-9]{6,10}$').hasMatch(cleaned);
   }
 
   @override
@@ -47,6 +57,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
+    _mapsUrlController = TextEditingController();
 
     // Listen to changes to update button state
     _nameController.addListener(() {
@@ -56,6 +67,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       setState(() {});
     });
     _addressController.addListener(() {
+      setState(() {});
+    });
+    _mapsUrlController.addListener(() {
       setState(() {});
     });
 
@@ -95,6 +109,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _mapsUrlController.dispose();
     super.dispose();
   }
 
@@ -141,6 +156,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
+    // Validasi nomor WhatsApp
+    if (!_isValidWhatsAppNumber(_phoneController.text.trim())) {
+      AppSnackBar.show(
+        context,
+        message:
+            'Nomor WhatsApp tidak valid. Pastikan nomor diawali 08/628 (contoh: 081234567890)',
+      );
+      return;
+    }
+
     if (_isQrOrder && _selectedTable == null) {
       AppSnackBar.show(context, message: 'Pilih nomor meja terlebih dahulu');
       return;
@@ -158,12 +183,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
     setState(() {
       _loading = true;
     });
+
+    String? fullDeliveryAddress;
+    if (!_isQrOrder && _selectedOrderType == 'delivery') {
+      fullDeliveryAddress = _addressController.text.trim();
+      if (_mapsUrlController.text.trim().isNotEmpty) {
+        fullDeliveryAddress +=
+            '\n📍 Pin Google Maps: ${_mapsUrlController.text.trim()}';
+      }
+    }
+
     final result = await _controller.createOrder(
       tableCode: _isQrOrder ? _selectedTable!.code : null,
       orderType: _isQrOrder ? 'dine_in' : _selectedOrderType,
-      deliveryAddress: !_isQrOrder && _selectedOrderType == 'delivery'
-          ? _addressController.text.trim()
-          : null,
+      deliveryAddress: fullDeliveryAddress,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
       paymentMethod: _selectedPayment,
@@ -395,44 +428,139 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const SizedBox(height: 12),
 
           // Phone field
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: 'Nomor Telepon *',
-              labelStyle: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-              hintText: 'Masukkan nomor telepon anda',
-              hintStyle: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.textMuted,
-                  width: 0.5,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.textMuted,
-                  width: 0.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.primary, width: 1.5),
-              ),
-            ),
-            style: const TextStyle(fontSize: 13),
+          Builder(
+            builder: (context) {
+              final phoneText = _phoneController.text.trim();
+              final hasInput = phoneText.isNotEmpty;
+              final isValidPhone = _isValidWhatsAppNumber(phoneText);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Nomor WhatsApp *',
+                      labelStyle: TextStyle(
+                        fontSize: 13,
+                        color: hasInput
+                            ? (isValidPhone
+                                ? AppColors.success
+                                : AppColors.danger)
+                            : AppColors.textSecondary,
+                      ),
+                      hintText: 'Contoh: 081234567890',
+                      hintStyle: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.phone_android_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: hasInput
+                          ? (isValidPhone
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.success,
+                                  size: 20,
+                                )
+                              : const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: AppColors.danger,
+                                  size: 20,
+                                ))
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: AppColors.textMuted,
+                          width: 0.5,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: hasInput
+                              ? (isValidPhone
+                                  ? AppColors.success
+                                  : AppColors.danger)
+                              : AppColors.textMuted,
+                          width: hasInput ? 1.0 : 0.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: hasInput
+                              ? (isValidPhone
+                                  ? AppColors.success
+                                  : AppColors.danger)
+                              : AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  if (hasInput && !isValidPhone) ...[
+                    const SizedBox(height: 6),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 13,
+                            color: AppColors.danger,
+                          ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Nomor WhatsApp belum valid (diawali 08/628, min 10 digit)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasInput && isValidPhone) ...[
+                    const SizedBox(height: 6),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 13,
+                            color: AppColors.success,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Nomor WhatsApp valid untuk konfirmasi pesanan',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -732,6 +860,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ],
           ),
+          if (!_isQrOrder && _selectedOrderType == 'delivery') ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Biaya Pengantaran',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  'Belum termasuk (bayar ke kurir)',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFD97706),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -998,18 +1147,242 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
           if (_selectedOrderType == 'delivery') ...[
             const SizedBox(height: 16),
+            // Keterangan Pembayaran Belum Termasuk Biaya Pengantaran
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Catatan Biaya Pengantaran',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Pembayaran pesanan belum termasuk biaya pengantaran. Ongkos kirim disepakati dan dibayarkan langsung kepada kurir/pengantar.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF78350F),
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             TextField(
               controller: _addressController,
               minLines: 2,
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: 'Alamat pengantaran *',
-                hintText: 'Masukkan alamat lengkap',
+                labelText: 'Alamat Pengantaran *',
+                hintText: 'Masukkan alamat lengkap (jalan, nomor, patokan)',
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Integrasi Google Maps
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.map_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pin Lokasi Google Maps (Opsional)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Buka Google Maps untuk membagikan link lokasi atau ambil titik GPS otomatis.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            openMaps();
+                          },
+                          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                          label: const Text(
+                            'Buka Google Maps',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _fetchingLocation
+                              ? null
+                              : () async {
+                                  setState(() => _fetchingLocation = true);
+                                  try {
+                                    final gpsUrl = await getGpsMapsUrl();
+                                    if (!mounted) return;
+                                    if (gpsUrl != null && gpsUrl.isNotEmpty) {
+                                      setState(() {
+                                        _mapsUrlController.text = gpsUrl;
+                                      });
+                                      AppSnackBar.show(
+                                        context,
+                                        message: 'Lokasi GPS berhasil diambil!',
+                                      );
+                                    } else {
+                                      AppSnackBar.show(
+                                        context,
+                                        message:
+                                            'Tidak dapat mendeteksi lokasi GPS. Pastikan izin GPS aktif atau salin link dari Google Maps.',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    AppSnackBar.show(
+                                      context,
+                                      message: 'Gagal mengambil GPS: $e',
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(
+                                        () => _fetchingLocation = false,
+                                      );
+                                    }
+                                  }
+                                },
+                          icon: _fetchingLocation
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.my_location_rounded, size: 16),
+                          label: Text(
+                            _fetchingLocation ? 'Mencari...' : 'Pin Lokasi GPS',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _mapsUrlController,
+                    decoration: InputDecoration(
+                      labelText: 'Link Google Maps',
+                      labelStyle: const TextStyle(fontSize: 12),
+                      hintText: 'Tempel link peta (maps.app.goo.gl/...)',
+                      hintStyle: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.link_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
+                      suffixIcon: _mapsUrlController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 16),
+                              onPressed: () => _mapsUrlController.clear(),
+                            )
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1084,14 +1457,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildBottomBar(CartController cart) {
+    final hasName = _nameController.text.trim().isNotEmpty;
+    final phoneText = _phoneController.text.trim();
+    final hasPhone = phoneText.isNotEmpty;
+    final isValidPhone = _isValidWhatsAppNumber(phoneText);
+    final hasAddress = _addressController.text.trim().isNotEmpty;
+
     // Check if form is complete
     final isFormComplete =
-        _nameController.text.trim().isNotEmpty &&
-        _phoneController.text.trim().isNotEmpty &&
+        hasName &&
+        hasPhone &&
+        isValidPhone &&
         (_isQrOrder
             ? _selectedTable != null
-            : _selectedOrderType != 'delivery' ||
-                  _addressController.text.trim().isNotEmpty);
+            : _selectedOrderType != 'delivery' || hasAddress);
+
+    String reminderText = '';
+    if (!hasName || !hasPhone) {
+      reminderText = 'Isi nama dan no hp terlebih dahulu agar bisa memesan';
+    } else if (!isValidPhone) {
+      reminderText =
+          'Nomor WhatsApp belum valid (diawali 08/628, min 10 digit)';
+    } else if (_isQrOrder && _selectedTable == null) {
+      reminderText = 'Pilih nomor meja terlebih dahulu agar bisa memesan';
+    } else if (_selectedOrderType == 'delivery' && !hasAddress) {
+      reminderText =
+          'Isi alamat pengantaran terlebih dahulu agar bisa memesan';
+    } else if (!isFormComplete) {
+      reminderText = 'Lengkapi data terlebih dahulu agar bisa memesan';
+    }
 
     return Positioned(
       bottom: 0,
@@ -1139,18 +1533,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 isLoading: _loading,
                 onPressed: isFormComplete ? _submit : null,
               ),
-              if (!isFormComplete) ...[
+              if (!isFormComplete && reminderText.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  _nameController.text.trim().isEmpty ||
-                          _phoneController.text.trim().isEmpty
-                      ? 'Isi nama dan no hp terlebih dahulu agar bisa memesan'
-                      : (_isQrOrder && _selectedTable == null
-                          ? 'Pilih nomor meja terlebih dahulu agar bisa memesan'
-                          : (_selectedOrderType == 'delivery' &&
-                                  _addressController.text.trim().isEmpty
-                              ? 'Isi alamat pengantaran terlebih dahulu agar bisa memesan'
-                              : 'Lengkapi data terlebih dahulu agar bisa memesan')),
+                  reminderText,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,

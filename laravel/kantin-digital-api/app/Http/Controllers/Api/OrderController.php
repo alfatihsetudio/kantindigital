@@ -37,9 +37,9 @@ class OrderController extends Controller
         $request->validate([
             'table_code' => ['nullable', 'string'],
             'order_type' => ['nullable', 'string', 'in:dine_in,pickup,delivery'],
-            'delivery_address' => ['required_if:order_type,delivery', 'nullable', 'string', 'max:1000'],
+            'delivery_address' => ['required_if:order_type,delivery', 'nullable', 'string', 'max:2000'],
             'customer_name' => ['nullable', 'string', 'max:100'],
-            'customer_phone' => ['nullable', 'string', 'max:20'],
+            'customer_phone' => ['nullable', 'string', 'max:30'],
             'payment_method' => ['nullable', 'string', 'in:qris,cash'],
             'items' => ['required', 'array', 'min:1', 'max:20'],
             'items.*.menu_id' => [
