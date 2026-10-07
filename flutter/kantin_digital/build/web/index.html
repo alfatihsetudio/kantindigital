@@ -26,6 +26,20 @@
 
 <body>
   <script>
+    (function() {
+      try {
+        var host = window.location.hostname;
+        var parts = host.split('.');
+        var sub = '';
+        if (parts.length >= 3 && !['www', 'kasirdigital', 'ekasir', 'api', 'admin'].includes(parts[0])) {
+          sub = parts[0];
+        }
+        var mLink = document.querySelector('link[rel="manifest"]');
+        if (mLink && sub) {
+          mLink.href = '/manifest.json?tenant=' + encodeURIComponent(sub);
+        }
+      } catch (e) {}
+    })();
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (var registration of registrations) {

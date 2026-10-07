@@ -3,7 +3,12 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    DirectoryIndex index.php
+
     RewriteEngine On
+
+    # Route manifest.json to Laravel
+    RewriteRule ^manifest\.json$ index.php [L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .

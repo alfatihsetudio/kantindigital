@@ -61,17 +61,44 @@ class MetaController extends Controller
         return $base . '/' . ltrim($rawImg, '/');
     }
 
+    private function resolveTenantLogo(Request $request, ?Tenant $tenant, string $default): string
+    {
+        if (!$tenant) {
+            return $default;
+        }
+
+        $rawImg = $tenant->logo_url ?: $tenant->meta_image;
+        if (empty($rawImg)) {
+            return $default;
+        }
+
+        $base = $request->getSchemeAndHttpHost();
+        $path = parse_url($rawImg, PHP_URL_PATH);
+        if (!empty($path) && str_starts_with($path, '/uploads/')) {
+            return $base . $path;
+        }
+
+        if (str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://')) {
+            return $rawImg;
+        }
+
+        return $base . '/' . ltrim($rawImg, '/');
+    }
+
     public function render(Request $request)
     {
         $tenant = $this->resolveTenant($request);
 
         $title = 'eKasir - Solusi Kasir & Menu Digital Multi-Tenant';
+        $appName = 'eKasir';
         $description = 'Platform aplikasi kasir dan menu digital online untuk kafe, resto, dan kantin.';
         $image = url('icons/Icon-512.png');
+        $logo = url('icons/Icon-512.png');
         $primaryColor = '#2563EB';
         $currentUrl = $request->fullUrl();
 
         if ($tenant) {
+            $appName = $tenant->name;
             $title = $tenant->meta_title ?: $tenant->name;
             $primaryColor = $tenant->primary_color ?: '#6F4E37';
 
@@ -84,6 +111,7 @@ class MetaController extends Controller
             }
 
             $image = $this->resolveTenantImage($request, $tenant, $image);
+            $logo = $this->resolveTenantLogo($request, $tenant, $logo);
         }
 
         // Cari file index.html Flutter Web
@@ -108,19 +136,26 @@ class MetaController extends Controller
 
         // Escape konten untuk HTML
         $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $safeAppName = htmlspecialchars($appName, ENT_QUOTES, 'UTF-8');
         $safeDesc = htmlspecialchars($description, ENT_QUOTES, 'UTF-8');
         $safeImg = htmlspecialchars($image, ENT_QUOTES, 'UTF-8');
+        $safeLogo = htmlspecialchars($logo, ENT_QUOTES, 'UTF-8');
         $safeUrl = htmlspecialchars($currentUrl, ENT_QUOTES, 'UTF-8');
         $safeColor = htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8');
 
         // 1. Ganti Title & Description
         $html = preg_replace('/<title>.*?<\/title>/is', "<title>{$safeTitle}</title>", $html);
         $html = preg_replace('/<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"description\" content=\"{$safeDesc}\">", $html);
-        $html = preg_replace('/<meta\s+name=["\']apple-mobile-web-app-title["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"apple-mobile-web-app-title\" content=\"{$safeTitle}\">", $html);
+        $html = preg_replace('/<meta\s+name=["\']apple-mobile-web-app-title["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"apple-mobile-web-app-title\" content=\"{$safeAppName}\">", $html);
 
         // 2. Ganti Favicon & Apple Touch Icon dengan Logo Tenant
-        $html = preg_replace('/<link\s+rel=["\']icon["\'][^>]*>/is', "<link rel=\"icon\" href=\"{$safeImg}\">\n  <link rel=\"shortcut icon\" href=\"{$safeImg}\">", $html);
-        $html = preg_replace('/<link\s+rel=["\']apple-touch-icon["\'][^>]*>/is', "<link rel=\"apple-touch-icon\" href=\"{$safeImg}\">", $html);
+        $html = preg_replace('/<link\s+rel=["\']icon["\'][^>]*>/is', "<link rel=\"icon\" href=\"{$safeLogo}\">\n  <link rel=\"shortcut icon\" href=\"{$safeLogo}\">", $html);
+        $html = preg_replace('/<link\s+rel=["\']apple-touch-icon["\'][^>]*>/is', "<link rel=\"apple-touch-icon\" href=\"{$safeLogo}\">", $html);
+
+        // 2b. Hubungkan link manifest ke dynamic manifest per tenant
+        $manifestQuery = $tenant ? '?tenant=' . urlencode($tenant->subdomain) : '';
+        $manifestUrl = "/manifest.json{$manifestQuery}";
+        $html = preg_replace('/<link\s+rel=["\']manifest["\'][^>]*>/is', "<link rel=\"manifest\" href=\"{$manifestUrl}\">", $html);
 
         // 3. Siapkan Meta Tags OpenGraph & Twitter Card
         $socialMeta = <<<HTML
@@ -133,7 +168,7 @@ class MetaController extends Controller
     <meta property="og:image:secure_url" content="{$safeImg}">
     <meta property="og:image:width" content="600">
     <meta property="og:image:height" content="600">
-    <meta property="og:site_name" content="{$safeTitle}">
+    <meta property="og:site_name" content="{$safeAppName}">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{$safeUrl}">
@@ -150,9 +185,9 @@ HTML;
         $splashHtml = <<<HTML
   <div id="app-splash" style="position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <div style="width:76px;height:76px;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.08);background:#f8fafc;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
-      <img src="{$safeImg}" alt="{$safeTitle}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+      <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
     </div>
-    <div style="font-size:16px;font-weight:700;color:#1e293b;letter-spacing:0.2px;margin-bottom:14px;">{$safeTitle}</div>
+    <div style="font-size:16px;font-weight:700;color:#1e293b;letter-spacing:0.2px;margin-bottom:14px;">{$safeAppName}</div>
     <div style="width:26px;height:26px;border:3px solid #e2e8f0;border-top-color:{$safeColor};border-radius:50%;animation:splash-spin 0.8s linear infinite;"></div>
   </div>
   <style>
@@ -186,19 +221,28 @@ HTML;
         $name = 'eKasir';
         $shortName = 'eKasir';
         $primaryColor = '#2563EB';
-        $image = url('icons/Icon-512.png');
+        $defaultLogo = url('icons/Icon-512.png');
+        $logo = $defaultLogo;
 
         if ($tenant) {
-            $name = $tenant->meta_title ?: $tenant->name;
+            $name = $tenant->name;
             $shortName = $tenant->name;
             $primaryColor = $tenant->primary_color ?: '#6F4E37';
-            $image = $this->resolveTenantImage($request, $tenant, $image);
+            $logo = $this->resolveTenantLogo($request, $tenant, $defaultLogo);
         }
+
+        $ext = strtolower(pathinfo(parse_url($logo, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION));
+        $mimeType = match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            default => 'image/png',
+        };
 
         $manifest = [
             'name' => $name,
             'short_name' => $shortName,
-            'start_url' => '.',
+            'start_url' => '/',
+            'scope' => '/',
             'display' => 'standalone',
             'background_color' => '#FFFFFF',
             'theme_color' => $primaryColor,
@@ -207,14 +251,22 @@ HTML;
             'prefer_related_applications' => false,
             'icons' => [
                 [
-                    'src' => $image,
+                    'src' => $logo,
                     'sizes' => '192x192',
-                    'type' => 'image/png',
+                    'type' => $mimeType,
+                    'purpose' => 'any',
                 ],
                 [
-                    'src' => $image,
+                    'src' => $logo,
                     'sizes' => '512x512',
-                    'type' => 'image/png',
+                    'type' => $mimeType,
+                    'purpose' => 'any',
+                ],
+                [
+                    'src' => $logo,
+                    'sizes' => '512x512',
+                    'type' => $mimeType,
+                    'purpose' => 'maskable',
                 ],
             ],
         ];

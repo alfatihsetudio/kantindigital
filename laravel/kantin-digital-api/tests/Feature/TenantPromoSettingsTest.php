@@ -226,4 +226,31 @@ class TenantPromoSettingsTest extends TestCase
             unlink($storedPath);
         }
     }
+
+    public function test_tenant_manifest_returns_tenant_name_and_logo(): void
+    {
+        $tenant = Tenant::create([
+            'subdomain' => 'tokokopi',
+            'name' => 'Toko Kopi Asik',
+            'logo_url' => '/uploads/logos/kopi_logo.png',
+            'is_active' => true,
+        ]);
+
+        $response = $this->get('http://tokokopi.example.test/manifest.json');
+
+        $response->assertOk()
+            ->assertJsonPath('name', 'Toko Kopi Asik')
+            ->assertJsonPath('short_name', 'Toko Kopi Asik');
+
+        $icons = $response->json('icons');
+        $this->assertIsArray($icons);
+        $this->assertNotEmpty($icons);
+        $this->assertStringContainsString('kopi_logo.png', $icons[0]['src']);
+
+        $apiResponse = $this->get('/api/manifest.json?tenant=tokokopi');
+        $apiResponse->assertOk()
+            ->assertJsonPath('name', 'Toko Kopi Asik')
+            ->assertJsonPath('short_name', 'Toko Kopi Asik');
+    }
 }
+

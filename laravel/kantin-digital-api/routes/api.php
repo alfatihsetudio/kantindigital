@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Public (customer & self-service registration)
+Route::get('/manifest.json', [\App\Http\Controllers\Web\MetaController::class, 'manifest']);
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
 Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
