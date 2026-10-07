@@ -11,27 +11,46 @@ class MetaController extends Controller
 {
     private function resolveTenant(Request $request): ?Tenant
     {
-        $host = $request->getHost();
+        if (app()->has('tenant')) {
+            $bound = app('tenant');
+            if ($bound instanceof Tenant) {
+                return $bound;
+            }
+        }
+
+        if ($request->attributes->has('tenant')) {
+            $attr = $request->attributes->get('tenant');
+            if ($attr instanceof Tenant) {
+                return $attr;
+            }
+        }
+
         $subdomain = null;
 
-        if ($request->has('tenant') && !empty($request->get('tenant'))) {
-            $subdomain = $request->get('tenant');
+        if ($request->filled('tenant')) {
+            $subdomain = trim((string) $request->get('tenant'));
         } elseif ($request->hasHeader('X-Tenant') && !empty($request->header('X-Tenant'))) {
-            $subdomain = $request->header('X-Tenant');
-        } elseif (!filter_var($host, FILTER_VALIDATE_IP)) {
-            $parts = explode('.', $host);
-            if (count($parts) >= 3) {
-                $first = $parts[0];
-                if (!in_array($first, ['www', 'kasirdigital', 'ekasir', 'api', 'admin'])) {
-                    $subdomain = $first;
+            $subdomain = trim((string) $request->header('X-Tenant'));
+        } else {
+            $host = $request->header('X-Forwarded-Host') ?: $request->getHost();
+            if (str_contains($host, ',')) {
+                $host = trim(explode(',', $host)[0]);
+            }
+            $host = explode(':', $host)[0];
+
+            if (!filter_var($host, FILTER_VALIDATE_IP)) {
+                $parts = explode('.', $host);
+                if (count($parts) >= 3) {
+                    $first = strtolower($parts[0]);
+                    if (!in_array($first, ['www', 'kasirdigital', 'ekasir', 'api', 'admin'], true)) {
+                        $subdomain = $first;
+                    }
                 }
             }
         }
 
-        if ($subdomain) {
-            return Tenant::where('subdomain', $subdomain)
-                ->where('is_active', true)
-                ->first();
+        if (!empty($subdomain)) {
+            return Tenant::where('subdomain', $subdomain)->first();
         }
 
         return null;
@@ -143,18 +162,23 @@ class MetaController extends Controller
         $safeUrl = htmlspecialchars($currentUrl, ENT_QUOTES, 'UTF-8');
         $safeColor = htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8');
 
-        // 1. Ganti Title & Description
+        // 1. Ganti Title & Description & App Name
         $html = preg_replace('/<title>.*?<\/title>/is', "<title>{$safeTitle}</title>", $html);
         $html = preg_replace('/<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"description\" content=\"{$safeDesc}\">", $html);
         $html = preg_replace('/<meta\s+name=["\']apple-mobile-web-app-title["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"apple-mobile-web-app-title\" content=\"{$safeAppName}\">", $html);
+        if (preg_match('/<meta\s+name=["\']application-name["\'][^>]*>/i', $html)) {
+            $html = preg_replace('/<meta\s+name=["\']application-name["\']\s+content=["\'].*?["\']\s*\/?>/is', "<meta name=\"application-name\" content=\"{$safeAppName}\">", $html);
+        } else {
+            $html = str_replace('<head>', "<head>\n  <meta name=\"application-name\" content=\"{$safeAppName}\">", $html);
+        }
 
         // 2. Ganti Favicon & Apple Touch Icon dengan Logo Tenant
         $html = preg_replace('/<link\s+rel=["\']icon["\'][^>]*>/is', "<link rel=\"icon\" href=\"{$safeLogo}\">\n  <link rel=\"shortcut icon\" href=\"{$safeLogo}\">", $html);
         $html = preg_replace('/<link\s+rel=["\']apple-touch-icon["\'][^>]*>/is', "<link rel=\"apple-touch-icon\" href=\"{$safeLogo}\">", $html);
 
-        // 2b. Hubungkan link manifest ke dynamic manifest per tenant
+        // 2b. Hubungkan link manifest ke dynamic manifest per tenant (/app-manifest.json agar tidak di-intercept static file Nginx)
         $manifestQuery = $tenant ? '?tenant=' . urlencode($tenant->subdomain) : '';
-        $manifestUrl = "/manifest.json{$manifestQuery}";
+        $manifestUrl = "/app-manifest.json{$manifestQuery}";
         $html = preg_replace('/<link\s+rel=["\']manifest["\'][^>]*>/is', "<link rel=\"manifest\" href=\"{$manifestUrl}\">", $html);
 
         // 3. Siapkan Meta Tags OpenGraph & Twitter Card
@@ -279,8 +303,11 @@ HTML;
         ];
 
         return response()->json($manifest)
-            ->header('Content-Type', 'application/manifest+json')
-            ->header('Cache-Control', 'no-cache, private');
+            ->header('Content-Type', 'application/manifest+json; charset=UTF-8')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0')
+            ->header('Access-Control-Allow-Origin', '*');
     }
 
     private function defaultHtmlTemplate(): string

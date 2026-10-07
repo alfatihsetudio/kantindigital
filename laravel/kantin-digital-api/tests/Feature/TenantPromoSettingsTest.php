@@ -251,6 +251,11 @@ class TenantPromoSettingsTest extends TestCase
         $apiResponse->assertOk()
             ->assertJsonPath('name', 'Toko Kopi Asik')
             ->assertJsonPath('short_name', 'Toko Kopi Asik');
+
+        $appManifestResponse = $this->get('/app-manifest.json?tenant=tokokopi');
+        $appManifestResponse->assertOk()
+            ->assertJsonPath('name', 'Toko Kopi Asik')
+            ->assertJsonPath('short_name', 'Toko Kopi Asik');
     }
 
     public function test_safe_image_rule_rejects_oversized_and_invalid_extensions(): void

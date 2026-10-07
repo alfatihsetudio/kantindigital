@@ -7,8 +7,8 @@
 
     RewriteEngine On
 
-    # Route manifest.json to Laravel
-    RewriteRule ^manifest\.json$ index.php [L]
+    # Route manifest to Laravel
+    RewriteRule ^(app-manifest|site-manifest|manifest)\.(json|webmanifest)$ index.php [L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
