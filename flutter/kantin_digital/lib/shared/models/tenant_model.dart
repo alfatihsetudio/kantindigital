@@ -27,6 +27,7 @@ class TenantModel {
   final int promoDiscountPercent;
   final String promoScope;
   final List<int> promoMenuIds;
+  final List<String> promoPaymentMethods;
 
   const TenantModel({
     required this.id,
@@ -50,10 +51,22 @@ class TenantModel {
     this.promoDiscountPercent = 0,
     this.promoScope = 'all',
     this.promoMenuIds = const [],
+    this.promoPaymentMethods = const ['qris'],
   });
 
   bool? isOpenAt(DateTime utcInstant) =>
       StoreOpeningHours.isOpenAt(openingHours, utcInstant);
+
+  bool promoAppliesToPayment(String paymentMethod) {
+    final configuredMethods = promoPaymentMethods
+        .map((method) => method.toLowerCase().trim())
+        .where((method) => method.isNotEmpty)
+        .toSet();
+    final allowedMethods = configuredMethods.isEmpty
+        ? const {'qris'}
+        : configuredMethods;
+    return allowedMethods.contains(paymentMethod.toLowerCase().trim());
+  }
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
     return TenantModel(
@@ -84,6 +97,11 @@ class TenantModel {
           .whereType<num>()
           .map((id) => id.toInt())
           .toList(),
+      promoPaymentMethods:
+          (json['promo_payment_methods'] as List? ?? const ['qris'])
+              .map((method) => method.toString().toLowerCase().trim())
+              .where((method) => method.isNotEmpty)
+              .toList(),
     );
   }
 
@@ -141,6 +159,7 @@ class TenantModel {
       'promo_discount_percent': promoDiscountPercent,
       'promo_scope': promoScope,
       'promo_menu_ids': promoMenuIds,
+      'promo_payment_methods': promoPaymentMethods,
     };
   }
 

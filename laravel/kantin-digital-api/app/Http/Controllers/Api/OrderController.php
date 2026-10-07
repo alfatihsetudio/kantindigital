@@ -100,7 +100,9 @@ class OrderController extends Controller
             $tableId = null;
         }
 
-        $order = DB::transaction(function () use ($request, $tableId, $orderType, $tenant) {
+        $paymentMethod = $request->payment_method ?? 'qris';
+
+        $order = DB::transaction(function () use ($request, $tableId, $orderType, $tenant, $paymentMethod) {
             $order = Order::create([
                 'code' => strtoupper(Str::random(8)),
                 'customer_name' => $request->customer_name,
@@ -111,18 +113,24 @@ class OrderController extends Controller
                     ? $request->delivery_address
                     : null,
                 'status' => 'UNPAID',
-                'payment_method' => $request->payment_method ?? 'qris',
+                'payment_method' => $paymentMethod,
                 'total_amount' => 0,
                 'discount_amount' => 0,
             ]);
 
             $total = 0;
             $totalDiscount = 0;
-            $promoPercent = min(100, max(0, (int) ($tenant?->promo_discount_percent ?? 0)));
-            $promoScope = $tenant?->promo_scope ?? 'all';
-            $promoMenuIds = collect($tenant?->promo_menu_ids ?? [])
+            $promoPercent = min(100, max(0, (int) data_get($tenant, 'promo_discount_percent', 0)));
+            $promoScope = data_get($tenant, 'promo_scope', 'all') ?: 'all';
+            $promoMenuIds = collect(data_get($tenant, 'promo_menu_ids', []))
                 ->map(fn ($id) => (int) $id)
                 ->all();
+            $promoPaymentMethods = collect(data_get($tenant, 'promo_payment_methods') ?: ['qris'])
+                ->map(fn ($method) => strtolower(trim((string) $method)))
+                ->filter(fn ($method) => in_array($method, ['qris', 'cash'], true))
+                ->values()
+                ->all();
+            $promoAppliesToPayment = in_array($paymentMethod, $promoPaymentMethods, true);
 
             foreach ($request->items as $itemData) {
                 /** @var \App\Models\Menu $menu */
@@ -135,7 +143,8 @@ class OrderController extends Controller
                         'items' => ["Pilihan catatan untuk menu {$menu->name} tidak valid."],
                     ]);
                 }
-                $lineDiscount = $promoPercent > 0
+                $lineDiscount = $promoAppliesToPayment
+                    && $promoPercent > 0
                     && ($promoScope !== 'selected' || in_array($menu->id, $promoMenuIds, true))
                     ? intdiv(($menu->price * $quantity * $promoPercent) + 50, 100)
                     : 0;

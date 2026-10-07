@@ -52,6 +52,7 @@ class TenantController extends Controller
                 'promo_discount_percent' => (int) ($tenant->promo_discount_percent ?? 0),
                 'promo_scope' => $tenant->promo_scope ?? 'all',
                 'promo_menu_ids' => $tenant->promo_menu_ids ?? [],
+                'promo_payment_methods' => $tenant->promo_payment_methods ?: ['qris'],
             ],
         ]);
     }
@@ -77,6 +78,15 @@ class TenantController extends Controller
                     'promo_menu_ids' => is_array($menuIds)
                         ? $menuIds
                         : $request->input('promo_menu_ids'),
+                ]);
+            }
+
+            if ($request->has('promo_payment_methods') && is_string($request->input('promo_payment_methods'))) {
+                $paymentMethods = json_decode($request->input('promo_payment_methods'), true);
+                $request->merge([
+                    'promo_payment_methods' => is_array($paymentMethods)
+                        ? $paymentMethods
+                        : $request->input('promo_payment_methods'),
                 ]);
             }
 
@@ -115,6 +125,8 @@ class TenantController extends Controller
                     'distinct',
                     Rule::exists('menus', 'id')->where('tenant_id', $tenant->id),
                 ],
+                'promo_payment_methods' => 'nullable|array',
+                'promo_payment_methods.*' => 'string|in:qris,cash',
             ]);
 
             if ((int) $request->input('promo_discount_percent', 0) > 0
@@ -127,7 +139,7 @@ class TenantController extends Controller
 
             $data = $request->only([
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
-                'promo_discount_percent', 'promo_scope', 'promo_menu_ids',
+                'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
                 'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);
@@ -461,6 +473,7 @@ class TenantController extends Controller
                 'logo_url' => $tenant->logo_url,
                 'primary_color' => $tenant->primary_color ?? '#16A34A',
                 'address' => $tenant->address,
+                'opening_hours' => $tenant->opening_hours ?? '08:00 - 22:00',
                 'phone' => $tenant->phone,
                 'whatsapp' => $tenant->whatsapp,
                 'meta_description' => $tenant->meta_description,

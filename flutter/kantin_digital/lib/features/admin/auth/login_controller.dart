@@ -19,6 +19,7 @@ class AdminLoginController {
   }) async {
     try {
       final result = await _service.login(email: email, password: password);
+      DemoSessionManager.disableDemoMode();
       _session.setSession(
         token: result.token,
         user: result.user,

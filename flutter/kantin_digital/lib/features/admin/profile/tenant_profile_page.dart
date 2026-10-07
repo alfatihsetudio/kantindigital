@@ -23,6 +23,12 @@ class AdminTenantProfilePage extends StatefulWidget {
 
 class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _infoSectionKey = GlobalKey();
+  final _promoSectionKey = GlobalKey();
+  final _logoSectionKey = GlobalKey();
+  final _appearanceSectionKey = GlobalKey();
+  final _socialPreviewSectionKey = GlobalKey();
   final _nameCtrl = TextEditingController();
   final _logoCtrl = TextEditingController();
   final _colorCtrl = TextEditingController();
@@ -38,6 +44,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _promoMessageCtrl = TextEditingController();
   final _promoDiscountCtrl = TextEditingController();
   final Set<int> _promoMenuIds = {};
+  final Set<String> _promoPaymentMethods = {'qris'};
   List<MenuModel> _promoMenus = [];
   bool _promoAppliesToAll = true;
   bool _promoMenusLoading = true;
@@ -84,6 +91,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _nameCtrl.dispose();
     _logoCtrl.dispose();
     _colorCtrl.dispose();
@@ -99,6 +107,18 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _promoMessageCtrl.dispose();
     _promoDiscountCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _scrollToSection(GlobalKey key) async {
+    final context = key.currentContext;
+    if (context == null) return;
+
+    await Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: 0.08,
+    );
   }
 
   Future<void> _loadTenantData() async {
@@ -125,6 +145,13 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _promoMenuIds
         ..clear()
         ..addAll(tenant.promoMenuIds);
+      _promoPaymentMethods
+        ..clear()
+        ..addAll(
+          tenant.promoPaymentMethods.isEmpty
+              ? const ['qris']
+              : tenant.promoPaymentMethods,
+        );
       try {
         _promoMenus = await MenuService(
           ApiClient(),
@@ -274,6 +301,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         'promo_menu_ids': jsonEncode(
           _promoAppliesToAll ? <int>[] : _promoMenuIds.toList(),
         ),
+        'promo_payment_methods': jsonEncode(_promoPaymentMethods.toList()),
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'opening_hours': _openingHoursCtrl.text.trim(),
@@ -426,9 +454,48 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
             if (percent > 0 && !_promoAppliesToAll && _promoMenuIds.isEmpty) {
               return 'Pilih minimal satu menu untuk promo varian tertentu.';
             }
+            if (percent > 0 && _promoPaymentMethods.isEmpty) {
+              return 'Pilih minimal satu metode pembayaran untuk mendapat diskon.';
+            }
             return null;
           },
           onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Metode pembayaran yang mendapat diskon',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('QRIS'),
+          subtitle: const Text('Diskon muncul saat pelanggan memilih QRIS.'),
+          value: _promoPaymentMethods.contains('qris'),
+          onChanged: (selected) => setState(() {
+            if (selected == true) {
+              _promoPaymentMethods.add('qris');
+            } else {
+              _promoPaymentMethods.remove('qris');
+            }
+          }),
+        ),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Tunai'),
+          subtitle: const Text(
+            'Centang jika pembayaran tunai juga mendapat diskon.',
+          ),
+          value: _promoPaymentMethods.contains('cash'),
+          onChanged: (selected) => setState(() {
+            if (selected == true) {
+              _promoPaymentMethods.add('cash');
+            } else {
+              _promoPaymentMethods.remove('cash');
+            }
+          }),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -552,6 +619,61 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     return _buildLogoPreview(activeThemeColor);
   }
 
+  Widget _buildProfileSubMenu(Color activeThemeColor) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _SubMenuButton(
+              icon: Icons.storefront_rounded,
+              label: 'Info Usaha',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_infoSectionKey),
+            ),
+            _SubMenuButton(
+              icon: Icons.local_fire_department_rounded,
+              label: 'Promo',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_promoSectionKey),
+            ),
+            _SubMenuButton(
+              icon: Icons.image_rounded,
+              label: 'Logo',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_logoSectionKey),
+            ),
+            _SubMenuButton(
+              icon: Icons.palette_rounded,
+              label: 'Tampilan',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_appearanceSectionKey),
+            ),
+            _SubMenuButton(
+              icon: Icons.share_rounded,
+              label: 'Preview Link',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_socialPreviewSectionKey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeThemeColor = _parseColor(_selectedColor);
@@ -574,6 +696,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
+              controller: _scrollController,
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
@@ -689,6 +812,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                     ),
 
                     const SizedBox(height: 24),
+                    _buildProfileSubMenu(activeThemeColor),
+                    const SizedBox(height: 16),
 
                     // FORM SETTINGS
                     Container(
@@ -701,11 +826,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Informasi Usaha & Tampilan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          KeyedSubtree(
+                            key: _infoSectionKey,
+                            child: const Text(
+                              'Informasi Usaha & Tampilan',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -741,11 +869,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           ),
                           const SizedBox(height: 20),
 
-                          const Text(
-                            'Promo di Halaman Menu Pelanggan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          KeyedSubtree(
+                            key: _promoSectionKey,
+                            child: const Text(
+                              'Promo di Halaman Menu Pelanggan',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -780,11 +911,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           const SizedBox(height: 20),
 
                           // 2. UPLOAD LOGO KANTIN
-                          const Text(
-                            'Logo Kantin (Upload & Kompres Otomatis)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          KeyedSubtree(
+                            key: _logoSectionKey,
+                            child: const Text(
+                              'Logo Kantin (Upload & Kompres Otomatis)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -923,11 +1057,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           const SizedBox(height: 20),
 
                           // 3. WARNA BRAND
-                          const Text(
-                            'Warna Identitas Brand',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          KeyedSubtree(
+                            key: _appearanceSectionKey,
+                            child: const Text(
+                              'Warna Identitas Brand',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -1059,32 +1196,35 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           const SizedBox(height: 16),
 
                           // 6. PREVIEW LINK SOSIAL MEDIA (META TAGS)
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: activeThemeColor.withValues(
-                                    alpha: 0.12,
+                          KeyedSubtree(
+                            key: _socialPreviewSectionKey,
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: activeThemeColor.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  borderRadius: BorderRadius.circular(8),
+                                  child: Icon(
+                                    Icons.share_rounded,
+                                    size: 18,
+                                    color: activeThemeColor,
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.share_rounded,
-                                  size: 18,
-                                  color: activeThemeColor,
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Preview Link Sosial Media (WhatsApp / FB)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Preview Link Sosial Media (WhatsApp / FB)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 8),
                           const Text(
@@ -1493,6 +1633,42 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _SubMenuButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SubMenuButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 17),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(color: color.withValues(alpha: 0.28)),
+          backgroundColor: color.withValues(alpha: 0.06),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 }

@@ -108,6 +108,33 @@ class _CartToppingsSelectPageState extends State<CartToppingsSelectPage> {
           }
 
           final toppings = snapshot.data ?? [];
+          if (toppings.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.layers_clear_outlined,
+                      size: 64,
+                      color: AppColors.textMuted,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Tidak ada pilihan toping untuk menu ini',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
           return Stack(
             children: [

@@ -5,6 +5,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/services/tenant_service.dart';
+import '../../../shared/utils/promo_discount_calculator.dart';
 import 'cart_controller.dart';
 import 'cart_toppings_select_page.dart';
 import '../../../shared/models/cart_item_model.dart';
@@ -17,6 +20,35 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
+  TenantModel _promoTenant = TenantService.current;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPromoSettings();
+  }
+
+  Future<void> _loadPromoSettings() async {
+    final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
+    if (mounted) setState(() => _promoTenant = tenant);
+  }
+
+  int _qrisDiscountFor(CartController cart) {
+    if (!_promoTenant.promoAppliesToPayment('qris')) return 0;
+
+    return PromoDiscountCalculator.calculate(
+      items: cart.items,
+      percent: _promoTenant.promoDiscountPercent,
+      appliesToAllMenus: _promoTenant.promoScope != 'selected',
+      menuIds: _promoTenant.promoMenuIds.toSet(),
+    );
+  }
+
+  int _qrisTotalFor(CartController cart) =>
+      (cart.totalAmount - _qrisDiscountFor(cart))
+          .clamp(0, cart.totalAmount)
+          .toInt();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,7 +75,7 @@ class _CartPageState extends State<CartPage> {
                       }
 
                       return ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 180),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 220),
                         physics: const BouncingScrollPhysics(),
                         itemCount: items.length,
                         itemBuilder: (_, index) {
@@ -202,6 +234,8 @@ class _CartPageState extends State<CartPage> {
         builder: (context, _) {
           final cart = CartController.instance;
           if (cart.isEmpty) return const SizedBox.shrink();
+          final qrisDiscount = _qrisDiscountFor(cart);
+          final hasQrisDiscount = qrisDiscount > 0;
 
           return Container(
             padding: const EdgeInsets.all(20),
@@ -225,18 +259,53 @@ class _CartPageState extends State<CartPage> {
                   // Summary
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (hasQrisDiscount) ...[
+                            Text(
+                              'Subtotal',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              CurrencyFormatter.rupiah(cart.totalAmount),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Diskon QRIS (${_promoTenant.promoDiscountPercent}%)',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.success),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '- ${CurrencyFormatter.rupiah(qrisDiscount)}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.success,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
                           Text(
-                            'Total Pembayaran',
+                            hasQrisDiscount
+                                ? 'Total Pembayaran QRIS'
+                                : 'Total Pembayaran',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            CurrencyFormatter.rupiah(cart.totalAmount),
+                            CurrencyFormatter.rupiah(_qrisTotalFor(cart)),
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
@@ -418,7 +487,7 @@ class _CartItemCardState extends State<_CartItemCard> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      '${topping.name}',
+                                      topping.name,
                                       style: const TextStyle(
                                         fontSize: 13,
                                         color: AppColors.primary,
@@ -530,33 +599,36 @@ class _CartItemCardState extends State<_CartItemCard> {
             ),
           ],
 
-          // Add topping button
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _openToppingSelector,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
-                  SizedBox(width: 4),
-                  Text(
-                    'Tambah Toping',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+          // Add topping button (hanya tampil jika menu memiliki toping terkait)
+          if (widget.item.menu.toppingIds.isNotEmpty ||
+              widget.item.toppings.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _openToppingSelector,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                    SizedBox(width: 4),
+                    Text(
+                      'Tambah Toping',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
 
           if (widget.item.menu.noteOptions.isNotEmpty) ...[
             const SizedBox(height: 12),

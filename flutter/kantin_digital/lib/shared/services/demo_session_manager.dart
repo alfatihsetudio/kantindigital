@@ -109,6 +109,12 @@ class DemoSessionManager {
                 .where((id) => id > 0)
                 .toList()
           : demoTenant.promoMenuIds,
+      promoPaymentMethods: data['promo_payment_methods'] is List
+          ? (data['promo_payment_methods'] as List)
+                .map((method) => method.toString().toLowerCase().trim())
+                .where((method) => method.isNotEmpty)
+                .toList()
+          : demoTenant.promoPaymentMethods,
     );
     TenantService.clearCache();
   }
@@ -887,12 +893,14 @@ class DemoSessionManager {
       );
     }
 
-    final discount = PromoDiscountCalculator.calculate(
-      items: items,
-      percent: demoTenant.promoDiscountPercent,
-      appliesToAllMenus: demoTenant.promoScope != 'selected',
-      menuIds: demoTenant.promoMenuIds.toSet(),
-    );
+    final discount = demoTenant.promoAppliesToPayment(paymentMethod)
+        ? PromoDiscountCalculator.calculate(
+            items: items,
+            percent: demoTenant.promoDiscountPercent,
+            appliesToAllMenus: demoTenant.promoScope != 'selected',
+            menuIds: demoTenant.promoMenuIds.toSet(),
+          )
+        : 0;
 
     final newOrder = CashierOrderModel(
       id: newId,
@@ -1089,10 +1097,16 @@ class DemoSessionManager {
     String password,
   ) {
     final cleanEmail = email.trim().toLowerCase();
-    final cred = demoCredentials.firstWhere(
-      (c) => c.email.toLowerCase() == cleanEmail,
-      orElse: () => demoCredentials.first,
-    );
+    final cleanPassword = password.trim();
+    DemoCredential? cred;
+    for (final candidate in demoCredentials) {
+      if (candidate.email.toLowerCase() == cleanEmail &&
+          candidate.password == cleanPassword) {
+        cred = candidate;
+        break;
+      }
+    }
+    if (cred == null) return null;
 
     final user = UserModel(
       id: cred.role == UserRole.cashier

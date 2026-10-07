@@ -217,4 +217,28 @@ void main() {
       isA<MemoryImage>(),
     );
   });
+
+  test('MenuModel parses topping_ids and indicates whether toppings are available', () {
+    final menuWithToppings = MenuModel.fromJson({
+      'id': 1,
+      'name': 'Kopi Susu',
+      'category_name': 'Kopi',
+      'price': 15000,
+      'topping_ids': [10, 11],
+    });
+    final menuWithoutToppings = MenuModel.fromJson({
+      'id': 2,
+      'name': 'Say Aren',
+      'category_name': 'Kopi',
+      'price': 18000,
+      'topping_ids': [],
+    });
+
+    expect(menuWithToppings.toppingIds, [10, 11]);
+    expect(menuWithToppings.toppingIds.isNotEmpty, isTrue);
+
+    expect(menuWithoutToppings.toppingIds, isEmpty);
+    expect(menuWithoutToppings.toppingIds.isNotEmpty, isFalse);
+  });
 }
+

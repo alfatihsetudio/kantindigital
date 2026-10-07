@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/app_config.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/models/user_model.dart';
+import '../../../shared/services/tenant_service.dart';
+
 class AdminAuthService {
   final http.Client _http;
 
@@ -21,11 +23,10 @@ class AdminAuthService {
       uri,
       headers: {
         'Accept': 'application/json',
+        if (TenantService.currentSubdomain != null)
+          'X-Tenant': TenantService.currentSubdomain!,
       },
-      body: {
-        'email': email,
-        'password': password,
-      },
+      body: {'email': email, 'password': password},
     );
 
     if (response.statusCode != 200) {
@@ -51,4 +52,3 @@ class AdminAuthService {
     return (token: token, user: user, tenant: tenant);
   }
 }
-

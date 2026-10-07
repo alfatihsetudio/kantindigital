@@ -13,7 +13,7 @@ class Tenant extends Model
         'subdomain', 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message', 'logo_url', 'primary_color',
         'address', 'opening_hours', 'meta_title', 'meta_description', 'meta_image',
         'phone', 'whatsapp', 'plan', 'expires_at', 'is_active', 'is_store_open', 'store_opened_at',
-        'promo_discount_percent', 'promo_scope', 'promo_menu_ids',
+        'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class Tenant extends Model
         'expires_at' => 'datetime',
         'promo_discount_percent' => 'integer',
         'promo_menu_ids' => 'array',
+        'promo_payment_methods' => 'array',
     ];
 
     public function getLogoUrlAttribute($value): ?string

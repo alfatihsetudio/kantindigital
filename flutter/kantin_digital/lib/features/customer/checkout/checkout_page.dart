@@ -72,6 +72,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   int _discountFor(CartController cart) {
+    if (!_promoTenant.promoAppliesToPayment(_selectedPayment)) return 0;
+
     return PromoDiscountCalculator.calculate(
       items: cart.items,
       percent: _promoTenant.promoDiscountPercent,
@@ -84,6 +86,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       (cart.totalAmount - _discountFor(cart))
           .clamp(0, cart.totalAmount)
           .toInt();
+
+  String get _selectedPaymentLabel =>
+      _selectedPayment == 'cash' ? 'Tunai' : 'QRIS';
 
   @override
   void dispose() {
@@ -693,7 +698,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Diskon promo (${_promoTenant.promoDiscountPercent}%)',
+                  'Diskon promo $_selectedPaymentLabel (${_promoTenant.promoDiscountPercent}%)',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: AppColors.success),
@@ -1053,7 +1058,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
           _PaymentOption(
             icon: Icons.qr_code_2_rounded,
             label: 'QRIS',
-            description: 'Scan QR untuk bayar',
+            description:
+                _promoTenant.promoDiscountPercent > 0 &&
+                    _promoTenant.promoAppliesToPayment('qris')
+                ? 'Scan QR untuk bayar dan dapat diskon'
+                : 'Scan QR untuk bayar',
             isSelected: _selectedPayment == 'qris',
             color: AppColors.primary,
             onTap: () => setState(() => _selectedPayment = 'qris'),
