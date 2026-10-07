@@ -4,6 +4,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../admin/auth/login_service.dart';
 
@@ -463,6 +465,17 @@ class ManagerDrawer extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     final user = AuthSession().user;
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
       decoration: BoxDecoration(gradient: AppColors.primaryGradient),
@@ -483,11 +496,14 @@ class ManagerDrawer extends StatelessWidget {
             child: CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.background,
-              child: Icon(
-                Icons.business_center_rounded,
-                color: AppColors.primary,
-                size: 28,
-              ),
+              backgroundImage: logoProvider,
+              child: logoProvider == null
+                  ? const Icon(
+                      Icons.business_center_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -497,7 +513,7 @@ class ManagerDrawer extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  user?.name ?? 'Manager',
+                  tenant.name.isNotEmpty ? tenant.name : (user?.name ?? 'Manager'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -507,9 +523,9 @@ class ManagerDrawer extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  user?.email ?? 'manager@kantin.com',
+                  user?.name != null ? '${user!.name} (${user.email})' : (user?.email ?? 'manager@kantin.com'),
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white,
                     fontSize: 12,
                   ),
                   maxLines: 1,

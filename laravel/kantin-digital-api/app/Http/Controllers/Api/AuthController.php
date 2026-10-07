@@ -32,7 +32,7 @@ class AuthController extends Controller
                 return response()->json([
                     'status' => false,
                     'message' => 'Akun Superadmin hanya dapat login melalui domain utama platform.',
-                ], 403);
+                ], 401);
             }
         } else {
             if (app()->has('tenant')) {
@@ -57,13 +57,17 @@ class AuthController extends Controller
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $tenant = app()->has('tenant')
+            ? app('tenant')
+            : ($user->tenant ?? ($user->tenant_id ? \App\Models\Tenant::find($user->tenant_id) : null));
+
         return response()->json([
             'status' => true,
             'message' => 'Login success',
             'data' => [
                 'token' => $token,
                 'user' => $user,
-                'tenant' => $user->tenant,
+                'tenant' => $tenant,
             ],
         ]);
     }

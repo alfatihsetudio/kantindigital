@@ -4,6 +4,8 @@ import '../../../core/network/api_client.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/widgets/store_status_control.dart';
 import '../../admin/auth/login_service.dart';
@@ -437,7 +439,18 @@ class CashierDrawer extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     final user = AuthSession().user;
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
     final isOperations = user?.role?.name == 'operations';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
       decoration: BoxDecoration(gradient: AppColors.primaryGradient),
@@ -458,13 +471,16 @@ class CashierDrawer extends StatelessWidget {
             child: CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.background,
-              child: Icon(
-                isOperations
-                    ? Icons.inventory_2_rounded
-                    : Icons.point_of_sale_rounded,
-                color: AppColors.primary,
-                size: 28,
-              ),
+              backgroundImage: logoProvider,
+              child: logoProvider == null
+                  ? Icon(
+                      isOperations
+                          ? Icons.inventory_2_rounded
+                          : Icons.point_of_sale_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -474,7 +490,9 @@ class CashierDrawer extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  user?.name ?? (isOperations ? 'Operasional' : 'Kasir'),
+                  tenant.name.isNotEmpty
+                      ? tenant.name
+                      : (user?.name ?? (isOperations ? 'Operasional' : 'Kasir')),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -484,7 +502,7 @@ class CashierDrawer extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  user?.email ?? 'Staff Usaha',
+                  user?.name != null ? '${user!.name} (${user.email})' : (user?.email ?? 'Staff Usaha'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,

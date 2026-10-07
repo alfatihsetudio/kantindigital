@@ -3,6 +3,7 @@ import '../../../shared/auth/auth_session.dart';
 
 import '../../../shared/constants/user_role.dart';
 import '../../../shared/services/demo_session_manager.dart';
+import '../../../shared/services/tenant_service.dart';
 import 'login_service.dart';
 
 class AdminLoginController {
@@ -20,6 +21,9 @@ class AdminLoginController {
     try {
       final result = await _service.login(email: email, password: password);
       DemoSessionManager.disableDemoMode();
+      if (result.tenant != null) {
+        TenantService.setCached(result.tenant);
+      }
       _session.setSession(
         token: result.token,
         user: result.user,

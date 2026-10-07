@@ -17,6 +17,9 @@ class TenantController extends Controller
     public function info(Request $request)
     {
         $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant && $request->user() && $request->user()->tenant_id) {
+            $tenant = \App\Models\Tenant::find($request->user()->tenant_id);
+        }
 
         if (! $tenant) {
             return response()->json([

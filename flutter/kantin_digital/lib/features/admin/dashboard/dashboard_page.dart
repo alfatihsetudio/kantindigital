@@ -6,7 +6,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
+import '../../../shared/services/tenant_service.dart';
 import '../../admin/widgets/admin_drawer.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -44,7 +46,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ),
         );
     _loadSalesStats();
+    _loadTenantInfo();
     _animationController.forward();
+  }
+
+  Future<void> _loadTenantInfo() async {
+    try {
+      await TenantService.fetchTenantInfo(forceRefresh: true);
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   int _parseInt(dynamic value) {
@@ -78,7 +88,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   @override
   Widget build(BuildContext context) {
     final user = AuthSession().user;
-    final tenant = TenantProvider.of(context);
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -89,7 +105,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           SafeArea(
             child: CustomScrollView(
               slivers: [
-                _buildAppBar(context),
+                _buildAppBar(context, tenant),
                 SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverList(
@@ -181,7 +197,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, TenantModel tenant) {
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
+
     return SliverAppBar(
       floating: true,
       backgroundColor: Colors.transparent,
@@ -205,6 +225,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ),
           ),
         ),
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (logoProvider != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image(
+                image: logoProvider,
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.storefront_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Flexible(
+            child: Text(
+              tenant.name.isNotEmpty ? tenant.name : 'Dashboard',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
       actions: [
         Padding(

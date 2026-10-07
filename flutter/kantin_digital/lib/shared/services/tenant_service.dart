@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../core/network/api_client.dart';
+import '../auth/auth_session.dart';
 import '../models/tenant_model.dart';
 import 'demo_session_manager.dart';
 
@@ -17,6 +18,10 @@ class TenantService {
   static void clearDemoSubdomain() {
     _demoSubdomain = null;
     _cached = null;
+  }
+
+  static void setCached(TenantModel? tenant) {
+    _cached = tenant;
   }
 
   /// Deteksi apakah pengguna mengakses domain utama (ekasir.my.id) tanpa subdomain tenant
@@ -85,8 +90,11 @@ class TenantService {
       return DemoSessionManager.demoTenant;
     }
 
-    // Jika di root domain (ekasir.my.id), gunakan profil platform root eKasir
-    if (isRootDomain) {
+    // Jika pengguna login dan memiliki tenant di AuthSession, gunakan itu sebagai fallback cepat
+    final authTenant = AuthSession().tenant;
+
+    // Jika di root domain (ekasir.my.id) dan belum login, gunakan profil platform root eKasir
+    if (isRootDomain && authTenant == null && !AuthSession().isAuthenticated) {
       _cached = TenantModel.platformRoot;
       return TenantModel.platformRoot;
     }
@@ -98,8 +106,14 @@ class TenantService {
       _cached = tenant;
       return tenant;
     } catch (e) {
+      if (authTenant != null &&
+          authTenant.id != 0 &&
+          authTenant.name.isNotEmpty) {
+        _cached = authTenant;
+        return authTenant;
+      }
       debugPrint('TenantService: gagal fetch tenant info → $e');
-      return TenantModel.fallback;
+      return isRootDomain ? TenantModel.platformRoot : TenantModel.fallback;
     }
   }
 
@@ -110,6 +124,12 @@ class TenantService {
   static TenantModel get current {
     if (_demoSubdomain != null || DemoSessionManager.isDemoMode) {
       return DemoSessionManager.demoTenant;
+    }
+    final authTenant = AuthSession().tenant;
+    if (authTenant != null &&
+        authTenant.id != 0 &&
+        authTenant.name.isNotEmpty) {
+      return authTenant;
     }
     return _cached ??
         (isRootDomain ? TenantModel.platformRoot : TenantModel.fallback);

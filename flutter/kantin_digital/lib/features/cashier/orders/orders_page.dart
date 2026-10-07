@@ -5,6 +5,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../widgets/cashier_drawer.dart';
 import '../widgets/calculator_widget.dart';
 import '../manual_order/manual_order_page.dart';
@@ -296,7 +298,18 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
 
   Widget _buildAppBar(BuildContext context) {
     final user = AuthSession().user;
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
     final isOperations = _isOperations;
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
@@ -318,25 +331,48 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          if (logoProvider != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image(
+                image: logoProvider,
+                width: 38,
+                height: 38,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.storefront_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Halo, ${user?.name ?? (isOperations ? "Operasional" : "Kasir")}',
+                  tenant.name.isNotEmpty
+                      ? tenant.name
+                      : (isOperations ? 'Dashboard Operasional' : 'Dashboard Kasir'),
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  isOperations ? 'Dashboard Operasional' : 'Dashboard Kasir',
-                  style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Halo, ${user?.name ?? (isOperations ? "Operasional" : "Kasir")}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

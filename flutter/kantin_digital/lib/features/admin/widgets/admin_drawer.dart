@@ -4,6 +4,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/auth/auth_session.dart';
+import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/widgets/store_status_control.dart';
 import '../auth/login_service.dart';
@@ -484,6 +486,17 @@ class AdminDrawer extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     final user = AuthSession().user;
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
       decoration: BoxDecoration(gradient: AppColors.primaryGradient),
@@ -504,11 +517,14 @@ class AdminDrawer extends StatelessWidget {
             child: CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.background,
-              child: const Icon(
-                Icons.admin_panel_settings_rounded,
-                color: AppColors.primary,
-                size: 28,
-              ),
+              backgroundImage: logoProvider,
+              child: logoProvider == null
+                  ? const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -518,7 +534,7 @@ class AdminDrawer extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  user?.name ?? 'Owner',
+                  tenant.name.isNotEmpty ? tenant.name : (user?.name ?? 'Owner'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -528,7 +544,7 @@ class AdminDrawer extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  user?.email ?? 'Pemilik Usaha',
+                  user?.name != null ? '${user!.name} (${user.email})' : (user?.email ?? 'Pemilik Usaha'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/auth/auth_session.dart';
+import '../../shared/models/tenant_model.dart';
+import '../../shared/providers/tenant_provider.dart';
 import '../../router/route_name.dart';
 import 'widgets/manager_drawer.dart';
 
@@ -56,6 +58,13 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
   @override
   Widget build(BuildContext context) {
     final user = AuthSession().user;
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -71,7 +80,7 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // Custom App Bar
-                SliverToBoxAdapter(child: _buildCustomAppBar(context)),
+                SliverToBoxAdapter(child: _buildCustomAppBar(context, tenant)),
 
                 // Welcome Card
                 SliverToBoxAdapter(
@@ -79,7 +88,10 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                     opacity: _fadeAnimation,
                     child: SlideTransition(
                       position: _slideAnimation,
-                      child: _buildWelcomeCard(user?.name ?? 'Pimpinan'),
+                      child: _buildWelcomeCard(
+                        tenant.name.isNotEmpty ? tenant.name : (user?.name ?? 'Pimpinan'),
+                        user?.name ?? 'Pimpinan',
+                      ),
                     ),
                   ),
                 ),
@@ -247,7 +259,11 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
     );
   }
 
-  Widget _buildCustomAppBar(BuildContext context) {
+  Widget _buildCustomAppBar(BuildContext context, TenantModel tenant) {
+    final logoProvider = (tenant.logoUrl != null && tenant.logoUrl!.isNotEmpty)
+        ? tenantLogoImageProvider(tenant.logoUrl!)
+        : null;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
       child: Row(
@@ -269,6 +285,35 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                   size: 22,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (logoProvider != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image(
+                image: logoProvider,
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.storefront_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              tenant.name.isNotEmpty ? tenant.name : 'Dashboard Pimpinan',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const Spacer(),
@@ -371,7 +416,7 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
     );
   }
 
-  Widget _buildWelcomeCard(String name) {
+  Widget _buildWelcomeCard(String storeName, String name) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       padding: const EdgeInsets.all(24),
@@ -434,20 +479,24 @@ class _ManagerDashboardPageState extends State<ManagerDashboardPage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Selamat Datang!',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          name,
+                          storeName,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Halo, $name',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

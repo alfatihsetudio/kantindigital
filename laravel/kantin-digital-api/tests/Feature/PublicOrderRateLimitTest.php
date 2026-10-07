@@ -16,12 +16,29 @@ class PublicOrderRateLimitTest extends TestCase
     {
         $tenant = Tenant::firstOrCreate(
             ['subdomain' => 'saycoffee'],
-            ['name' => 'Say Coffee', 'plan' => 'free']
+            [
+                'name' => 'Say Coffee',
+                'plan' => 'free',
+                'is_active' => true,
+                'is_store_open' => true,
+                'opening_hours' => '00:00 - 23:59',
+                'store_opened_at' => now()->startOfDay()->toIso8601String(),
+            ]
         );
+        $tenant->update([
+            'is_active' => true,
+            'is_store_open' => true,
+            'opening_hours' => '00:00 - 23:59',
+            'store_opened_at' => now()->startOfDay()->toIso8601String(),
+        ]);
         app()->instance('tenant', $tenant);
 
-        $category = Category::create(['name' => 'Minuman']);
+        $category = Category::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Minuman',
+        ]);
         $menu = Menu::create([
+            'tenant_id' => $tenant->id,
             'category_id' => $category->id,
             'name' => 'Es Teh',
             'price' => 5000,

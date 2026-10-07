@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../auth/auth_session.dart';
 import '../models/tenant_model.dart';
 import '../services/tenant_service.dart';
 
@@ -14,19 +15,26 @@ class TenantProvider extends InheritedWidget {
   });
 
   static TenantModel of(BuildContext context) {
-    final provider = context.dependOnInheritedWidgetOfExactType<TenantProvider>();
+    final authTenant = AuthSession().tenant;
+    if (authTenant != null &&
+        authTenant.id != 0 &&
+        authTenant.name.isNotEmpty) {
+      return authTenant;
+    }
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<TenantProvider>();
     return provider?.tenant ?? TenantService.current;
   }
 
   @override
   bool updateShouldNotify(TenantProvider oldWidget) {
     return oldWidget.tenant.id != tenant.id ||
-           oldWidget.tenant.primaryColor != tenant.primaryColor ||
-           oldWidget.tenant.name != tenant.name ||
-           oldWidget.tenant.openingHours != tenant.openingHours ||
-           oldWidget.tenant.isStoreOpen != tenant.isStoreOpen ||
-           oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
-           oldWidget.tenant.promoMessage != tenant.promoMessage;
+        oldWidget.tenant.primaryColor != tenant.primaryColor ||
+        oldWidget.tenant.name != tenant.name ||
+        oldWidget.tenant.openingHours != tenant.openingHours ||
+        oldWidget.tenant.isStoreOpen != tenant.isStoreOpen ||
+        oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
+        oldWidget.tenant.promoMessage != tenant.promoMessage;
   }
 }
 
@@ -46,10 +54,35 @@ class _TenantLoaderState extends State<TenantLoader> {
   @override
   void initState() {
     super.initState();
+    AuthSession().addListener(_onAuthSessionChanged);
     _loadTenant();
   }
 
+  @override
+  void dispose() {
+    AuthSession().removeListener(_onAuthSessionChanged);
+    super.dispose();
+  }
+
+  void _onAuthSessionChanged() {
+    final authTenant = AuthSession().tenant;
+    if (authTenant != null &&
+        authTenant.id != 0 &&
+        authTenant.name.isNotEmpty) {
+      if (mounted && _tenant?.id != authTenant.id) {
+        setState(() => _tenant = authTenant);
+      }
+    }
+  }
+
   Future<void> _loadTenant() async {
+    final authTenant = AuthSession().tenant;
+    if (authTenant != null &&
+        authTenant.id != 0 &&
+        authTenant.name.isNotEmpty) {
+      if (mounted) setState(() => _tenant = authTenant);
+      return;
+    }
     final tenant = await TenantService.fetchTenantInfo();
     if (mounted) {
       setState(() => _tenant = tenant);
