@@ -1139,6 +1139,26 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 isLoading: _loading,
                 onPressed: isFormComplete ? _submit : null,
               ),
+              if (!isFormComplete) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _nameController.text.trim().isEmpty ||
+                          _phoneController.text.trim().isEmpty
+                      ? 'Isi nama dan no hp terlebih dahulu agar bisa memesan'
+                      : (_isQrOrder && _selectedTable == null
+                          ? 'Pilih nomor meja terlebih dahulu agar bisa memesan'
+                          : (_selectedOrderType == 'delivery' &&
+                                  _addressController.text.trim().isEmpty
+                              ? 'Isi alamat pengantaran terlebih dahulu agar bisa memesan'
+                              : 'Lengkapi data terlebih dahulu agar bisa memesan')),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
