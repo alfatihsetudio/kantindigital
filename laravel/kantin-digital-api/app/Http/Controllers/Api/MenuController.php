@@ -166,29 +166,32 @@ class MenuController extends Controller
     private function storeCompressedImage(UploadedFile $image): string
     {
         $directory = public_path('uploads/menus');
-        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-            throw new \RuntimeException('Folder upload gambar menu tidak dapat dibuat.');
+        if (! is_dir($directory)) {
+            @mkdir($directory, 0777, true);
+            @chmod($directory, 0777);
         }
 
         if (! is_writable($directory)) {
-            throw new \RuntimeException('Folder uploads/menus tidak memiliki izin tulis untuk PHP.');
+            @chmod($directory, 0777);
         }
 
-        $extension = strtolower($image->extension() ?: 'jpg');
+        $extension = strtolower($image->getClientOriginalExtension() ?: 'jpg');
         if ($extension === 'jpeg') {
             $extension = 'jpg';
         }
         if (! in_array($extension, ['jpg', 'png', 'webp'], true)) {
-            throw new \RuntimeException('Format foto menu tidak didukung.');
+            $extension = 'jpg';
         }
 
         $canCompress = extension_loaded('gd') && function_exists('imagecreatefromstring');
-        $source = $canCompress
-            ? @imagecreatefromstring(file_get_contents($image->getRealPath()))
+        $realPath = $image->getRealPath();
+        $source = ($canCompress && $realPath && file_exists($realPath))
+            ? @imagecreatefromstring(file_get_contents($realPath))
             : false;
         if ($source === false) {
             $filename = 'menu_'.Str::uuid().'.'.$extension;
             $image->move($directory, $filename);
+            @chmod($directory.DIRECTORY_SEPARATOR.$filename, 0666);
 
             return url('uploads/menus/'.$filename);
         }
@@ -218,6 +221,7 @@ class MenuController extends Controller
         $filename = 'menu_'.Str::uuid().'.jpg';
         $path = $directory.DIRECTORY_SEPARATOR.$filename;
         $saved = imagejpeg($compressed, $path, 78);
+        @chmod($path, 0666);
         imagedestroy($compressed);
         imagedestroy($source);
 
