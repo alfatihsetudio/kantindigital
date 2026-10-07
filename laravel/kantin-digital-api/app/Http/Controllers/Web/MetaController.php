@@ -209,9 +209,16 @@ HTML;
             $html = str_replace('<body>', "<body>\n{$splashHtml}", $html);
         }
 
+        // 5. Dynamic Cache-Busting for flutter_bootstrap.js
+        $bootstrapFile = public_path('flutter_bootstrap.js');
+        $bootstrapVersion = File::exists($bootstrapFile) ? File::lastModified($bootstrapFile) : time();
+        $html = preg_replace('/flutter_bootstrap\.js(\?v=[^"\'\s>]+)?/i', "flutter_bootstrap.js?v={$bootstrapVersion}", $html);
+
         return response($html, 200)
             ->header('Content-Type', 'text/html; charset=UTF-8')
-            ->header('Cache-Control', 'no-cache, private');
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function manifest(Request $request)

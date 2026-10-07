@@ -34,7 +34,11 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
   @override
   void initState() {
     super.initState();
-    _loadToppings();
+    if (widget.menu.toppingIds.isNotEmpty) {
+      _loadToppings();
+    } else {
+      _loadingToppings = false;
+    }
   }
 
   Future<void> _loadToppings() async {
@@ -309,9 +313,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
 
           const SizedBox(height: 24),
 
-          if (_loadingToppings ||
-              _allToppings.isNotEmpty ||
-              _toppingsError != null) ...[
+          if (widget.menu.toppingIds.isNotEmpty &&
+              (_loadingToppings ||
+                  _allToppings.isNotEmpty ||
+                  _toppingsError != null)) ...[
             _buildToppingSection(),
             const SizedBox(height: 24),
           ],
