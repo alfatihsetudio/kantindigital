@@ -54,36 +54,11 @@ class AdminLoginController {
       }
       return null;
     } catch (e) {
-      final demoResult = DemoSessionManager.tryDemoLogin(email, password);
-      if (demoResult != null) {
-        DemoSessionManager.enableDemoMode();
-        _session.setSession(
-          token: demoResult.token,
-          user: demoResult.user,
-          tenant: demoResult.tenant,
-        );
-
-        final role = demoResult.user.role;
-        switch (role) {
-          case null:
-            return 'Role user tidak ditemukan';
-          case UserRole.superadmin:
-            onNavigate(RouteName.superAdminDashboard);
-            break;
-          case UserRole.admin:
-            onNavigate(RouteName.adminDashboard);
-            break;
-          case UserRole.cashier:
-          case UserRole.operations:
-            onNavigate(RouteName.cashierOrders);
-            break;
-          case UserRole.manager:
-            onNavigate(RouteName.managerDashboard);
-            break;
-        }
-        return null;
+      var msg = e.toString().trim();
+      if (msg.startsWith('Exception: ')) {
+        msg = msg.substring('Exception: '.length).trim();
       }
-      return e.toString();
+      return msg.isNotEmpty ? msg : 'Email atau Password salah';
     }
   }
 }

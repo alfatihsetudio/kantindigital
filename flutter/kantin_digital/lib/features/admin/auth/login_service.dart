@@ -29,13 +29,27 @@ class AdminAuthService {
       body: {'email': email, 'password': password},
     );
 
+    Map<String, dynamic>? body;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        body = decoded;
+      }
+    } catch (_) {}
+
     if (response.statusCode != 200) {
+      final msg = body?['message']?.toString();
+      if (msg != null && msg.trim().isNotEmpty) {
+        throw Exception(msg.trim());
+      }
+      if (response.statusCode == 401) {
+        throw Exception('Email atau Password salah');
+      }
       throw Exception('Login gagal (${response.statusCode})');
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (body['status'] != true) {
-      throw Exception(body['message']?.toString() ?? 'Login gagal');
+    if (body == null || body['status'] != true) {
+      throw Exception(body?['message']?.toString() ?? 'Login gagal');
     }
 
     final data = body['data'] as Map<String, dynamic>;
