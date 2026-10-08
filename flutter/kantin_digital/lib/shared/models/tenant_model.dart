@@ -68,6 +68,8 @@ class TenantModel {
     return allowedMethods.contains(paymentMethod.toLowerCase().trim());
   }
 
+  bool get hasPromo => promoDiscountPercent > 0;
+
   factory TenantModel.fromJson(Map<String, dynamic> json) {
     return TenantModel(
       id: (json['id'] as num).toInt(),

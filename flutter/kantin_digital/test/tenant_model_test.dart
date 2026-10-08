@@ -65,6 +65,15 @@ void main() {
     expect(tenant.promoScope, 'selected');
     expect(tenant.promoMenuIds, [3, 8]);
     expect(tenant.toJson()['promo_menu_ids'], [3, 8]);
+    expect(tenant.hasPromo, isTrue);
+
+    final zeroPromoTenant = TenantModel.fromJson({
+      'id': 1,
+      'subdomain': 'saycoffee',
+      'name': 'SAY COFFEE',
+      'promo_discount_percent': 0,
+    });
+    expect(zeroPromoTenant.hasPromo, isFalse);
   });
 
   test('promo calculator discounts all menus or only selected menu ids', () {

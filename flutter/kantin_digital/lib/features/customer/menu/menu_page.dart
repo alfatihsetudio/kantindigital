@@ -39,6 +39,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool? _staffHasOpenedStore;
+  TenantModel _promoTenant = TenantService.current;
   Color get _brandColor => TenantProvider.of(context).primaryColorValue;
   String get _menuPrefix => TenantProvider.of(context).menuCodePrefix ?? 'SAY';
   LinearGradient get _brandGradient => LinearGradient(
@@ -102,31 +103,66 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   Future<void> _refreshStoreStatus() async {
     final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
     if (!mounted) return;
-    setState(() => _staffHasOpenedStore = tenant.isStoreOpen);
+    setState(() {
+      _staffHasOpenedStore = tenant.isStoreOpen;
+      _promoTenant = tenant;
+    });
   }
 
-  void _extractCategories(List<MenuModel> items) {
+  void _extractCategories(List<MenuModel> items, TenantModel tenant) {
+    final hasAnyPromo = tenant.promoDiscountPercent > 0 &&
+        items.any(
+          (m) =>
+              tenant.promoScope != 'selected' ||
+              tenant.promoMenuIds.contains(m.id),
+        );
+
     final cats = items.map((e) => e.categoryName).toSet().toList();
-    if (_categories.length == 1) {
-      // Schedule setState after build completes to avoid "setState during build" error
+    final desiredCats = ['Semua'];
+    if (hasAnyPromo) {
+      desiredCats.add('🔥 Promo');
+    }
+    desiredCats.addAll(cats);
+
+    if (_categories.length != desiredCats.length ||
+        !_listEquals(_categories, desiredCats)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _categories.length == 1) {
+        if (mounted) {
           setState(() {
-            _categories.addAll(cats);
+            _categories
+              ..clear()
+              ..addAll(desiredCats);
           });
         }
       });
     }
   }
 
-  List<MenuModel> _filterItems(List<MenuModel> items) {
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  List<MenuModel> _filterItems(List<MenuModel> items, TenantModel tenant) {
     var filtered = List<MenuModel>.from(items);
 
     // Urutkan sesuai urutan resmi Flyer Say Coffee
     filtered.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
 
     // Filter by Category
-    if (_selectedCategory != 'Semua') {
+    if (_selectedCategory == '🔥 Promo') {
+      filtered = filtered
+          .where(
+            (e) =>
+                tenant.promoDiscountPercent > 0 &&
+                (tenant.promoScope != 'selected' ||
+                    tenant.promoMenuIds.contains(e.id)),
+          )
+          .toList();
+    } else if (_selectedCategory != 'Semua') {
       filtered = filtered
           .where((e) => e.categoryName == _selectedCategory)
           .toList();
@@ -261,8 +297,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final tenant = TenantProvider.of(context);
-    final scheduleOpen = tenant.isOpenAt(DateTime.now().toUtc()) == true;
-    final staffHasOpened = _staffHasOpenedStore ?? tenant.isStoreOpen;
+    final activeTenant = (_promoTenant.id != 0 && _promoTenant.name.isNotEmpty)
+        ? _promoTenant
+        : tenant;
+    final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
+    final staffHasOpened = _staffHasOpenedStore ?? activeTenant.isStoreOpen;
     final isStoreCurrentlyOpen = scheduleOpen && staffHasOpened;
 
     return Scaffold(
@@ -279,7 +318,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 _buildHeader(),
                 if (!isStoreCurrentlyOpen)
                   _buildStoreClosedBanner(
-                    tenant,
+                    activeTenant,
                     scheduleOpen: scheduleOpen,
                     staffHasOpened: staffHasOpened,
                   ),
@@ -301,8 +340,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                         return const EmptyView(message: 'Menu tidak tersedia');
                       }
 
-                      _extractCategories(items);
-                      final filteredItems = _filterItems(items);
+                      _extractCategories(items, activeTenant);
+                      final filteredItems = _filterItems(items, activeTenant);
 
                       return FadeTransition(
                         opacity: _fadeAnimation,
@@ -322,7 +361,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                               SliverToBoxAdapter(child: _buildCategoryChips()),
 
                               // Promo Banner (optional showcase)
-                              SliverToBoxAdapter(child: _buildPromoSection()),
+                              SliverToBoxAdapter(
+                                child: _buildPromoSection(activeTenant),
+                              ),
 
                               // Section Title
                               SliverToBoxAdapter(
@@ -340,7 +381,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                       Text(
                                         _selectedCategory == 'Semua'
                                             ? 'Menu Populer'
-                                            : _selectedCategory,
+                                            : (_selectedCategory == '🔥 Promo'
+                                                ? 'Menu Promo Diskon'
+                                                : _selectedCategory),
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium
@@ -425,12 +468,13 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                               crossAxisCount: 2,
                                               crossAxisSpacing: 16,
                                               mainAxisSpacing: 16,
-                                              childAspectRatio: 0.72,
+                                              childAspectRatio: 0.68,
                                             ),
                                         delegate: SliverChildBuilderDelegate(
                                           (context, index) => _MenuCard(
                                             menu: filteredItems[index],
                                             index: index,
+                                            tenant: activeTenant,
                                           ),
                                           childCount: filteredItems.length,
                                         ),
@@ -745,70 +789,112 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPromoSection() {
-    final tenant = TenantProvider.of(context);
+  Widget _buildPromoSection([TenantModel? tenantParam]) {
+    final tenant = tenantParam ?? _promoTenant;
+    if (!tenant.hasPromo) return const SizedBox.shrink();
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      height: 120,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Gradient Background
-            Container(decoration: BoxDecoration(gradient: _brandGradient)),
+    return TapScaleContainer(
+      onTap: () {
+        setState(() {
+          _selectedCategory = '🔥 Promo';
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        height: 120,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Gradient Background
+              Container(decoration: BoxDecoration(gradient: _brandGradient)),
 
-            // Pattern overlay
-            Positioned(
-              right: -20,
-              bottom: -20,
-              child: Icon(
-                Icons.fastfood_rounded,
-                size: 140,
-                color: Colors.white.withValues(alpha: 0.15),
+              // Pattern overlay
+              Positioned(
+                right: -20,
+                bottom: -20,
+                child: Icon(
+                  Icons.fastfood_rounded,
+                  size: 140,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
               ),
-            ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '🔥 ${tenant.promoBadgeText}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Lihat Menu',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '🔥 ${tenant.promoBadgeText}',
-                      style: TextStyle(
+                    const SizedBox(height: 8),
+                    Text(
+                      tenant.promoMessage,
+                      style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tenant.promoMessage,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -845,7 +931,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 crossAxisCount: 2,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: 0.72,
+                childAspectRatio: 0.68,
               ),
               itemCount: 4,
               itemBuilder: (_, __) => Container(
@@ -1035,12 +1121,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 class _MenuCard extends StatelessWidget {
   final MenuModel menu;
   final int index;
+  final TenantModel? tenant;
 
-  const _MenuCard({required this.menu, required this.index});
+  const _MenuCard({
+    required this.menu,
+    required this.index,
+    this.tenant,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final brandColor = TenantProvider.of(context).primaryColorValue;
+    final effectiveTenant = tenant ?? TenantProvider.of(context);
+    final brandColor = effectiveTenant.primaryColorValue;
     final brandGradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -1050,8 +1142,18 @@ class _MenuCard extends StatelessWidget {
       ],
     );
 
-    final prefix = TenantProvider.of(context).menuCodePrefix;
+    final prefix = effectiveTenant.menuCodePrefix;
     final menuCode = menu.formattedCode(prefix);
+
+    final hasPromo = effectiveTenant.promoDiscountPercent > 0 &&
+        (effectiveTenant.promoScope != 'selected' ||
+            effectiveTenant.promoMenuIds.contains(menu.id));
+    final promoForQris =
+        hasPromo && effectiveTenant.promoAppliesToPayment('qris');
+    final discountPerUnit = hasPromo
+        ? ((menu.price * effectiveTenant.promoDiscountPercent + 50) ~/ 100)
+        : 0;
+    final promoPrice = (menu.price - discountPerUnit).clamp(0, menu.price);
 
     return TapScaleContainer(
       onTap: () {
@@ -1134,6 +1236,39 @@ class _MenuCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  // Badge Promo Diskon di pojok kanan atas gambar
+                  if (hasPromo)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFE11D48).withValues(alpha: 0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '-${effectiveTenant.promoDiscountPercent}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1164,17 +1299,63 @@ class _MenuCard extends StatelessWidget {
                     const Spacer(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Expanded(
-                          child: Text(
-                            CurrencyFormatter.rupiah(menu.price),
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: brandColor,
+                          child: promoForQris
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          CurrencyFormatter.rupiah(menu.price),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: AppColors.textMuted,
+                                                decoration:
+                                                    TextDecoration.lineThrough,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'QRIS',
+                                          style: TextStyle(
+                                            color: Color(0xFFE11D48),
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.rupiah(promoPrice),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFFE11D48),
+                                            fontSize: 13,
+                                          ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  CurrencyFormatter.rupiah(menu.price),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: brandColor,
+                                      ),
                                 ),
-                          ),
                         ),
                         Container(
                           padding: const EdgeInsets.all(6),
