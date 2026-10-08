@@ -486,13 +486,13 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.local_offer_rounded,
                   size: 16,
-                  color: AppColors.primary,
+                  color: Color(0xFFD97706),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1022,7 +1022,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1040,10 +1040,10 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
             children: [
               if (promoForQris) ...[
                 Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 7,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0FDF4),
@@ -1094,7 +1094,7 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.background,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
@@ -1104,8 +1104,8 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                           enabled: _qty > 1,
                         ),
                         Container(
-                          constraints: const BoxConstraints(minWidth: 40),
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(minWidth: 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
                           child: Text(
                             '$_qty',
                             textAlign: TextAlign.center,
@@ -1121,14 +1121,17 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
 
                   // Add to Cart Button
                   Expanded(
                     child: TapScaleContainer(
                       onTap: _addToCart,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 10,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppColors.primaryGradient,
                           borderRadius: BorderRadius.circular(16),
@@ -1146,15 +1149,34 @@ class _MenuDetailPageState extends State<MenuDetailPage> {
                             const Icon(
                               Icons.add_shopping_cart_rounded,
                               color: Colors.white,
-                              size: 20,
+                              size: 19,
                             ),
-                            const SizedBox(width: 10),
-                            Text(
-                              '+ Keranjang • ${CurrencyFormatter.rupiah(_itemTotal)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      '+ Keranjang',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '• ${CurrencyFormatter.rupiah(_itemTotal)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -1190,14 +1212,14 @@ class _QuantityButton extends StatelessWidget {
     return TapScaleContainer(
       onTap: enabled ? onTap : null,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
           color: isPrimary ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: 18,
           color: isPrimary
               ? Colors.white
               : (enabled ? AppColors.textPrimary : AppColors.textMuted),
