@@ -9,6 +9,7 @@ import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/table_model.dart';
 import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/promo_discount_calculator.dart';
 import '../../admin/tables/tables_service.dart';
@@ -144,6 +145,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _submit() async {
+    final tenant = TenantProvider.of(context);
+    final activeTenant = (_promoTenant.id != 0 && _promoTenant.name.isNotEmpty)
+        ? _promoTenant
+        : tenant;
+    final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
+    final staffHasOpened = activeTenant.isStoreOpen;
+    if (!scheduleOpen || !staffHasOpened) {
+      _showStoreClosedDialog(
+        context,
+        activeTenant,
+        scheduleOpen: scheduleOpen,
+        staffHasOpened: staffHasOpened,
+      );
+      return;
+    }
+
     // Validasi nama
     if (_nameController.text.trim().isEmpty) {
       AppSnackBar.show(context, message: 'Mohon isi nama anda');
@@ -230,6 +247,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = CartController.instance;
+    final tenant = TenantProvider.of(context);
+    final activeTenant = (_promoTenant.id != 0 && _promoTenant.name.isNotEmpty)
+        ? _promoTenant
+        : tenant;
+    final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
+    final staffHasOpened = activeTenant.isStoreOpen;
+    final isStoreOpen = scheduleOpen && staffHasOpened;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -243,6 +267,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
             child: Column(
               children: [
                 _buildAppBar(),
+                if (!isStoreOpen)
+                  _buildStoreClosedBanner(
+                    activeTenant,
+                    scheduleOpen: scheduleOpen,
+                    staffHasOpened: staffHasOpened,
+                  ),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -276,7 +306,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
 
           // Bottom Bar
-          _buildBottomBar(cart),
+          _buildBottomBar(
+            cart,
+            isStoreOpen: isStoreOpen,
+            tenant: activeTenant,
+            scheduleOpen: scheduleOpen,
+            staffHasOpened: staffHasOpened,
+          ),
         ],
       ),
     );
@@ -1456,7 +1492,183 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildBottomBar(CartController cart) {
+  Widget _buildStoreClosedBanner(
+    TenantModel tenant, {
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
+    final openingHoursText = tenant.openingHours.isNotEmpty
+        ? tenant.openingHours
+        : 'Sesuai jadwal operasional';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFFDBA74),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.access_time_filled_rounded,
+            color: Color(0xFFEA580C),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Toko Sedang Tutup',
+                  style: TextStyle(
+                    color: Color(0xFF9A3412),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Buka: $openingHoursText. Pemesanan belum dapat diproses saat toko tutup.',
+                  style: const TextStyle(
+                    color: Color(0xFFC2410C),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStoreClosedDialog(
+    BuildContext context,
+    TenantModel tenant, {
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
+    final openingHoursText = tenant.openingHours.isNotEmpty
+        ? tenant.openingHours
+        : 'Sesuai jadwal operasional';
+
+    String detail;
+    if (scheduleOpen && !staffHasOpened) {
+      detail =
+          'Toko belum dibuka oleh staf kasir atau admin.\nJam operasional toko: $openingHoursText';
+    } else if (!scheduleOpen) {
+      detail =
+          'Toko sedang di luar jam operasional.\nJam operasional toko: $openingHoursText';
+    } else {
+      detail =
+          'Toko sedang tutup saat ini.\nJam operasional toko: $openingHoursText';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.access_time_filled_rounded,
+                color: Color(0xFFEA580C),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Toko Sedang Tutup',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              detail,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 18,
+                    color: AppColors.success,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pesanan belum dapat dibuat sebelum toko buka.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Mengerti',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+    CartController cart, {
+    required bool isStoreOpen,
+    required TenantModel tenant,
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
     final hasName = _nameController.text.trim().isNotEmpty;
     final phoneText = _phoneController.text.trim();
     final hasPhone = phoneText.isNotEmpty;
@@ -1473,7 +1685,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
             : _selectedOrderType != 'delivery' || hasAddress);
 
     String reminderText = '';
-    if (!hasName || !hasPhone) {
+    if (!isStoreOpen) {
+      reminderText =
+          'Toko sedang tutup. Buka: ${tenant.openingHours.isNotEmpty ? tenant.openingHours : '-'}. Pemesanan belum dapat diproses.';
+    } else if (!hasName || !hasPhone) {
       reminderText = 'Isi nama dan no hp terlebih dahulu agar bisa memesan';
     } else if (!isValidPhone) {
       reminderText =
@@ -1528,12 +1743,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(height: 16),
               GradientButton(
-                label: _loading ? 'Memproses...' : 'Buat Pesanan',
-                icon: Icons.check_circle_rounded,
+                label: _loading
+                    ? 'Memproses...'
+                    : (!isStoreOpen ? 'Toko Sedang Tutup' : 'Buat Pesanan'),
+                icon: !isStoreOpen
+                    ? Icons.lock_clock_rounded
+                    : Icons.check_circle_rounded,
                 isLoading: _loading,
-                onPressed: isFormComplete ? _submit : null,
+                colors: !isStoreOpen
+                    ? const [Color(0xFF9CA3AF), Color(0xFF6B7280)]
+                    : null,
+                onPressed: () {
+                  if (!isStoreOpen) {
+                    _showStoreClosedDialog(
+                      context,
+                      tenant,
+                      scheduleOpen: scheduleOpen,
+                      staffHasOpened: staffHasOpened,
+                    );
+                    return;
+                  }
+                  if (isFormComplete) {
+                    _submit();
+                  }
+                },
               ),
-              if (!isFormComplete && reminderText.isNotEmpty) ...[
+              if (reminderText.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   reminderText,

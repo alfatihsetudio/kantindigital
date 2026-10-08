@@ -6,6 +6,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/glass_components.dart';
 import '../../../router/route_name.dart';
 import '../../../shared/models/tenant_model.dart';
+import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/promo_discount_calculator.dart';
 import 'cart_controller.dart';
@@ -51,6 +52,14 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tenant = TenantProvider.of(context);
+    final activeTenant = (_promoTenant.id != 0 && _promoTenant.name.isNotEmpty)
+        ? _promoTenant
+        : tenant;
+    final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
+    final staffHasOpened = activeTenant.isStoreOpen;
+    final isStoreOpen = scheduleOpen && staffHasOpened;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -63,6 +72,12 @@ class _CartPageState extends State<CartPage> {
             child: Column(
               children: [
                 _buildAppBar(),
+                if (!isStoreOpen)
+                  _buildStoreClosedBanner(
+                    activeTenant,
+                    scheduleOpen: scheduleOpen,
+                    staffHasOpened: staffHasOpened,
+                  ),
                 Expanded(
                   child: ListenableBuilder(
                     listenable: CartController.instance,
@@ -97,7 +112,12 @@ class _CartPageState extends State<CartPage> {
           ),
 
           // Bottom checkout bar
-          _buildBottomBar(),
+          _buildBottomBar(
+            isStoreOpen: isStoreOpen,
+            tenant: activeTenant,
+            scheduleOpen: scheduleOpen,
+            staffHasOpened: staffHasOpened,
+          ),
         ],
       ),
     );
@@ -224,7 +244,182 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildStoreClosedBanner(
+    TenantModel tenant, {
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
+    final openingHoursText = tenant.openingHours.isNotEmpty
+        ? tenant.openingHours
+        : 'Sesuai jadwal operasional';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFFDBA74),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.access_time_filled_rounded,
+            color: Color(0xFFEA580C),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Toko Sedang Tutup',
+                  style: TextStyle(
+                    color: Color(0xFF9A3412),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Buka: $openingHoursText. Anda tetap dapat memilih menu & mengatur keranjang, namun belum bisa checkout hingga toko buka.',
+                  style: const TextStyle(
+                    color: Color(0xFFC2410C),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStoreClosedDialog(
+    BuildContext context,
+    TenantModel tenant, {
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
+    final openingHoursText = tenant.openingHours.isNotEmpty
+        ? tenant.openingHours
+        : 'Sesuai jadwal operasional';
+
+    String detail;
+    if (scheduleOpen && !staffHasOpened) {
+      detail =
+          'Toko belum dibuka oleh staf kasir atau admin.\nJam operasional toko: $openingHoursText';
+    } else if (!scheduleOpen) {
+      detail =
+          'Toko sedang di luar jam operasional.\nJam operasional toko: $openingHoursText';
+    } else {
+      detail =
+          'Toko sedang tutup saat ini.\nJam operasional toko: $openingHoursText';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.access_time_filled_rounded,
+                color: Color(0xFFEA580C),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Toko Sedang Tutup',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              detail,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 18,
+                    color: AppColors.success,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Menu di keranjang tetap tersimpan aman.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Mengerti',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar({
+    required bool isStoreOpen,
+    required TenantModel tenant,
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+  }) {
     return Positioned(
       bottom: 0,
       left: 0,
@@ -256,6 +451,40 @@ class _CartPageState extends State<CartPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (!isStoreOpen) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDBA74)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: Color(0xFFEA580C),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Toko sedang tutup. Buka: ${tenant.openingHours.isNotEmpty ? tenant.openingHours : '-'}. Checkout belum dapat diproses.',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF9A3412),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   // Summary
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -315,11 +544,25 @@ class _CartPageState extends State<CartPage> {
                         ],
                       ),
                       GradientButton(
-                        label: 'Checkout',
-                        icon: Icons.arrow_forward_rounded,
+                        label: isStoreOpen ? 'Checkout' : 'Toko Tutup',
+                        icon: isStoreOpen
+                            ? Icons.arrow_forward_rounded
+                            : Icons.lock_clock_rounded,
                         width: 160,
                         height: 52,
+                        colors: isStoreOpen
+                            ? null
+                            : const [Color(0xFF9CA3AF), Color(0xFF6B7280)],
                         onPressed: () {
+                          if (!isStoreOpen) {
+                            _showStoreClosedDialog(
+                              context,
+                              tenant,
+                              scheduleOpen: scheduleOpen,
+                              staffHasOpened: staffHasOpened,
+                            );
+                            return;
+                          }
                           Navigator.pushNamed(
                             context,
                             RouteName.customerCheckout,

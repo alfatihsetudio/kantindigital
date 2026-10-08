@@ -149,147 +149,111 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     return filtered;
   }
 
-  Widget _buildClosedPage(
+  Widget _buildStoreClosedBanner(
     TenantModel tenant, {
     required bool scheduleOpen,
     required bool staffHasOpened,
   }) {
-    final brandColor = tenant.primaryColorValue;
-    final logoProvider = tenantLogoImageProvider(tenant.logoUrl);
+    final openingHoursText = tenant.openingHours.isNotEmpty
+        ? tenant.openingHours
+        : 'Sesuai jadwal operasional';
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+    String statusDetail;
+    if (scheduleOpen && !staffHasOpened) {
+      statusDetail =
+          'Toko belum dibuka oleh staf kasir/admin. Jam operasional: $openingHoursText.';
+    } else if (!scheduleOpen) {
+      statusDetail =
+          'Toko sedang di luar jam operasional. Buka: $openingHoursText.';
+    } else {
+      statusDetail =
+          'Toko sedang tutup. Jam operasional: $openingHoursText.';
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFDBA74),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEA580C).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.access_time_filled_rounded,
+              color: Color(0xFFEA580C),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   children: [
-                    Container(
-                      width: 88,
-                      height: 88,
-                      decoration: BoxDecoration(
-                        color: brandColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: logoProvider == null
-                          ? Icon(
-                              Icons.storefront_rounded,
-                              size: 42,
-                              color: brandColor,
-                            )
-                          : Image(
-                              image: logoProvider,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Icon(
-                                Icons.storefront_rounded,
-                                size: 42,
-                                color: brandColor,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      tenant.name,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    const Text(
+                      'Toko Sedang Tutup',
+                      style: TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Icon(Icons.nightlight_round, size: 54, color: brandColor),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Toko sedang tutup',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      scheduleOpen && !staffHasOpened
-                          ? 'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
-                          : !scheduleOpen
-                          ? 'Toko sedang di luar jam operasional. Silakan kembali sesuai jadwal.'
-                          : 'Jam operasional toko belum diatur dengan format yang benar. Silakan hubungi toko.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 14,
+                        horizontal: 8,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
+                        color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            size: 20,
-                            color: brandColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Jam buka: ${tenant.openingHours}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (tenant.address != null &&
-                        tenant.address!.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        tenant.address!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                      child: const Text(
+                        'Katalog Menu',
+                        style: TextStyle(
+                          color: Color(0xFFEA580C),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: IconButton(
-                tooltip: 'Login staf',
-                onPressed: () =>
-                    Navigator.pushNamed(context, RouteName.adminLogin),
-                icon: Icon(
-                  Icons.login_rounded,
-                  size: 18,
-                  color: AppColors.textSecondary.withValues(alpha: 0.35),
+                const SizedBox(height: 4),
+                Text(
+                  '$statusDetail Anda tetap dapat melihat menu & menambah ke keranjang, namun belum bisa checkout hingga toko buka.',
+                  style: const TextStyle(
+                    color: Color(0xFFC2410C),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -299,13 +263,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     final tenant = TenantProvider.of(context);
     final scheduleOpen = tenant.isOpenAt(DateTime.now().toUtc()) == true;
     final staffHasOpened = _staffHasOpenedStore ?? tenant.isStoreOpen;
-    if (!scheduleOpen || !staffHasOpened) {
-      return _buildClosedPage(
-        tenant,
-        scheduleOpen: scheduleOpen,
-        staffHasOpened: staffHasOpened,
-      );
-    }
+    final isStoreCurrentlyOpen = scheduleOpen && staffHasOpened;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -319,6 +277,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             child: Column(
               children: [
                 _buildHeader(),
+                if (!isStoreCurrentlyOpen)
+                  _buildStoreClosedBanner(
+                    tenant,
+                    scheduleOpen: scheduleOpen,
+                    staffHasOpened: staffHasOpened,
+                  ),
                 Expanded(
                   child: FutureBuilder<List<MenuModel>>(
                     future: _future,

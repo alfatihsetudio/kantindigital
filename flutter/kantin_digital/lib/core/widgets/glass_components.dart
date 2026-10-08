@@ -198,6 +198,7 @@ class GradientButton extends StatelessWidget {
   final double? width;
   final double height;
   final double borderRadius;
+  final List<Color>? colors;
 
   const GradientButton({
     super.key,
@@ -208,10 +209,23 @@ class GradientButton extends StatelessWidget {
     this.width,
     this.height = 56,
     this.borderRadius = 100,
+    this.colors,
   });
 
   @override
   Widget build(BuildContext context) {
+    final gradient = colors != null
+        ? LinearGradient(
+            colors: colors!,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : AppColors.primaryGradient;
+
+    final shadowColor = colors != null && colors!.isNotEmpty
+        ? colors!.first.withValues(alpha: 0.3)
+        : AppColors.primary.withValues(alpha: 0.3);
+
     return TapScaleContainer(
       onTap: isLoading ? null : onPressed,
       child: Container(
@@ -219,7 +233,7 @@ class GradientButton extends StatelessWidget {
         height: height,
         decoration: BoxDecoration(
           gradient: onPressed != null && !isLoading
-              ? AppColors.primaryGradient
+              ? gradient
               : null,
           color: onPressed == null || isLoading
               ? AppColors.textMuted.withValues(alpha: 0.3)
@@ -228,7 +242,7 @@ class GradientButton extends StatelessWidget {
           boxShadow: onPressed != null && !isLoading
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: shadowColor,
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
