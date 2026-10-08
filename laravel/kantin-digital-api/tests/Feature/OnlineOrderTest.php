@@ -319,7 +319,7 @@ class OnlineOrderTest extends TestCase
             ])->assertUnprocessable()
                 ->assertJsonPath(
                     'message',
-                    'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
+                    'Mohon maaf yang sebesar-besarnya, saat ini toko kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: 08:00 - 22:00. Silakan tunggu toko buka kembali.'
                 );
         } finally {
             Carbon::setTestNow();

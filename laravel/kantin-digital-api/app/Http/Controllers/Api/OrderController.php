@@ -24,9 +24,14 @@ class OrderController extends Controller
             $tenant->opening_hours,
             $tenant->store_opened_at
         ))) {
-            $message = StoreOpeningHours::isOpen($tenant->opening_hours)
-                ? 'Toko belum dibuka oleh staf. Silakan tunggu kasir atau admin membuka toko.'
-                : 'Toko sedang di luar jam operasional. Jam buka: '.($tenant->opening_hours ?: 'belum diatur').'.';
+            $hoursText = $tenant->opening_hours ?: 'belum diatur';
+            if (StoreOpeningHours::isOpen($tenant->opening_hours)) {
+                $message = 'Mohon maaf yang sebesar-besarnya, saat ini toko kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: '.$hoursText.'. Silakan tunggu toko buka kembali.';
+            } elseif (StoreOpeningHours::isTodayClosed($tenant->opening_hours)) {
+                $message = 'Hari ini toko kami sedang libur operasional. Jadwal buka: '.$hoursText.'.';
+            } else {
+                $message = 'Toko sedang di luar jam operasional. Jam buka: '.$hoursText.'.';
+            }
 
             return response()->json([
                 'status' => false,

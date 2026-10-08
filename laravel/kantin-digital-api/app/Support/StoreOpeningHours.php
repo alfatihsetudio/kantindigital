@@ -47,6 +47,19 @@ class StoreOpeningHours
         return false;
     }
 
+    public static function isTodayClosed(?string $value, ?CarbonInterface $at = null): bool
+    {
+        $schedule = self::parse($value ?? '');
+        if ($schedule === null) {
+            return false;
+        }
+
+        $localTime = ($at ? \Carbon\Carbon::instance($at) : now('Asia/Jakarta'))
+            ->setTimezone('Asia/Jakarta');
+        $weekday = (int) $localTime->dayOfWeekIso;
+        return ($schedule[$weekday] ?? null) === null;
+    }
+
     public static function wasOpenedDuringCurrentWindow(
         ?string $value,
         ?string $openedAt,

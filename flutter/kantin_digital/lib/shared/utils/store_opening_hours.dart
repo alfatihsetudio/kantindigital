@@ -1,3 +1,17 @@
+class StoreClosedStatus {
+  final String title;
+  final String message;
+  final String statusBadge;
+  final bool isPoliteApology;
+
+  const StoreClosedStatus({
+    required this.title,
+    required this.message,
+    this.statusBadge = 'Katalog Menu',
+    this.isPoliteApology = false,
+  });
+}
+
 class StoreOpeningHours {
   static const _dayAliases = <String, int>{
     'senin': 1,
@@ -51,6 +65,125 @@ class StoreOpeningHours {
     if (start < end) return minutes >= start && minutes < end;
     if (start > end) return minutes >= start || minutes < end;
     return false;
+  }
+
+  /// Cek apakah hari ini toko libur operasional
+  static bool isTodayOffDay(String value, DateTime utcInstant) {
+    final schedule = _parse(value);
+    if (schedule == null) return false;
+
+    final localTime = utcInstant.toUtc().add(const Duration(hours: 7));
+    final weekday = localTime.weekday;
+    return schedule[weekday] == null;
+  }
+
+  /// Ambil rentang jam buka & tutup hari ini (menit dari tengah malam WIB)
+  static (int, int)? getTodayInterval(String value, DateTime utcInstant) {
+    final schedule = _parse(value);
+    if (schedule == null) return null;
+
+    final localTime = utcInstant.toUtc().add(const Duration(hours: 7));
+    return schedule[localTime.weekday];
+  }
+
+  /// Cek apakah hari ini buka, tapi saat ini masih sebelum jam buka
+  static bool isBeforeOpeningToday(String value, DateTime utcInstant) {
+    final interval = getTodayInterval(value, utcInstant);
+    if (interval == null) return false;
+
+    final localTime = utcInstant.toUtc().add(const Duration(hours: 7));
+    final minutes = localTime.hour * 60 + localTime.minute;
+    final (start, end) = interval;
+    if (start < end) {
+      return minutes < start;
+    }
+    return false;
+  }
+
+  /// Cek apakah hari ini buka, tapi saat ini sudah melewati jam tutup
+  static bool isAfterClosingToday(String value, DateTime utcInstant) {
+    final interval = getTodayInterval(value, utcInstant);
+    if (interval == null) return false;
+
+    final localTime = utcInstant.toUtc().add(const Duration(hours: 7));
+    final minutes = localTime.hour * 60 + localTime.minute;
+    final (start, end) = interval;
+    if (start < end) {
+      return minutes >= end;
+    }
+    return false;
+  }
+
+  /// Format menit ke string HH:mm (contoh: 600 -> "10:00")
+  static String formatMinutes(int minutes) {
+    final h = (minutes ~/ 60).toString().padLeft(2, '0');
+    final m = (minutes % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  /// Menghasilkan status dan pesan penjelasan yang sopan & kontekstual saat toko belum buka/tutup
+  static StoreClosedStatus getClosedStatus({
+    required String openingHours,
+    required bool scheduleOpen,
+    required bool staffHasOpened,
+    required DateTime utcInstant,
+  }) {
+    final hoursText = openingHours.trim().isNotEmpty
+        ? openingHours.trim()
+        : 'Sesuai jadwal operasional';
+
+    // 1. Sedang dalam jam operasional tapi toko belum dibuka oleh pengelola
+    //    (Permintaan maaf halus karena ada sesuatu hal / kendala)
+    if (scheduleOpen && !staffHasOpened) {
+      return StoreClosedStatus(
+        title: 'Mohon Maaf, Toko Belum Buka',
+        statusBadge: 'Katalog Menu',
+        isPoliteApology: true,
+        message:
+            'Mohon maaf yang sebesar-besarnya atas ketidaknyamanannya. Saat ini kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: $hoursText. Kami berupaya untuk segera buka kembali. Anda tetap dapat melihat menu & menambah ke keranjang terlebih dahulu.',
+      );
+    }
+
+    // 2. Hari ini adalah hari libur toko
+    if (isTodayOffDay(openingHours, utcInstant)) {
+      return StoreClosedStatus(
+        title: 'Toko Sedang Libur Hari Ini',
+        statusBadge: 'Katalog Menu',
+        message:
+            'Hari ini toko kami sedang libur operasional (Jadwal: $hoursText). Anda tetap dapat melihat katalog menu & menyimpan ke keranjang, dan dapat checkout saat toko beroperasi kembali.',
+      );
+    }
+
+    // 3. Hari operasional, namun saat ini masih sebelum jam buka
+    if (isBeforeOpeningToday(openingHours, utcInstant)) {
+      final interval = getTodayInterval(openingHours, utcInstant);
+      final openTime = interval != null ? formatMinutes(interval.$1) : null;
+      final openText = openTime != null ? 'pukul $openTime WIB' : 'sebentar lagi';
+      return StoreClosedStatus(
+        title: 'Toko Belum Buka',
+        statusBadge: 'Katalog Menu',
+        message:
+            'Toko kami buka $openText (Jadwal operasional: $hoursText). Anda tetap dapat melihat katalog menu & menambah ke keranjang, dan dapat checkout saat toko sudah buka.',
+      );
+    }
+
+    // 4. Hari operasional, namun sudah lewat jam tutup
+    if (isAfterClosingToday(openingHours, utcInstant)) {
+      return StoreClosedStatus(
+        title: 'Toko Sudah Tutup',
+        statusBadge: 'Katalog Menu',
+        message:
+            'Toko sudah tutup untuk hari ini. Buka kembali sesuai jadwal: $hoursText. Anda tetap dapat melihat menu & menambah ke keranjang untuk pesanan berikutnya.',
+      );
+    }
+
+    // 5. Fallback di luar jam operasional
+    return StoreClosedStatus(
+      title: 'Toko Sedang Tutup',
+      statusBadge: 'Katalog Menu',
+      message:
+          'Toko sedang di luar jam operasional. Buka: $hoursText. Anda tetap dapat melihat menu & menambah ke keranjang, namun belum bisa checkout hingga toko buka.',
+    );
   }
 
   static Map<int, (int, int)?>? _parse(String value) {

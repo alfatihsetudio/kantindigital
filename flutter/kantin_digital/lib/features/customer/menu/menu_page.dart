@@ -16,6 +16,7 @@ import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/storage/active_order_storage.dart';
+import '../../../shared/utils/store_opening_hours.dart';
 import '../cart/cart_controller.dart';
 import 'menu_controller.dart' as local;
 
@@ -190,21 +191,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     required bool scheduleOpen,
     required bool staffHasOpened,
   }) {
-    final openingHoursText = tenant.openingHours.isNotEmpty
-        ? tenant.openingHours
-        : 'Sesuai jadwal operasional';
-
-    String statusDetail;
-    if (scheduleOpen && !staffHasOpened) {
-      statusDetail =
-          'Toko belum dibuka oleh staf kasir/admin. Jam operasional: $openingHoursText.';
-    } else if (!scheduleOpen) {
-      statusDetail =
-          'Toko sedang di luar jam operasional. Buka: $openingHoursText.';
-    } else {
-      statusDetail =
-          'Toko sedang tutup. Jam operasional: $openingHoursText.';
-    }
+    final status = StoreOpeningHours.getClosedStatus(
+      openingHours: tenant.openingHours,
+      scheduleOpen: scheduleOpen,
+      staffHasOpened: staffHasOpened,
+      utcInstant: DateTime.now().toUtc(),
+    );
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -233,9 +225,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               color: const Color(0xFFEA580C).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.access_time_filled_rounded,
-              color: Color(0xFFEA580C),
+            child: Icon(
+              status.isPoliteApology
+                  ? Icons.sentiment_dissatisfied_rounded
+                  : Icons.access_time_filled_rounded,
+              color: const Color(0xFFEA580C),
               size: 20,
             ),
           ),
@@ -247,12 +241,14 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
               children: [
                 Row(
                   children: [
-                    const Text(
-                      'Toko Sedang Tutup',
-                      style: TextStyle(
-                        color: Color(0xFF9A3412),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        status.title,
+                        style: const TextStyle(
+                          color: Color(0xFF9A3412),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -265,9 +261,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                         color: const Color(0xFFEA580C).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'Katalog Menu',
-                        style: TextStyle(
+                      child: Text(
+                        status.statusBadge,
+                        style: const TextStyle(
                           color: Color(0xFFEA580C),
                           fontWeight: FontWeight.w700,
                           fontSize: 11,
@@ -278,7 +274,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$statusDetail Anda tetap dapat melihat menu & menambah ke keranjang, namun belum bisa checkout hingga toko buka.',
+                  status.message,
                   style: const TextStyle(
                     color: Color(0xFFC2410C),
                     fontSize: 12,

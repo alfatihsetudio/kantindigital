@@ -163,6 +163,58 @@ void main() {
     expect(StoreOpeningHours.isValid('jam bebas'), isFalse);
   });
 
+  test('evaluates day-specific hours, off days, and polite closed messages', () {
+    const hours = 'Senin-Sabtu 08:00-22:00; Minggu tutup';
+
+    final monday8Am = DateTime.utc(2026, 10, 5, 1, 0);
+    final sunday8Am = DateTime.utc(2026, 10, 4, 1, 0);
+    final monday6Am = DateTime.utc(2026, 10, 4, 23, 0);
+    final monday11Pm = DateTime.utc(2026, 10, 5, 16, 0);
+
+    expect(StoreOpeningHours.isTodayOffDay(hours, sunday8Am), isTrue);
+    expect(StoreOpeningHours.isTodayOffDay(hours, monday8Am), isFalse);
+
+    // Case 1: Operasional time, but staff belum buka (permintaan maaf halus)
+    final apologyStatus = StoreOpeningHours.getClosedStatus(
+      openingHours: hours,
+      scheduleOpen: true,
+      staffHasOpened: false,
+      utcInstant: monday8Am,
+    );
+    expect(apologyStatus.isPoliteApology, isTrue);
+    expect(apologyStatus.title, contains('Mohon Maaf'));
+    expect(apologyStatus.message, contains('kendala operasional'));
+
+    // Case 2: Hari Libur (Minggu)
+    final offDayStatus = StoreOpeningHours.getClosedStatus(
+      openingHours: hours,
+      scheduleOpen: false,
+      staffHasOpened: false,
+      utcInstant: sunday8Am,
+    );
+    expect(offDayStatus.title, contains('Libur'));
+    expect(offDayStatus.message, contains('libur operasional'));
+
+    // Case 3: Sebelum buka
+    final beforeOpenStatus = StoreOpeningHours.getClosedStatus(
+      openingHours: hours,
+      scheduleOpen: false,
+      staffHasOpened: false,
+      utcInstant: monday6Am,
+    );
+    expect(beforeOpenStatus.title, 'Toko Belum Buka');
+    expect(beforeOpenStatus.message, contains('08:00'));
+
+    // Case 4: Setelah tutup
+    final afterCloseStatus = StoreOpeningHours.getClosedStatus(
+      openingHours: hours,
+      scheduleOpen: false,
+      staffHasOpened: false,
+      utcInstant: monday11Pm,
+    );
+    expect(afterCloseStatus.title, 'Toko Sudah Tutup');
+  });
+
   test('demo profile save retains customized opening hours', () {
     addTearDown(() {
       DemoSessionManager.disableDemoMode();

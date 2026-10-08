@@ -12,6 +12,7 @@ import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/promo_discount_calculator.dart';
+import '../../../shared/utils/store_opening_hours.dart';
 import '../../admin/tables/tables_service.dart';
 import '../cart/cart_controller.dart';
 import 'checkout_controller.dart';
@@ -1557,21 +1558,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
     required bool scheduleOpen,
     required bool staffHasOpened,
   }) {
-    final openingHoursText = tenant.openingHours.isNotEmpty
-        ? tenant.openingHours
-        : 'Sesuai jadwal operasional';
-
-    String detail;
-    if (scheduleOpen && !staffHasOpened) {
-      detail =
-          'Toko belum dibuka oleh staf kasir atau admin.\nJam operasional toko: $openingHoursText';
-    } else if (!scheduleOpen) {
-      detail =
-          'Toko sedang di luar jam operasional.\nJam operasional toko: $openingHoursText';
-    } else {
-      detail =
-          'Toko sedang tutup saat ini.\nJam operasional toko: $openingHoursText';
-    }
+    final status = StoreOpeningHours.getClosedStatus(
+      openingHours: tenant.openingHours,
+      scheduleOpen: scheduleOpen,
+      staffHasOpened: staffHasOpened,
+      utcInstant: DateTime.now().toUtc(),
+    );
 
     showDialog(
       context: context,
@@ -1585,17 +1577,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 color: const Color(0xFFEA580C).withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.access_time_filled_rounded,
-                color: Color(0xFFEA580C),
+              child: Icon(
+                status.isPoliteApology
+                    ? Icons.sentiment_dissatisfied_rounded
+                    : Icons.access_time_filled_rounded,
+                color: const Color(0xFFEA580C),
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Toko Sedang Tutup',
-                style: TextStyle(
+                status.title,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -1609,7 +1603,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              detail,
+              status.message,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textPrimary,
