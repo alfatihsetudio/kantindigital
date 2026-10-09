@@ -565,9 +565,20 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Batal'),
                 ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx, previewStr),
-                  child: const Text('Terapkan Jadwal'),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, {
+                    'schedule': previewStr,
+                    'saveNow': false,
+                  }),
+                  child: const Text('Terapkan ke Form'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, {
+                    'schedule': previewStr,
+                    'saveNow': true,
+                  }),
+                  icon: const Icon(Icons.save_rounded, size: 16),
+                  label: const Text('Terapkan & Simpan'),
                 ),
               ],
             );
@@ -577,9 +588,30 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     );
 
     if (result != null && mounted) {
+      String schedule;
+      bool saveNow = false;
+      if (result is Map) {
+        final map = result as Map;
+        schedule = (map['schedule'] ?? '').toString();
+        saveNow = map['saveNow'] == true;
+      } else {
+        schedule = result.toString();
+      }
+
       setState(() {
-        _openingHoursCtrl.text = result;
+        _openingHoursCtrl.text = schedule;
       });
+
+      if (saveNow) {
+        await _saveTenant();
+      } else {
+        TopNotification.show(
+          message:
+              'Jadwal diterapkan di form. Silakan klik tombol "Simpan Profil Kantin" di bawah untuk menyimpan perubahan.',
+          backgroundColor: AppColors.primary,
+          icon: Icons.info_outline_rounded,
+        );
+      }
     }
   }
 
@@ -1552,7 +1584,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _openingHoursCtrl,
-                            maxLength: 100,
+                            maxLength: 255,
                             decoration: const InputDecoration(
                               labelText: 'Jam buka toko (WIB)',
                               hintText: 'Contoh: Setiap hari, 08:00 - 22:00',

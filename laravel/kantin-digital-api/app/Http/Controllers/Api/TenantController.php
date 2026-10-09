@@ -105,7 +105,7 @@ class TenantController extends Controller
                 'opening_hours' => [
                     'nullable',
                     'string',
-                    'max:100',
+                    'max:255',
                     function ($attribute, $value, $fail) {
                         if (! StoreOpeningHours::isValid($value)) {
                             $fail('Format jam operasional tidak dikenali.');
