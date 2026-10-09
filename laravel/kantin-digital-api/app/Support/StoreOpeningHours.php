@@ -123,12 +123,12 @@ class StoreOpeningHours
         $schedule = [];
         $clauses = preg_split('/[;\n]+/', $normalized) ?: [];
         foreach ($clauses as $clause) {
-            $clause = trim(str_replace(',', ' ', $clause));
+            $clause = trim($clause);
             if ($clause === '') {
                 continue;
             }
 
-            if (! preg_match('/^(.+?)\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$/u', $clause, $matches)) {
+            if (! preg_match('/^(.+?)\s*[,:]?\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$/u', $clause, $matches)) {
                 return null;
             }
 
@@ -160,29 +160,60 @@ class StoreOpeningHours
             return [1, 2, 3, 4, 5, 6, 7];
         }
 
-        $parts = array_map('trim', explode('-', $expression));
-        if (count($parts) > 2) {
-            return null;
+        $expression = str_replace([' dan ', '&'], ',', $expression);
+        $rawSegments = explode(',', $expression);
+        $segments = [];
+        foreach ($rawSegments as $seg) {
+            $seg = trim($seg);
+            if ($seg !== '') {
+                $segments[] = $seg;
+            }
         }
-        $start = self::DAY_ALIASES[$parts[0]] ?? null;
-        $end = self::DAY_ALIASES[$parts[count($parts) - 1]] ?? null;
-        if ($start === null || $end === null) {
+        if (empty($segments)) {
             return null;
-        }
-        if (count($parts) === 1) {
-            return [$start];
         }
 
         $days = [];
-        $day = $start;
-        while (true) {
-            $days[] = $day;
-            if ($day === $end) {
-                break;
+        foreach ($segments as $seg) {
+            $parts = array_values(array_filter(array_map('trim', explode('-', $seg)), fn ($p) => $p !== ''));
+            if (count($parts) > 2 || empty($parts)) {
+                return null;
             }
-            $day = $day === 7 ? 1 : $day + 1;
+            $start = self::DAY_ALIASES[$parts[0]] ?? null;
+            $end = self::DAY_ALIASES[$parts[count($parts) - 1]] ?? null;
+            if ($start === null || $end === null) {
+                $subwords = array_values(array_filter(explode(' ', $seg), fn ($w) => $w !== ''));
+                if (count($subwords) > 1) {
+                    $allValid = true;
+                    $subDays = [];
+                    foreach ($subwords as $w) {
+                        if (! isset(self::DAY_ALIASES[$w])) {
+                            $allValid = false;
+                            break;
+                        }
+                        $subDays[] = self::DAY_ALIASES[$w];
+                    }
+                    if ($allValid) {
+                        foreach ($subDays as $sd) {
+                            $days[] = $sd;
+                        }
+                        continue;
+                    }
+                }
+                return null;
+            }
+
+            $day = $start;
+            while (true) {
+                $days[] = $day;
+                if ($day === $end) {
+                    break;
+                }
+                $day = $day === 7 ? 1 : $day + 1;
+            }
         }
-        return $days;
+
+        return empty($days) ? null : array_values(array_unique($days));
     }
 
     private static function parseRange(string $value): ?array

@@ -215,6 +215,54 @@ void main() {
     expect(afterCloseStatus.title, 'Toko Sudah Tutup');
   });
 
+  test('flexible day picker extracts open days and formats schedule correctly', () {
+    expect(
+      StoreOpeningHours.getOpenDays('Setiap hari, 10:00 - 21:00'),
+      {1, 2, 3, 4, 5, 6, 7},
+    );
+    expect(
+      StoreOpeningHours.getOpenDays('Senin - Sabtu, 10:00 - 21:00; Minggu Tutup'),
+      {1, 2, 3, 4, 5, 6},
+    );
+
+    // 1. All days open
+    expect(
+      StoreOpeningHours.formatScheduleFromOpenDays(
+        openDays: {1, 2, 3, 4, 5, 6, 7},
+        openTime: '10:00',
+        closeTime: '21:00',
+      ),
+      'Setiap hari, 10:00 - 21:00',
+    );
+
+    // 2. Sunday off
+    expect(
+      StoreOpeningHours.formatScheduleFromOpenDays(
+        openDays: {1, 2, 3, 4, 5, 6},
+        openTime: '10:00',
+        closeTime: '21:00',
+      ),
+      'Senin - Sabtu, 10:00 - 21:00; Minggu Tutup',
+    );
+
+    // 3. Custom: e.g. Thursday off (dadakan)
+    final scheduleWithThursdayOff = StoreOpeningHours.formatScheduleFromOpenDays(
+      openDays: {1, 2, 3, 5, 6, 7},
+      openTime: '10:00',
+      closeTime: '21:00',
+    );
+    expect(scheduleWithThursdayOff, contains('Kamis Tutup'));
+    expect(StoreOpeningHours.isValid(scheduleWithThursdayOff), isTrue);
+
+    // 4. Custom: multiple days off (e.g. Wednesday & Sunday off)
+    final scheduleWedSunOff = StoreOpeningHours.formatScheduleFromOpenDays(
+      openDays: {1, 2, 4, 5, 6},
+      openTime: '10:00',
+      closeTime: '21:00',
+    );
+    expect(StoreOpeningHours.isValid(scheduleWedSunOff), isTrue);
+  });
+
   test('demo profile save retains customized opening hours', () {
     addTearDown(() {
       DemoSessionManager.disableDemoMode();

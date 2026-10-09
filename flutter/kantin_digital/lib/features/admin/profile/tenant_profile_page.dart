@@ -179,51 +179,38 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         _parseTimeOfDay(currentRange?.group(2)) ??
         const TimeOfDay(hour: 21, minute: 0);
 
-    final lower = _openingHoursCtrl.text.toLowerCase();
-    String selectedPreset = 'everyday';
-    if (lower.contains('minggu tutup')) {
-      selectedPreset = 'sunday_off';
-    } else if (lower.contains('senin tutup')) {
-      selectedPreset = 'monday_off';
-    } else if (lower.contains('jumat tutup')) {
-      selectedPreset = 'friday_off';
-    } else if (lower.contains('sabtu - minggu tutup') ||
-        (lower.contains('sabtu tutup') && lower.contains('minggu tutup'))) {
-      selectedPreset = 'weekend_off';
-    }
-
-    String buildScheduleString(String preset, TimeOfDay open, TimeOfDay close) {
-      final openStr = _formatTimeOfDay(open);
-      final closeStr = _formatTimeOfDay(close);
-      switch (preset) {
-        case 'sunday_off':
-          return 'Senin - Sabtu, $openStr - $closeStr; Minggu Tutup';
-        case 'monday_off':
-          return 'Selasa - Minggu, $openStr - $closeStr; Senin Tutup';
-        case 'friday_off':
-          return 'Sabtu - Kamis, $openStr - $closeStr; Jumat Tutup';
-        case 'weekend_off':
-          return 'Senin - Jumat, $openStr - $closeStr; Sabtu - Minggu Tutup';
-        case 'everyday':
-        default:
-          return 'Setiap hari, $openStr - $closeStr';
-      }
-    }
+    final initialOpenDays =
+        StoreOpeningHours.getOpenDays(_openingHoursCtrl.text);
 
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) {
-        String dialogPreset = selectedPreset;
+        final dialogOpenDays = Set<int>.from(initialOpenDays);
         TimeOfDay dialogOpen = openingTime;
         TimeOfDay dialogClose = closingTime;
 
+        final todayWeekday =
+            DateTime.now().toUtc().add(const Duration(hours: 7)).weekday;
+
+        const dayList = [
+          (1, 'Senin'),
+          (2, 'Selasa'),
+          (3, 'Rabu'),
+          (4, 'Kamis'),
+          (5, 'Jumat'),
+          (6, 'Sabtu'),
+          (7, 'Minggu'),
+        ];
+
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final previewStr = buildScheduleString(
-              dialogPreset,
-              dialogOpen,
-              dialogClose,
+            final previewStr = StoreOpeningHours.formatScheduleFromOpenDays(
+              openDays: dialogOpenDays,
+              openTime: _formatTimeOfDay(dialogOpen),
+              closeTime: _formatTimeOfDay(dialogClose),
             );
+
+            final isTodayOpen = dialogOpenDays.contains(todayWeekday);
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
@@ -235,7 +222,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Jadwal & Hari Libur Toko',
+                      'Atur Hari Buka & Hari Libur',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -244,158 +231,333 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Pilih Hari Operasional & Libur:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pilih status tiap hari (Tap untuk ubah Buka / Libur):',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 10),
 
-                    _buildPresetOption(
-                      title: 'Setiap Hari (Tanpa Libur)',
-                      subtitle: 'Buka 7 hari penuh setiap minggu',
-                      value: 'everyday',
-                      groupValue: dialogPreset,
-                      onChanged: (val) =>
-                          setModalState(() => dialogPreset = val!),
-                    ),
-                    _buildPresetOption(
-                      title: 'Libur Hari Minggu',
-                      subtitle: 'Senin - Sabtu Buka, Minggu Tutup',
-                      value: 'sunday_off',
-                      groupValue: dialogPreset,
-                      onChanged: (val) =>
-                          setModalState(() => dialogPreset = val!),
-                    ),
-                    _buildPresetOption(
-                      title: 'Libur Hari Senin',
-                      subtitle: 'Selasa - Minggu Buka, Senin Tutup',
-                      value: 'monday_off',
-                      groupValue: dialogPreset,
-                      onChanged: (val) =>
-                          setModalState(() => dialogPreset = val!),
-                    ),
-                    _buildPresetOption(
-                      title: 'Libur Hari Jumat',
-                      subtitle: 'Sabtu - Kamis Buka, Jumat Tutup',
-                      value: 'friday_off',
-                      groupValue: dialogPreset,
-                      onChanged: (val) =>
-                          setModalState(() => dialogPreset = val!),
-                    ),
-                    _buildPresetOption(
-                      title: 'Libur Akhir Pekan',
-                      subtitle: 'Senin - Jumat Buka, Sabtu & Minggu Tutup',
-                      value: 'weekend_off',
-                      groupValue: dialogPreset,
-                      onChanged: (val) =>
-                          setModalState(() => dialogPreset = val!),
-                    ),
+                      // Grid 7 Hari
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: dayList.map((entry) {
+                          final dayNum = entry.$1;
+                          final dayName = entry.$2;
+                          final isOpen = dialogOpenDays.contains(dayNum);
+                          final isToday = dayNum == todayWeekday;
 
-                    const SizedBox(height: 14),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Jam Operasional (WIB):',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final picked = await _showWibTimePicker(
-                                title: 'Pilih jam buka (WIB)',
-                                initialTime: dialogOpen,
-                              );
-                              if (picked != null) {
-                                setModalState(() => dialogOpen = picked);
-                              }
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                if (isOpen) {
+                                  dialogOpenDays.remove(dayNum);
+                                } else {
+                                  dialogOpenDays.add(dayNum);
+                                }
+                              });
                             },
-                            icon: const Icon(Icons.wb_sunny_outlined, size: 16),
-                            label: Text(
-                              'Buka: ${_formatTimeOfDay(dialogOpen)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 96,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isOpen
+                                    ? const Color(0xFFECFDF5)
+                                    : const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isOpen
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFEF4444),
+                                  width: isToday ? 2.0 : 1.2,
+                                ),
+                                boxShadow: [
+                                  if (isToday)
+                                    BoxShadow(
+                                      color: (isOpen
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444))
+                                          .withValues(alpha: 0.2),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isToday) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 1.5,
+                                      ),
+                                      margin: const EdgeInsets.only(bottom: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'HARI INI',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  Text(
+                                    dayName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: isOpen
+                                          ? const Color(0xFF065F46)
+                                          : const Color(0xFF991B1B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isOpen
+                                            ? Icons.check_circle_rounded
+                                            : Icons.do_not_disturb_on_rounded,
+                                        size: 14,
+                                        color: isOpen
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isOpen ? 'BUKA' : 'LIBUR',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: isOpen
+                                              ? const Color(0xFF047857)
+                                              : const Color(0xFFB91C1C),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final picked = await _showWibTimePicker(
-                                title: 'Pilih jam tutup (WIB)',
-                                initialTime: dialogClose,
-                              );
-                              if (picked != null) {
-                                setModalState(() => dialogClose = picked);
-                              }
-                            },
-                            icon: const Icon(
-                              Icons.nightlight_outlined,
-                              size: 16,
-                            ),
-                            label: Text(
-                              'Tutup: ${_formatTimeOfDay(dialogClose)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                          );
+                        }).toList(),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                      const SizedBox(height: 12),
+
+                      // Shortcut buttons
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          const Text(
-                            'Hasil Jadwal:',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                          ActionChip(
+                            avatar: Icon(
+                              isTodayOpen
+                                  ? Icons.event_busy_rounded
+                                  : Icons.event_available_rounded,
+                              size: 15,
+                              color: isTodayOpen
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFF16A34A),
+                            ),
+                            label: Text(
+                              isTodayOpen
+                                  ? 'Libur Hari Ini (Dadakan)'
+                                  : 'Buka Kembali Hari Ini',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: isTodayOpen
+                                    ? const Color(0xFFDC2626)
+                                    : const Color(0xFF16A34A),
+                              ),
+                            ),
+                            onPressed: () {
+                              setModalState(() {
+                                if (isTodayOpen) {
+                                  dialogOpenDays.remove(todayWeekday);
+                                } else {
+                                  dialogOpenDays.add(todayWeekday);
+                                }
+                              });
+                            },
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Buka Semua Hari',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                            onPressed: () {
+                              setModalState(() {
+                                dialogOpenDays.addAll([1, 2, 3, 4, 5, 6, 7]);
+                              });
+                            },
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Libur Minggu',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                            onPressed: () {
+                              setModalState(() {
+                                dialogOpenDays
+                                  ..clear()
+                                  ..addAll([1, 2, 3, 4, 5, 6]);
+                              });
+                            },
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Libur Sabtu & Minggu',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                            onPressed: () {
+                              setModalState(() {
+                                dialogOpenDays
+                                  ..clear()
+                                  ..addAll([1, 2, 3, 4, 5]);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+
+                      const Text(
+                        'Jam Operasional (WIB):',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final picked = await _showWibTimePicker(
+                                  title: 'Pilih jam buka (WIB)',
+                                  initialTime: dialogOpen,
+                                );
+                                if (picked != null) {
+                                  setModalState(() => dialogOpen = picked);
+                                }
+                              },
+                              icon: const Icon(Icons.wb_sunny_outlined, size: 16),
+                              label: Text(
+                                'Buka: ${_formatTimeOfDay(dialogOpen)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            previewStr,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final picked = await _showWibTimePicker(
+                                  title: 'Pilih jam tutup (WIB)',
+                                  initialTime: dialogClose,
+                                );
+                                if (picked != null) {
+                                  setModalState(() => dialogClose = picked);
+                                }
+                              },
+                              icon: const Icon(
+                                Icons.nightlight_outlined,
+                                size: 16,
+                              ),
+                              label: Text(
+                                'Tutup: ${_formatTimeOfDay(dialogClose)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Hasil Jadwal:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '${dialogOpenDays.length} Hari Buka • ${7 - dialogOpenDays.length} Libur',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              previewStr,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -405,7 +567,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(ctx, previewStr),
-                  child: const Text('Terapkan'),
+                  child: const Text('Terapkan Jadwal'),
                 ),
               ],
             );
@@ -419,72 +581,6 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         _openingHoursCtrl.text = result;
       });
     }
-  }
-
-  Widget _buildPresetOption({
-    required String title,
-    required String subtitle,
-    required String value,
-    required String groupValue,
-    required ValueChanged<String?> onChanged,
-  }) {
-    final isSelected = value == groupValue;
-    return InkWell(
-      onTap: () => onChanged(value),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.5)
-                : Colors.black12,
-          ),
-        ),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<TimeOfDay?> _showWibTimePicker({

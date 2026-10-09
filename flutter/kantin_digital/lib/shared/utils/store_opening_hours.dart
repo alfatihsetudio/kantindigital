@@ -121,6 +121,77 @@ class StoreOpeningHours {
     return '$h:$m';
   }
 
+  /// Ekstrak set hari yang aktif buka (1: Senin .. 7: Minggu) dari string jadwal
+  static Set<int> getOpenDays(String value) {
+    final schedule = _parse(value);
+    if (schedule == null) return {1, 2, 3, 4, 5, 6, 7};
+    final openDays = <int>{};
+    for (var day = 1; day <= 7; day++) {
+      if (schedule[day] != null) {
+        openDays.add(day);
+      }
+    }
+    return openDays;
+  }
+
+  /// Format jadwal fleksibel dari set hari buka dan jam buka-tutup
+  static String formatScheduleFromOpenDays({
+    required Set<int> openDays,
+    required String openTime,
+    required String closeTime,
+  }) {
+    if (openDays.isEmpty) {
+      return 'Setiap hari Tutup';
+    }
+    if (openDays.length == 7) {
+      return 'Setiap hari, $openTime - $closeTime';
+    }
+
+    const dayNames = <int, String>{
+      1: 'Senin',
+      2: 'Selasa',
+      3: 'Rabu',
+      4: 'Kamis',
+      5: 'Jumat',
+      6: 'Sabtu',
+      7: 'Minggu',
+    };
+
+    final offDays = {1, 2, 3, 4, 5, 6, 7}.difference(openDays);
+
+    // Kasus 1 hari libur
+    if (offDays.length == 1) {
+      final off = offDays.first;
+      switch (off) {
+        case 7:
+          return 'Senin - Sabtu, $openTime - $closeTime; Minggu Tutup';
+        case 1:
+          return 'Selasa - Minggu, $openTime - $closeTime; Senin Tutup';
+        case 5:
+          return 'Sabtu - Kamis, $openTime - $closeTime; Jumat Tutup';
+        default:
+          return '${_formatDayList(openDays, dayNames)}, $openTime - $closeTime; ${dayNames[off]} Tutup';
+      }
+    }
+
+    // Kasus akhir pekan (Sabtu & Minggu libur)
+    if (offDays.length == 2 && offDays.contains(6) && offDays.contains(7)) {
+      return 'Senin - Jumat, $openTime - $closeTime; Sabtu - Minggu Tutup';
+    }
+
+    // Format umum untuk kombinasi hari bebas
+    final openText = _formatDayList(openDays, dayNames);
+    final offText = _formatDayList(offDays, dayNames);
+    return '$openText, $openTime - $closeTime; $offText Tutup';
+  }
+
+  static String _formatDayList(Set<int> days, Map<int, String> dayNames) {
+    if (days.isEmpty) return '';
+    if (days.length == 7) return 'Setiap hari';
+    final sorted = days.toList()..sort();
+    return sorted.map((d) => dayNames[d]!).join(', ');
+  }
+
   /// Menghasilkan status dan pesan penjelasan yang sopan & kontekstual saat toko belum buka/tutup
   static StoreClosedStatus getClosedStatus({
     required String openingHours,
@@ -198,13 +269,13 @@ class StoreOpeningHours {
     final schedule = <int, (int, int)?>{};
     final clauses = normalized
         .split(RegExp(r'[;\n]+'))
-        .map((clause) => clause.replaceAll(',', ' ').trim())
+        .map((clause) => clause.trim())
         .where((clause) => clause.isNotEmpty);
     if (clauses.isEmpty) return null;
 
     for (final clause in clauses) {
       final match = RegExp(
-        r'^(.+?)\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$',
+        r'^(.+?)\s*[,:]?\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$',
       ).firstMatch(clause);
       if (match == null) return null;
 
@@ -230,21 +301,52 @@ class StoreOpeningHours {
       return {1, 2, 3, 4, 5, 6, 7};
     }
 
-    final parts = expression.split('-').map((part) => part.trim()).toList();
-    if (parts.length > 2) return null;
-    final start = _dayAliases[parts.first];
-    final end = _dayAliases[parts.last];
-    if (start == null || end == null) return null;
-    if (parts.length == 1) return {start};
+    final cleaned = expression
+        .replaceAll(' dan ', ',')
+        .replaceAll('&', ',');
+    final segments = cleaned
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (segments.isEmpty) return null;
 
     final days = <int>{};
-    var day = start;
-    while (true) {
-      days.add(day);
-      if (day == end) break;
-      day = day == 7 ? 1 : day + 1;
+    for (final seg in segments) {
+      final parts = seg.split('-').map((part) => part.trim()).toList();
+      if (parts.length > 2 || parts.isEmpty) return null;
+      final start = _dayAliases[parts.first];
+      final end = _dayAliases[parts.last];
+      if (start == null || end == null) {
+        final subwords = seg.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+        if (subwords.length > 1) {
+          var allValid = true;
+          final subDays = <int>[];
+          for (final w in subwords) {
+            final alias = _dayAliases[w];
+            if (alias == null) {
+              allValid = false;
+              break;
+            }
+            subDays.add(alias);
+          }
+          if (allValid) {
+            days.addAll(subDays);
+            continue;
+          }
+        }
+        return null;
+      }
+
+      var day = start;
+      while (true) {
+        days.add(day);
+        if (day == end) break;
+        day = day == 7 ? 1 : day + 1;
+      }
     }
-    return days;
+    return days.isEmpty ? null : days;
   }
 
   static (int, int)? _parseRange(String value) {
