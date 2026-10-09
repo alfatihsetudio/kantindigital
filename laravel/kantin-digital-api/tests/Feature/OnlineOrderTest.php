@@ -443,4 +443,70 @@ class OnlineOrderTest extends TestCase
             'is_available' => false,
         ]);
     }
+
+    public function test_customer_can_cancel_unpaid_order(): void
+    {
+        $order = \App\Models\Order::create([
+            'code' => 'ORD-UNPAID-1',
+            'status' => 'UNPAID',
+            'total_amount' => 15000,
+            'payment_method' => 'qris',
+            'customer_name' => 'Budi',
+        ]);
+
+        $response = $this->postJson("/api/orders/{$order->code}/cancel");
+
+        $response->assertOk()
+            ->assertJsonPath('status', true)
+            ->assertJsonPath('data.status', 'CANCELLED');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'CANCELLED',
+        ]);
+    }
+
+    public function test_customer_cannot_cancel_paid_order(): void
+    {
+        $order = \App\Models\Order::create([
+            'code' => 'ORD-PAID-1',
+            'status' => 'PAID',
+            'total_amount' => 15000,
+            'payment_method' => 'qris',
+            'customer_name' => 'Budi',
+        ]);
+
+        $response = $this->postJson("/api/orders/{$order->code}/cancel");
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('status', false)
+            ->assertJsonPath('message', 'Pesanan tidak dapat dibatalkan karena sudah dibayar atau sedang diproses.');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'PAID',
+        ]);
+    }
+
+    public function test_customer_cannot_cancel_processing_order(): void
+    {
+        $order = \App\Models\Order::create([
+            'code' => 'ORD-PROC-1',
+            'status' => 'PROCESSING',
+            'total_amount' => 15000,
+            'payment_method' => 'cash',
+            'customer_name' => 'Budi',
+        ]);
+
+        $response = $this->postJson("/api/orders/{$order->code}/cancel");
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('status', false);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'PROCESSING',
+        ]);
+    }
 }
+

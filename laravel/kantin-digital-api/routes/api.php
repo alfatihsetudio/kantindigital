@@ -22,6 +22,7 @@ Route::get('/menus', [MenuController::class, 'index']);
 Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
 Route::get('/orders/{code}', [OrderController::class, 'show']);
+Route::post('/orders/{code}/cancel', [OrderController::class, 'cancelCustomerOrder'])->middleware('throttle:public-orders');
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/check-subdomain', [RegisterStoreController::class, 'checkSubdomain']);
 Route::post('/register-store', [RegisterStoreController::class, 'registerStore']);

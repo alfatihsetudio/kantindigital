@@ -16,5 +16,17 @@ class OrderStatusService {
     final data = json['data'] as Map<String, dynamic>;
     return OrderModel.fromJson(data);
   }
+
+  /// Batalkan pesanan customer: POST /orders/{code}/cancel
+  Future<OrderModel> cancelOrder(String code) async {
+    if (code.startsWith('DEMO-') || DemoSessionManager.isDemoMode) {
+      DemoSessionManager.cancelOrderByCode(code);
+      final demoOrder = DemoSessionManager.getOrderByCode(code);
+      if (demoOrder != null) return demoOrder;
+    }
+
+    await _client.post('/orders/$code/cancel');
+    return fetchByCode(code);
+  }
 }
 

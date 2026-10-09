@@ -295,6 +295,49 @@ class OrderController extends Controller
         ], 200);
     }
 
+    public function cancelCustomerOrder(string $code)
+    {
+        $order = Order::where('code', $code)->first();
+        if (! $order) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Pesanan tidak ditemukan.',
+            ], 404);
+        }
+
+        if ($order->status === 'CANCELLED') {
+            return response()->json([
+                'status' => true,
+                'message' => 'Pesanan sudah dibatalkan.',
+                'data' => [
+                    'id' => $order->id,
+                    'code' => $order->code,
+                    'status' => $order->status,
+                ],
+            ], 200);
+        }
+
+        if ($order->status !== 'UNPAID') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Pesanan tidak dapat dibatalkan karena sudah dibayar atau sedang diproses.',
+            ], 422);
+        }
+
+        $order->status = 'CANCELLED';
+        $order->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Pesanan berhasil dibatalkan.',
+            'data' => [
+                'id' => $order->id,
+                'code' => $order->code,
+                'status' => $order->status,
+            ],
+        ], 200);
+    }
+
     public function indexForKitchen()
     {
         $orders = Order::with('table')

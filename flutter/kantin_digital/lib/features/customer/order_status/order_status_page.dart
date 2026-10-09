@@ -12,6 +12,7 @@ import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/top_notification.dart';
+import '../../../router/route_name.dart';
 import '../../../shared/constants/order_status.dart';
 import '../../../shared/models/order_model.dart';
 import 'order_status_controller.dart';
@@ -34,6 +35,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   String? _orderCode;
   String? _lastStatus;
   bool _isDownloading = false;
+  bool _isCancelling = false;
 
   @override
   void didChangeDependencies() {
@@ -145,6 +147,112 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     }
   }
 
+  void _backToMenu() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacementNamed(context, RouteName.customerMenu);
+    }
+  }
+
+  Future<void> _confirmCancelOrder(OrderModel order) async {
+    if (order.status != OrderStatus.unpaid) {
+      AppSnackBar.show(
+        context,
+        message: 'Pesanan sudah tidak dapat dibatalkan.',
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 24),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Batalkan Pesanan?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin membatalkan pesanan #${order.code}?\n\nPesanan yang dibatalkan tidak dapat diproses kembali.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Tidak',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Ya, Batalkan',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _cancelOrder(order);
+    }
+  }
+
+  Future<void> _cancelOrder(OrderModel order) async {
+    if (_isCancelling) return;
+    setState(() => _isCancelling = true);
+
+    try {
+      final updated = await _controller.cancelOrder(order.code);
+      if (!mounted) return;
+
+      ActiveOrderStorage.instance.clear();
+
+      setState(() {
+        _order = updated;
+        _lastStatus = updated.status.name;
+        _isCancelling = false;
+      });
+
+      AppSnackBar.show(
+        context,
+        message: 'Pesanan #${order.code} berhasil dibatalkan.',
+        backgroundColor: const Color(0xFFDC2626),
+        icon: Icons.cancel_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isCancelling = false);
+      AppSnackBar.show(
+        context,
+        message:
+            'Gagal membatalkan pesanan: ${e.toString().replaceAll('Exception: ', '')}',
+      );
+    }
+  }
+
   void _showStatusNotification(OrderStatus newStatus) {
     final message = _getStatusMessage(newStatus);
     TopNotification.show(
@@ -243,6 +351,30 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _backToMenu,
+        ),
+        actions: [
+          if (_order != null && _order!.status == OrderStatus.unpaid)
+            TextButton.icon(
+              onPressed:
+                  _isCancelling ? null : () => _confirmCancelOrder(_order!),
+              icon: const Icon(
+                Icons.cancel_outlined,
+                size: 18,
+                color: Color(0xFFDC2626),
+              ),
+              label: const Text(
+                'Batal',
+                style: TextStyle(
+                  color: Color(0xFFDC2626),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+        ],
       ),
       body: _loading
           ? const LoadingView(message: 'Memuat status pesanan...')
@@ -281,6 +413,12 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           // Order Details Card
           _buildOrderDetailsCard(order),
 
+          // Tombol Batal jika pesanan belum bayar
+          if (order.status == OrderStatus.unpaid) ...[
+            const SizedBox(height: 16),
+            _buildCancelOrderButton(order),
+          ],
+
           const SizedBox(height: 20),
 
           // Auto-refresh indicator
@@ -304,6 +442,45 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCancelOrderButton(OrderModel order) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: _isCancelling ? null : () => _confirmCancelOrder(order),
+        icon: _isCancelling
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFFDC2626),
+                ),
+              )
+            : const Icon(
+                Icons.cancel_outlined,
+                size: 20,
+                color: Color(0xFFDC2626),
+              ),
+        label: Text(
+          _isCancelling ? 'Membatalkan Pesanan...' : 'Batalkan Pesanan',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFDC2626),
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: const Color(0xFFFEF2F2),
+          side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       ),
     );
   }
@@ -352,6 +529,30 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
             style: const TextStyle(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
+          if (order.status == OrderStatus.cancelled ||
+              order.status == OrderStatus.served) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _backToMenu,
+                icon: const Icon(Icons.restaurant_menu_rounded, size: 20),
+                label: const Text(
+                  'Kembali ke Menu',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 1,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

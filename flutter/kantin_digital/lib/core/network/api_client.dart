@@ -586,6 +586,17 @@ class ApiClient {
       return {'status': true, 'message': 'Status berhasil diubah'};
     }
 
+    final cancelOrderMatch = RegExp(r'^orders/([^/]+)/cancel$').firstMatch(clean);
+    if (cancelOrderMatch != null && method == 'POST') {
+      final code = cancelOrderMatch.group(1)!;
+      DemoSessionManager.cancelOrderByCode(code);
+      return {
+        'status': true,
+        'message': 'Pesanan berhasil dibatalkan',
+        'data': {'code': code, 'status': 'CANCELLED'},
+      };
+    }
+
     if (clean == 'check-subdomain') {
       final sub = (queryParameters?['subdomain'] ?? '').toString().toLowerCase().trim();
       final reserved = [

@@ -1033,6 +1033,15 @@ class DemoSessionManager {
     }
   }
 
+  /// Batalkan pesanan oleh customer di halaman status pesanan
+  static void cancelOrderByCode(String code) {
+    _initInitialData();
+    final idx = _orders.indexWhere((o) => o.code == code);
+    if (idx != -1) {
+      updateOrderStatus(_orders[idx].id, 'CANCELLED');
+    }
+  }
+
   /// Ambil OrderModel untuk halaman pelacakan status customer
   static OrderModel? getOrderByCode(String code) {
     _initInitialData();
