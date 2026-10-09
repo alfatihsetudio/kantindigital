@@ -80,7 +80,10 @@ class TenantModel {
       address: json['address']?.toString(),
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
-      openingHours: json['opening_hours']?.toString() ?? '08:00 - 22:00',
+      openingHours: (json['opening_hours'] != null &&
+              json['opening_hours'].toString().trim().isNotEmpty)
+          ? json['opening_hours'].toString().trim()
+          : 'Setiap hari, 08:00 - 22:00',
       isStoreOpen: json['is_store_open'] == true || json['is_store_open'] == 1,
       plan: json['plan']?.toString() ?? 'free',
       isActive: json['is_active'] == true || json['is_active'] == 1,

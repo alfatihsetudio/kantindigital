@@ -132,7 +132,9 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       _selectedColor = tenant.primaryColor;
       _colorCtrl.text = tenant.primaryColor;
       _addressCtrl.text = tenant.address ?? '';
-      _openingHoursCtrl.text = tenant.openingHours;
+      _openingHoursCtrl.text = tenant.openingHours.trim().isNotEmpty
+          ? tenant.openingHours
+          : 'Setiap hari, 08:00 - 22:00';
       _phoneCtrl.text = tenant.phone ?? '';
       _whatsappCtrl.text = tenant.whatsapp ?? '';
       _metaTitleCtrl.text = tenant.metaTitle ?? '';
@@ -171,7 +173,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
   Future<void> _pickDailyOpeningHours() async {
     final currentRange = RegExp(
-      r'(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})',
+      r'(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})',
     ).firstMatch(_openingHoursCtrl.text);
     final openingTime =
         _parseTimeOfDay(currentRange?.group(1)) ??
@@ -183,7 +185,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     final initialOpenDays =
         StoreOpeningHours.getOpenDays(_openingHoursCtrl.text);
 
-    final result = await showDialog<String>(
+    final result = await showDialog<dynamic>(
       context: context,
       builder: (ctx) {
         final dialogOpenDays = Set<int>.from(initialOpenDays);
@@ -589,29 +591,30 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     );
 
     if (result != null && mounted) {
-      String schedule;
+      String schedule = '';
       bool saveNow = false;
       if (result is Map) {
-        final map = result as Map;
-        schedule = (map['schedule'] ?? '').toString();
-        saveNow = map['saveNow'] == true;
+        schedule = (result['schedule'] ?? '').toString().trim();
+        saveNow = result['saveNow'] == true;
       } else {
-        schedule = result.toString();
+        schedule = result.toString().trim();
       }
 
-      setState(() {
-        _openingHoursCtrl.text = schedule;
-      });
+      if (schedule.isNotEmpty) {
+        setState(() {
+          _openingHoursCtrl.text = schedule;
+        });
 
-      if (saveNow) {
-        await _saveOpeningHoursDirectly(schedule);
-      } else {
-        TopNotification.show(
-          message:
-              'Jadwal diterapkan di form. Silakan klik tombol "Simpan Profil Kantin" di bawah untuk menyimpan perubahan.',
-          backgroundColor: AppColors.primary,
-          icon: Icons.info_outline_rounded,
-        );
+        if (saveNow) {
+          await _saveOpeningHoursDirectly(schedule);
+        } else {
+          TopNotification.show(
+            message:
+                'Jadwal berhasil diterapkan di form: "$schedule". Klik "Simpan Profil Kantin" di bawah untuk menyimpan perubahan.',
+            backgroundColor: AppColors.primary,
+            icon: Icons.check_circle_rounded,
+          );
+        }
       }
     }
   }
@@ -627,14 +630,20 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
       final savedOpeningHours =
           response?['data']?['opening_hours']?.toString() ?? schedule;
-      _openingHoursCtrl.text = savedOpeningHours;
+      if (savedOpeningHours.trim().isNotEmpty) {
+        _openingHoursCtrl.text = savedOpeningHours.trim();
+      } else {
+        _openingHoursCtrl.text = schedule;
+      }
 
       TenantService.clearCache();
       final savedTenant = await TenantService.fetchTenantInfo(
         forceRefresh: true,
       );
       AuthSession().updateTenant(savedTenant);
-      _openingHoursCtrl.text = savedTenant.openingHours;
+      if (savedTenant.openingHours.trim().isNotEmpty) {
+        _openingHoursCtrl.text = savedTenant.openingHours.trim();
+      }
 
       if (!mounted) return;
       TopNotification.show(
@@ -676,10 +685,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
 
   TimeOfDay? _parseTimeOfDay(String? value) {
     if (value == null) return null;
-    final parts = value.split(':');
+    final normalized = value.replaceAll('.', ':').trim();
+    final parts = normalized.split(':');
     if (parts.length != 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
     if (hour == null || minute == null || hour > 23 || minute > 59) {
       return null;
     }
