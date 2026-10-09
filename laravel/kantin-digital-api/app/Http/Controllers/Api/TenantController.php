@@ -275,6 +275,47 @@ class TenantController extends Controller
         ]);
     }
 
+    public function updateOpeningHours(Request $request)
+    {
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant && $request->user() && $request->user()->tenant_id) {
+            $tenant = \App\Models\Tenant::find($request->user()->tenant_id);
+        }
+
+        if (! $tenant) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tenant tidak ditemukan',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'opening_hours' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (! StoreOpeningHours::isValid($value)) {
+                        $fail('Format jam operasional tidak dikenali.');
+                    }
+                },
+            ],
+        ]);
+
+        $tenant->update([
+            'opening_hours' => $validated['opening_hours'],
+        ]);
+        $tenant->refresh();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Jadwal operasional dan hari libur berhasil disimpan.',
+            'data' => [
+                'opening_hours' => $tenant->opening_hours,
+            ],
+        ]);
+    }
+
     private function storeCompressedLogo(Tenant $tenant, string $binaryData, string $extension): ?string
     {
         try {

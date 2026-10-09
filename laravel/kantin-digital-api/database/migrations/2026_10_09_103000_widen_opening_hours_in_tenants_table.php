@@ -8,6 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        try {
+            if (\Illuminate\Support\Facades\DB::getDriverName() === 'mysql') {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE tenants MODIFY COLUMN opening_hours VARCHAR(255) NULL DEFAULT '08:00 - 22:00'");
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Fallback to standard schema builder
+        }
+
         if (Schema::hasColumn('tenants', 'opening_hours')) {
             Schema::table('tenants', function (Blueprint $table) {
                 $table->string('opening_hours', 255)->nullable()->default('08:00 - 22:00')->change();

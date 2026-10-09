@@ -115,20 +115,59 @@ class StoreOpeningHours
             return null;
         }
 
+        // 1. Normalisasi waktu bertitik (contoh: 08.00 -> 08:00)
+        $normalized = preg_replace('/(\b\d{1,2})\.(\d{2}\b)/', '$1:$2', $normalized);
+
+        // 2. Normalisasi kata penghubung (s/d, sd, sampai, hingga -> -)
+        $normalized = preg_replace('/\b(s\/d|sd|sampai|hingga)\b/u', '-', $normalized);
+
+        // 3. Normalisasi hari ini libur / tutup
+        $jakartaDays = [1 => 'senin', 2 => 'selasa', 3 => 'rabu', 4 => 'kamis', 5 => 'jumat', 6 => 'sabtu', 7 => 'minggu'];
+        $todayName = $jakartaDays[(int) now('Asia/Jakarta')->dayOfWeekIso];
+        $normalized = preg_replace('/\b(hari ini libur|libur hari ini|tutup hari ini|hari ini tutup)\b/u', "{$todayName} tutup", $normalized);
+
+        // 4. Normalisasi kata libur/off/closed -> tutup
+        $normalized = preg_replace('/\b(libur|off|closed)\b/u', 'tutup', $normalized);
+
+        // 5. Hapus kata "hari" sebelum nama hari
+        $normalized = preg_replace('/\bhari\s+(senin|selasa|rabu|kamis|jumat|sabtu|minggu)\b/u', '$1', $normalized);
+
+        // 6. Ganti "kecuali" -> ";"
+        $normalized = preg_replace('/\bkecuali\b/u', ';', $normalized);
+
+        // 7. Ubah koma SETELAH rentang jam yang memisahkan klausa hari tutup menjadi titik koma
+        // Contoh: "08:00 - 22:00, minggu tutup" -> "08:00 - 22:00; minggu tutup"
+        $normalized = preg_replace('/(?<=\d{2})\s*,\s*(?=[^;\n]*tutup)/u', '; ', $normalized);
+
+        // Kasus spesial jika seluruh nilai adalah "tutup"
+        if ($normalized === 'tutup' || $normalized === 'setiap hari tutup') {
+            return array_fill(1, 7, null);
+        }
+
+        // Kasus rentang jam setiap hari (misal: "08:00 - 22:00" atau "setiap hari, 08:00 - 22:00")
         $dailyRange = self::parseRange($normalized);
         if ($dailyRange !== null) {
             return array_fill(1, 7, $dailyRange);
         }
 
         $schedule = [];
+        $defaultRange = null;
         $clauses = preg_split('/[;\n]+/', $normalized) ?: [];
+
         foreach ($clauses as $clause) {
             $clause = trim($clause);
             if ($clause === '') {
                 continue;
             }
 
-            if (! preg_match('/^(.+?)\s*[,:]?\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$/u', $clause, $matches)) {
+            // Cek apakah klausa ini adalah rentang jam tanpa nama hari (misal "08:00 - 22:00")
+            $standaloneRange = self::parseRange($clause);
+            if ($standaloneRange !== null) {
+                $defaultRange = $standaloneRange;
+                continue;
+            }
+
+            if (! preg_match('/^(.+?)\s*[,:]?\s+(tutup|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$/u', $clause, $matches)) {
                 return null;
             }
 
@@ -136,10 +175,14 @@ class StoreOpeningHours
             if ($days === null || $days === []) {
                 return null;
             }
-            $isClosed = $matches[2] === 'tutup' || $matches[2] === 'closed';
+            $isClosed = $matches[2] === 'tutup';
             $range = $isClosed ? null : self::parseRange($matches[3].'-'.$matches[4]);
             if (! $isClosed && $range === null) {
                 return null;
+            }
+
+            if (! $isClosed && $defaultRange === null) {
+                $defaultRange = $range;
             }
 
             foreach ($days as $day) {
@@ -150,7 +193,20 @@ class StoreOpeningHours
             }
         }
 
-        return $schedule === [] ? null : $schedule;
+        if (empty($schedule) && $defaultRange === null) {
+            return null;
+        }
+
+        // Jika hanya hari tertentu yang disebutkan (misal hanya hari libur yang diatur),
+        // isi hari-hari lainnya dengan defaultRange (atau 08:00 - 22:00)
+        $fallback = $defaultRange ?? [480, 1320]; // 08:00 - 22:00
+        for ($day = 1; $day <= 7; $day++) {
+            if (! array_key_exists($day, $schedule)) {
+                $schedule[$day] = $fallback;
+            }
+        }
+
+        return $schedule;
     }
 
     private static function parseDays(string $value): ?array
@@ -218,7 +274,8 @@ class StoreOpeningHours
 
     private static function parseRange(string $value): ?array
     {
-        if (! preg_match('/^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/', trim($value), $matches)) {
+        $cleaned = trim(preg_replace('/^(setiap hari|every day)[,:\s]*/u', '', trim($value)));
+        if (! preg_match('/^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/', $cleaned, $matches)) {
             return null;
         }
 

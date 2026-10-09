@@ -40,6 +40,8 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware('role:admin');
         Route::post('/tenant/store-status', [TenantController::class, 'updateStoreStatus'])
             ->middleware('role:admin,cashier');
+        Route::post('/tenant/opening-hours', [TenantController::class, 'updateOpeningHours'])
+            ->middleware('role:admin,cashier');
 
         Route::middleware('role:admin')->group(function () {
             Route::apiResource('menus', MenuController::class)->except(['index']);

@@ -281,6 +281,13 @@ void main() {
     expect(scheduleAllClosed, 'Setiap hari Tutup');
     expect(StoreOpeningHours.isValid(scheduleAllClosed), isTrue);
     expect(StoreOpeningHours.getOpenDays(scheduleAllClosed), isEmpty);
+
+    // 7. Natural colloquial off-day schedule strings
+    expect(StoreOpeningHours.isValid('Senin - Sabtu, 08:00 - 22:00, Minggu Libur'), isTrue);
+    expect(StoreOpeningHours.isValid('08:00 - 22:00; Minggu Libur'), isTrue);
+    expect(StoreOpeningHours.isValid('Minggu Libur'), isTrue);
+    expect(StoreOpeningHours.isValid('Hari ini Libur'), isTrue);
+    expect(StoreOpeningHours.isValid('Senin s/d Sabtu, 08.00 - 22.00; Minggu Libur'), isTrue);
   });
 
   test('demo profile save retains customized opening hours', () {

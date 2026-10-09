@@ -604,7 +604,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       });
 
       if (saveNow) {
-        await _saveTenant();
+        await _saveOpeningHoursDirectly(schedule);
       } else {
         TopNotification.show(
           message:
@@ -613,6 +613,49 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
           icon: Icons.info_outline_rounded,
         );
       }
+    }
+  }
+
+  Future<void> _saveOpeningHoursDirectly(String schedule) async {
+    setState(() => _isSaving = true);
+    try {
+      final client = ApiClient();
+      final response = await client.post(
+        '/tenant/opening-hours',
+        body: {'opening_hours': schedule},
+      );
+
+      final savedOpeningHours =
+          response?['data']?['opening_hours']?.toString() ?? schedule;
+      _openingHoursCtrl.text = savedOpeningHours;
+
+      TenantService.clearCache();
+      final savedTenant = await TenantService.fetchTenantInfo(
+        forceRefresh: true,
+      );
+      AuthSession().updateTenant(savedTenant);
+      _openingHoursCtrl.text = savedTenant.openingHours;
+
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Jadwal operasional & hari libur berhasil disimpan!',
+        backgroundColor: AppColors.success,
+        icon: Icons.check_circle_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final err = e.toString();
+      if (err.contains('404')) {
+        await _saveTenant();
+        return;
+      }
+      TopNotification.show(
+        message: 'Gagal menyimpan hari libur: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_rounded,
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 

@@ -268,6 +268,16 @@ class ApiClient {
       };
     }
 
+    if (clean == 'tenant/opening-hours' && method == 'POST') {
+      final hours = (body?['opening_hours'] ?? fields?['opening_hours'] ?? '').toString();
+      DemoSessionManager.updateTenantProfile({'opening_hours': hours});
+      return {
+        'status': true,
+        'message': 'Jadwal operasional dan hari libur berhasil disimpan.',
+        'data': {'opening_hours': hours},
+      };
+    }
+
     // 2. KATEGORI
     if (clean == 'categories' && method == 'GET') {
       return {

@@ -116,6 +116,27 @@ class TenantPromoSettingsTest extends TestCase
             'id' => $tenant->id,
             'opening_hours' => 'Senin, Selasa, Kamis, Jumat, 10:00 - 21:00; Rabu, Sabtu, Minggu Tutup',
         ]);
+
+        // Test format natural libur dengan koma dan kata "libur"
+        $this->postJson('/api/tenant/opening-hours', [
+            'opening_hours' => 'Senin - Sabtu, 08:00 - 22:00, Minggu Libur',
+        ])->assertOk()
+            ->assertJsonPath('data.opening_hours', 'Senin - Sabtu, 08:00 - 22:00, Minggu Libur');
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'opening_hours' => 'Senin - Sabtu, 08:00 - 22:00, Minggu Libur',
+        ]);
+
+        // Test format rentang waktu + libur
+        $this->postJson('/api/tenant/opening-hours', [
+            'opening_hours' => '08:00 - 22:00; Minggu Libur',
+        ])->assertOk();
+
+        // Test format libur saja
+        $this->postJson('/api/tenant/opening-hours', [
+            'opening_hours' => 'Minggu Libur',
+        ])->assertOk();
     }
 
     public function test_invalid_tenant_opening_hours_are_rejected(): void

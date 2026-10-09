@@ -258,15 +258,69 @@ class StoreOpeningHours {
   }
 
   static Map<int, (int, int)?>? _parse(String value) {
-    final normalized = value.trim().toLowerCase();
+    var normalized = value.trim().toLowerCase();
     if (normalized.isEmpty) return null;
 
+    // 1. Normalisasi waktu bertitik (contoh: 08.00 -> 08:00)
+    normalized = normalized.replaceAllMapped(
+      RegExp(r'(\b\d{1,2})\.(\d{2}\b)'),
+      (m) => '${m[1]}:${m[2]}',
+    );
+
+    // 2. Normalisasi kata penghubung (s/d, sd, sampai, hingga -> -)
+    normalized = normalized.replaceAll(
+      RegExp(r'\b(s/d|sd|sampai|hingga)\b'),
+      '-',
+    );
+
+    // 3. Normalisasi hari ini libur / tutup
+    final nowWib = DateTime.now().toUtc().add(const Duration(hours: 7));
+    const dayNames = <int, String>{
+      1: 'senin',
+      2: 'selasa',
+      3: 'rabu',
+      4: 'kamis',
+      5: 'jumat',
+      6: 'sabtu',
+      7: 'minggu',
+    };
+    final todayName = dayNames[nowWib.weekday] ?? 'senin';
+    normalized = normalized.replaceAll(
+      RegExp(r'\b(hari ini libur|libur hari ini|tutup hari ini|hari ini tutup)\b'),
+      '$todayName tutup',
+    );
+
+    // 4. Normalisasi kata libur/off/closed -> tutup
+    normalized = normalized.replaceAll(RegExp(r'\b(libur|off|closed)\b'), 'tutup');
+
+    // 5. Hapus kata "hari" sebelum nama hari
+    normalized = normalized.replaceAllMapped(
+      RegExp(r'\bhari\s+(senin|selasa|rabu|kamis|jumat|sabtu|minggu)\b'),
+      (m) => m[1]!,
+    );
+
+    // 6. Ganti "kecuali" -> ";"
+    normalized = normalized.replaceAll(RegExp(r'\bkecuali\b'), ';');
+
+    // 7. Ubah koma SETELAH rentang jam yang memisahkan klausa hari tutup menjadi titik koma
+    normalized = normalized.replaceAllMapped(
+      RegExp(r'(?<=\d{2})\s*,\s*(?=[^;\n]*tutup)'),
+      (_) => '; ',
+    );
+
+    // Kasus spesial jika seluruh nilai adalah "tutup"
+    if (normalized == 'tutup' || normalized == 'setiap hari tutup') {
+      return {for (var day = 1; day <= 7; day++) day: null};
+    }
+
+    // Kasus rentang jam setiap hari (misal: "08:00 - 22:00" atau "setiap hari, 08:00 - 22:00")
     final dailyRange = _parseRange(normalized);
     if (dailyRange != null) {
       return {for (var day = 1; day <= 7; day++) day: dailyRange};
     }
 
     final schedule = <int, (int, int)?>{};
+    (int, int)? defaultRange;
     final clauses = normalized
         .split(RegExp(r'[;\n]+'))
         .map((clause) => clause.trim())
@@ -274,24 +328,46 @@ class StoreOpeningHours {
     if (clauses.isEmpty) return null;
 
     for (final clause in clauses) {
+      final standaloneRange = _parseRange(clause);
+      if (standaloneRange != null) {
+        defaultRange = standaloneRange;
+        continue;
+      }
+
       final match = RegExp(
-        r'^(.+?)\s*[,:]?\s+(tutup|closed|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$',
+        r'^(.+?)\s*[,:]?\s+(tutup|(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2}))$',
       ).firstMatch(clause);
       if (match == null) return null;
 
       final days = _parseDays(match.group(1)!);
       if (days == null || days.isEmpty) return null;
-      final isClosed = match.group(2) == 'tutup' || match.group(2) == 'closed';
+      final isClosed = match.group(2) == 'tutup';
       final range = isClosed
           ? null
           : _parseRange('${match.group(3)}-${match.group(4)}');
       if (!isClosed && range == null) return null;
+
+      if (!isClosed && defaultRange == null) {
+        defaultRange = range;
+      }
 
       for (final day in days) {
         if (schedule.containsKey(day)) return null;
         schedule[day] = range;
       }
     }
+
+    if (schedule.isEmpty && defaultRange == null) return null;
+
+    // Jika hanya hari tertentu yang disebutkan (misal hanya hari libur yang diatur),
+    // isi hari-hari lainnya dengan defaultRange (atau 08:00 - 22:00)
+    final fallback = defaultRange ?? const (480, 1320); // 08:00 - 22:00
+    for (var day = 1; day <= 7; day++) {
+      if (!schedule.containsKey(day)) {
+        schedule[day] = fallback;
+      }
+    }
+
     return schedule;
   }
 
@@ -350,9 +426,10 @@ class StoreOpeningHours {
   }
 
   static (int, int)? _parseRange(String value) {
+    final cleaned = value.trim().replaceAll(RegExp(r'^(setiap hari|every day)[,:\s]*'), '');
     final match = RegExp(
       r'^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$',
-    ).firstMatch(value.trim());
+    ).firstMatch(cleaned);
     if (match == null) return null;
 
     final startHour = int.parse(match.group(1)!);
