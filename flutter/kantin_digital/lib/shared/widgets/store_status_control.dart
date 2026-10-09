@@ -73,9 +73,7 @@ class _StoreStatusControlState extends State<StoreStatusControl> {
     }
 
     final scheduleOpen = tenant.isOpenAt(DateTime.now().toUtc()) == true;
-    final isOpen = tenant.isStoreOpen && scheduleOpen;
-    final canOpen = scheduleOpen || DemoSessionManager.isDemoMode;
-    final canClose = tenant.isStoreOpen;
+    final isOpen = tenant.isStoreOpen;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -104,14 +102,14 @@ class _StoreStatusControlState extends State<StoreStatusControl> {
               isOpen ? 'Toko sedang buka' : 'Toko sedang tutup',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            subtitle: Text('Jam operasional: ${tenant.openingHours}'),
+            subtitle: Text('Jadwal operasional: ${tenant.openingHours}'),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: _isUpdating || (!isOpen && !canOpen && !canClose)
+                onPressed: _isUpdating
                     ? null
                     : () => _setStoreStatus(!tenant.isStoreOpen),
                 icon: _isUpdating
@@ -126,14 +124,16 @@ class _StoreStatusControlState extends State<StoreStatusControl> {
                     : Icon(
                         isOpen ? Icons.store_rounded : Icons.storefront_rounded,
                       ),
+                style: isOpen
+                    ? FilledButton.styleFrom(
+                        backgroundColor: AppColors.danger,
+                        foregroundColor: Colors.white,
+                      )
+                    : null,
                 label: Text(
                   _isUpdating
                       ? 'Menyimpan...'
-                      : tenant.isStoreOpen
-                      ? 'Tutup Toko'
-                      : canOpen
-                      ? 'Buka Toko'
-                      : 'Di luar jam operasional',
+                      : (isOpen ? 'Tutup Toko' : 'Buka Toko'),
                 ),
               ),
             ),

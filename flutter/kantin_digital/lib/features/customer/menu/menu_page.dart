@@ -298,7 +298,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         : tenant;
     final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
     final staffHasOpened = _staffHasOpenedStore ?? activeTenant.isStoreOpen;
-    final isStoreCurrentlyOpen = scheduleOpen && staffHasOpened;
+    final isStoreCurrentlyOpen = staffHasOpened;
 
     return Scaffold(
       backgroundColor: AppColors.background,

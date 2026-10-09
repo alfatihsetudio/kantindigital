@@ -152,7 +152,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         : tenant;
     final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
     final staffHasOpened = activeTenant.isStoreOpen;
-    if (!scheduleOpen || !staffHasOpened) {
+    if (!staffHasOpened) {
       _showStoreClosedDialog(
         context,
         activeTenant,
@@ -254,7 +254,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         : tenant;
     final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
     final staffHasOpened = activeTenant.isStoreOpen;
-    final isStoreOpen = scheduleOpen && staffHasOpened;
+    final isStoreOpen = staffHasOpened;
 
     return Scaffold(
       backgroundColor: AppColors.background,

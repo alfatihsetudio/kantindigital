@@ -59,7 +59,7 @@ class _CartPageState extends State<CartPage> {
         : tenant;
     final scheduleOpen = activeTenant.isOpenAt(DateTime.now().toUtc()) == true;
     final staffHasOpened = activeTenant.isStoreOpen;
-    final isStoreOpen = scheduleOpen && staffHasOpened;
+    final isStoreOpen = staffHasOpened;
 
     return Scaffold(
       backgroundColor: AppColors.background,

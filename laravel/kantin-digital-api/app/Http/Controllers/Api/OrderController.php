@@ -20,10 +20,7 @@ class OrderController extends Controller
     {
         $tenantId = app()->has('tenant') ? app('tenant')->id : null;
         $tenant = app()->has('tenant') ? app('tenant') : null;
-        if ($tenant && (! $tenant->is_store_open || ! StoreOpeningHours::wasOpenedDuringCurrentWindow(
-            $tenant->opening_hours,
-            $tenant->store_opened_at
-        ))) {
+        if ($tenant && ! $tenant->is_store_open) {
             $hoursText = $tenant->opening_hours ?: 'belum diatur';
             if (StoreOpeningHours::isOpen($tenant->opening_hours)) {
                 $message = 'Mohon maaf yang sebesar-besarnya, saat ini toko kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: '.$hoursText.'. Silakan tunggu toko buka kembali.';

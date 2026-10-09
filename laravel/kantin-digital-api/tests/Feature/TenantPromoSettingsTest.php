@@ -198,7 +198,7 @@ class TenantPromoSettingsTest extends TestCase
         }
     }
 
-    public function test_staff_cannot_open_store_outside_opening_hours(): void
+    public function test_admin_or_cashier_can_open_store_anytime_outside_opening_hours_or_on_holidays(): void
     {
         $tenant = Tenant::where('subdomain', 'saycoffee')->firstOrFail();
         $tenant->update([
@@ -212,15 +212,19 @@ class TenantPromoSettingsTest extends TestCase
         try {
             $this->postJson('/api/tenant/store-status', [
                 'is_store_open' => true,
-            ])->assertUnprocessable()
-                ->assertJsonPath('message', 'Belum masuk jam operasional toko (08:00 - 22:00).');
+            ])->assertOk()
+                ->assertJsonPath('data.is_store_open', true);
+
+            $this->getJson('/api/tenant/info')
+                ->assertOk()
+                ->assertJsonPath('data.is_store_open', true);
         } finally {
             Carbon::setTestNow();
         }
 
         $this->assertDatabaseHas('tenants', [
             'id' => $tenant->id,
-            'is_store_open' => false,
+            'is_store_open' => true,
         ]);
     }
 

@@ -269,8 +269,8 @@ class OnlineOrderTest extends TestCase
         app()->instance('tenant', (object) [
             'id' => null,
             'opening_hours' => '08:00 - 22:00',
-            'is_store_open' => true,
-            'store_opened_at' => Carbon::parse('2026-10-05 08:00:00', 'Asia/Jakarta')->toIso8601String(),
+            'is_store_open' => false,
+            'store_opened_at' => null,
         ]);
         Carbon::setTestNow(Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta'));
 
@@ -294,6 +294,34 @@ class OnlineOrderTest extends TestCase
         }
 
         $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_public_order_is_accepted_when_staff_opened_store_outside_opening_hours(): void
+    {
+        app()->instance('tenant', (object) [
+            'id' => null,
+            'opening_hours' => '08:00 - 22:00',
+            'is_store_open' => true,
+            'store_opened_at' => Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta')->toIso8601String(),
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-05 22:00:00', 'Asia/Jakarta'));
+
+        try {
+            $this->postJson('/api/orders', [
+                'order_type' => 'pickup',
+                'items' => [
+                    [
+                        'menu_id' => $this->menu->id,
+                        'quantity' => 1,
+                        'topping_ids' => [],
+                    ],
+                ],
+            ])->assertCreated();
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseCount('orders', 1);
     }
 
     public function test_public_order_is_rejected_until_a_staff_member_opens_the_store(): void
