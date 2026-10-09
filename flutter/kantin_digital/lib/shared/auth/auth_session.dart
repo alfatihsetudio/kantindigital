@@ -93,6 +93,18 @@ class AuthSession extends ChangeNotifier {
         });
   }
 
+  void updateTenant(TenantModel tenant) {
+    _tenant = tenant;
+    notifyListeners();
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.setString(_keyTenant, jsonEncode(tenant.toJson()));
+        })
+        .catchError((e) {
+          debugPrint('AuthSession persist tenant error: $e');
+        });
+  }
+
   void clear() {
     _token = null;
     _user = null;

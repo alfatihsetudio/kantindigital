@@ -7,6 +7,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
+import '../../../shared/auth/auth_session.dart';
 import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
@@ -702,7 +703,14 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   }
 
   Future<void> _saveTenant() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      TopNotification.show(
+        message: 'Mohon periksa kembali kolom yang belum valid bertanda merah.',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {
@@ -799,7 +807,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       final savedTenant = await TenantService.fetchTenantInfo(
         forceRefresh: true,
       );
-      _openingHoursCtrl.text = savedOpeningHours ?? savedTenant.openingHours;
+      AuthSession().updateTenant(savedTenant);
+      _openingHoursCtrl.text =
+          (savedOpeningHours != null && savedOpeningHours.isNotEmpty)
+              ? savedOpeningHours
+              : savedTenant.openingHours;
 
       if (!mounted) return;
       try {

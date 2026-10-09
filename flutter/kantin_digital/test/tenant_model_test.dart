@@ -261,6 +261,26 @@ void main() {
       closeTime: '21:00',
     );
     expect(StoreOpeningHours.isValid(scheduleWedSunOff), isTrue);
+
+    // 5. Friday off (dadakan hari ini jika hari Jumat)
+    final scheduleFridayOff = StoreOpeningHours.formatScheduleFromOpenDays(
+      openDays: {1, 2, 3, 4, 6, 7},
+      openTime: '10:00',
+      closeTime: '21:00',
+    );
+    expect(scheduleFridayOff, contains('Jumat Tutup'));
+    expect(StoreOpeningHours.isValid(scheduleFridayOff), isTrue);
+    expect(StoreOpeningHours.getOpenDays(scheduleFridayOff), {1, 2, 3, 4, 6, 7});
+
+    // 6. All days closed
+    final scheduleAllClosed = StoreOpeningHours.formatScheduleFromOpenDays(
+      openDays: {},
+      openTime: '10:00',
+      closeTime: '21:00',
+    );
+    expect(scheduleAllClosed, 'Setiap hari Tutup');
+    expect(StoreOpeningHours.isValid(scheduleAllClosed), isTrue);
+    expect(StoreOpeningHours.getOpenDays(scheduleAllClosed), isEmpty);
   });
 
   test('demo profile save retains customized opening hours', () {
