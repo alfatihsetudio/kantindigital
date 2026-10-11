@@ -10,6 +10,7 @@ class CashierOrderModel {
   final String orderType;
   final String? deliveryAddress;
   final String createdAt;
+  final String paymentMethod;
   final List<CashierOrderItem> items;
 
   CashierOrderModel({
@@ -24,6 +25,7 @@ class CashierOrderModel {
     required this.orderType,
     this.deliveryAddress,
     required this.createdAt,
+    this.paymentMethod = 'qris',
     required this.items,
   });
 
@@ -41,6 +43,7 @@ class CashierOrderModel {
       orderType: (json['order_type'] ?? 'dine_in').toString(),
       deliveryAddress: json['delivery_address']?.toString(),
       createdAt: json['created_at'] as String,
+      paymentMethod: (json['payment_method'] ?? 'qris').toString(),
       items: itemsList.map((e) => CashierOrderItem.fromJson(e)).toList(),
     );
   }
@@ -50,6 +53,14 @@ class CashierOrderModel {
     'pickup' => 'Ambil sendiri',
     _ => 'Meja $tableCode',
   };
+
+  String get paymentMethodLabel => switch (paymentMethod.toLowerCase()) {
+    'cash' => 'Tunai',
+    'qris' => 'QRIS',
+    _ => paymentMethod.toUpperCase(),
+  };
+
+  bool get isQris => paymentMethod.toLowerCase() == 'qris';
 }
 
 class CashierOrderItem {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -25,12 +26,13 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   final OrderAlertSound _orderAlertSound = OrderAlertSound();
   Timer? _refreshTimer;
 
-  // Selected Tab Index: 0=Baru, 1=Proses, 2=Siap
+  // Selected Tab Index: 0=Baru, 1=Proses, 2=Siap, 3=Batal
   int _selectedIndex = 0;
 
   List<CashierOrderModel> _pendingOrders = [];
   List<CashierOrderModel> _processingOrders = [];
   List<CashierOrderModel> _completedOrders = [];
+  List<CashierOrderModel> _cancelledOrders = [];
   final Set<int> _knownPendingOrderIds = {};
   final Set<int> _unacknowledgedOrderIds = {};
   bool _hasLoadedOrders = false;
@@ -71,6 +73,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       final pending = await _service.getOrders(status: 'UNPAID');
       final processing = await _service.getOrders(status: 'PROCESSING');
       final completed = await _service.getOrders(status: 'READY');
+      final cancelled = await _service.getOrders(status: 'CANCELLED');
 
       if (mounted) {
         final incomingOrders = _hasLoadedOrders
@@ -91,6 +94,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           _pendingOrders = pending;
           _processingOrders = processing;
           _completedOrders = completed;
+          _cancelledOrders = cancelled;
           _loading = false;
         });
       }
@@ -181,6 +185,239 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     }
   }
 
+  Future<void> _cancelOrder(CashierOrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Batalkan Pesanan?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Apakah Anda yakin pesanan #${order.code} atas nama "${order.customerName?.isNotEmpty == true ? order.customerName : "Pelanggan"}" adalah transaksi palsu atau ingin dibatalkan?',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Tagihan:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                      Text(
+                        CurrencyFormatter.rupiah(order.totalAmount),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Metode:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                      Text(
+                        order.paymentMethodLabel,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 12),
+                  const Text(
+                    '⚠️ Pesanan ini akan dipindahkan ke tab Batal dan TIDAK akan diproses oleh dapur.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFFB91C1C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Kembali',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Ya, Batalkan Pesanan',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _service.updateOrderStatus(order.id, 'CANCELLED');
+      _unacknowledgedOrderIds.remove(order.id);
+      if (_unacknowledgedOrderIds.isEmpty) {
+        _orderAlertSound.stop();
+      }
+      _loadOrders(); // Refresh immediately
+      if (!mounted) return;
+
+      TopNotification.show(
+        message: 'Pesanan #${order.code} telah dibatalkan',
+        backgroundColor: AppColors.danger,
+        icon: Icons.cancel_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Gagal membatalkan pesanan: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_rounded,
+      );
+    }
+  }
+
+  Future<void> _sendWhatsAppMessage(CashierOrderModel order) async {
+    final rawPhone = order.customerPhone?.trim() ?? '';
+    if (rawPhone.isEmpty) {
+      TopNotification.show(
+        message: 'Nomor WhatsApp konsumen tidak dicantumkan pada pesanan ini.',
+        backgroundColor: AppColors.warning,
+        icon: Icons.warning_amber_rounded,
+      );
+      return;
+    }
+
+    String cleanPhone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62${cleanPhone.substring(1)}';
+    } else if (cleanPhone.startsWith('8')) {
+      cleanPhone = '62$cleanPhone';
+    }
+
+    if (cleanPhone.length < 9) {
+      TopNotification.show(
+        message: 'Nomor WhatsApp tidak valid: $rawPhone',
+        backgroundColor: AppColors.danger,
+        icon: Icons.phone_disabled_rounded,
+      );
+      return;
+    }
+
+    final sessionTenant = AuthSession().tenant;
+    final contextTenant = TenantProvider.of(context);
+    final tenant = (sessionTenant != null &&
+            sessionTenant.id != 0 &&
+            sessionTenant.name.isNotEmpty)
+        ? sessionTenant
+        : contextTenant;
+    final storeName = tenant.name.isNotEmpty ? tenant.name : 'Kantin Digital';
+    final message = _buildWhatsAppVerificationMessage(order, storeName);
+    final encoded = Uri.encodeComponent(message);
+    final url = 'https://wa.me/$cleanPhone?text=$encoded';
+    final uri = Uri.parse(url);
+
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Gagal membuka WhatsApp: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_outline_rounded,
+      );
+    }
+  }
+
+  String _buildWhatsAppVerificationMessage(
+    CashierOrderModel order,
+    String storeName,
+  ) {
+    final customer = (order.customerName != null && order.customerName!.trim().isNotEmpty)
+        ? order.customerName!.trim()
+        : 'Kak';
+    final itemsList = order.items
+        .map((item) => '• ${item.quantity}x ${item.menuName}')
+        .join('\n');
+    final totalStr = CurrencyFormatter.rupiah(order.totalAmount);
+    final paymentLabel = order.paymentMethodLabel;
+
+    if (order.status.toUpperCase() == 'READY') {
+      return 'Halo $customer, pesananmu di $storeName sudah *SIAP*! 🎉\n\n'
+          '📋 *Pesanan #${order.code}*\n'
+          '• Tipe: ${order.fulfillmentLabel}\n'
+          '• Total: $totalStr\n\n'
+          'Daftar Menu:\n$itemsList\n\n'
+          'Silakan diambil di kasir / meja pengambilan ya kak. Terima kasih! 🙏';
+    }
+
+    return 'Halo $customer, terima kasih sudah memesan di $storeName! 🙏\n\n'
+        '📋 *Konfirmasi Pesanan #${order.code}*\n'
+        '• Tipe: ${order.fulfillmentLabel}\n'
+        '• Metode Pembayaran: $paymentLabel\n'
+        '• Total Tagihan: $totalStr\n\n'
+        'Daftar Menu:\n$itemsList\n\n'
+        '📌 *MOHON BUKTI TRANSFER:*\n'
+        'Untuk memverifikasi pesanan kakak dan agar dapat segera kami buatkan di dapur, *mohon kirimkan foto / screenshot bukti transfer pembayaran* ke nomor WhatsApp ini ya kak.\n\n'
+        'Jika pesanan ini tidak sengaja dibuat atau tidak jadi dipesan, mohon konfirmasi agar kami dapat membatalkannya. Terima kasih! 😊';
+  }
+
   List<CashierOrderModel> get _currentList {
     switch (_selectedIndex) {
       case 0:
@@ -189,6 +426,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
         return _processingOrders;
       case 2:
         return _completedOrders;
+      case 3:
+        return _cancelledOrders;
       default:
         return [];
     }
@@ -340,7 +579,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 width: 38,
                 height: 38,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(
+                errorBuilder: (_, _, _) => const Icon(
                   Icons.storefront_rounded,
                   color: AppColors.primary,
                   size: 28,
@@ -486,6 +725,13 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               _completedOrders.length,
               Icons.check_circle_rounded,
             ),
+            if (!_isOperations)
+              _buildTabItem(
+                3,
+                'Batal',
+                _cancelledOrders.length,
+                Icons.cancel_rounded,
+              ),
           ],
         ),
       ),
@@ -500,8 +746,10 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       activeColor = AppColors.warning;
     } else if (index == 1) {
       activeColor = AppColors.primary;
-    } else {
+    } else if (index == 2) {
       activeColor = AppColors.info;
+    } else {
+      activeColor = AppColors.danger;
     }
 
     return Expanded(
@@ -516,44 +764,51 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(21),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? activeColor : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? activeColor : AppColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: isSelected ? activeColor : AppColors.textSecondary,
                   ),
-                  decoration: BoxDecoration(
-                    color: isSelected ? activeColor : AppColors.textMuted,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    count.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? activeColor : AppColors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
-                ),
-              ],
-            ],
+                  if (count > 0) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? activeColor : AppColors.textMuted,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -606,7 +861,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio:
-                  0.58, // Taller aspect ratio for 2 compact mobile columns
+                  0.50, // Taller aspect ratio for 2 compact mobile columns with WA & Cancel actions
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -618,6 +873,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 isCompact: true,
                 actionsEnabled: !_isOperations || _selectedIndex == 1,
                 onAction: (order, action) => _updateStatus(order, action),
+                onCancel: (order) => _cancelOrder(order),
+                onWhatsApp: (order) => _sendWhatsAppMessage(order),
               );
             },
           );
@@ -628,7 +885,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 380,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.76,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
@@ -640,6 +897,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               isCompact: false,
               actionsEnabled: !_isOperations || _selectedIndex == 1,
               onAction: (order, action) => _updateStatus(order, action),
+              onCancel: (order) => _cancelOrder(order),
+              onWhatsApp: (order) => _sendWhatsAppMessage(order),
             );
           },
         );
@@ -654,6 +913,8 @@ class _OrderTicketCard extends StatelessWidget {
   final bool isCompact;
   final bool actionsEnabled;
   final Function(CashierOrderModel, String) onAction;
+  final Function(CashierOrderModel) onCancel;
+  final Function(CashierOrderModel) onWhatsApp;
 
   const _OrderTicketCard({
     required this.order,
@@ -661,6 +922,8 @@ class _OrderTicketCard extends StatelessWidget {
     this.isCompact = false,
     this.actionsEnabled = true,
     required this.onAction,
+    required this.onCancel,
+    required this.onWhatsApp,
   });
 
   @override
@@ -682,12 +945,18 @@ class _OrderTicketCard extends StatelessWidget {
       btnLabel = isCompact ? 'Siap' : 'Pesanan Siap';
       nextStatus = 'READY';
       btnIcon = Icons.dinner_dining_rounded;
-    } else {
+    } else if (tabIndex == 2) {
       // Siap
       accentColor = AppColors.info;
       btnLabel = isCompact ? 'Selesai' : 'Selesai & Antar';
       nextStatus = 'SERVED';
       btnIcon = Icons.check_circle_outline_rounded;
+    } else {
+      // Batal
+      accentColor = AppColors.danger;
+      btnLabel = 'Dibatalkan';
+      nextStatus = '';
+      btnIcon = Icons.cancel_outlined;
     }
 
     return Container(
@@ -719,33 +988,87 @@ class _OrderTicketCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isCompact ? 6 : 10,
-                    vertical: isCompact ? 2 : 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: accentColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    order.fulfillmentLabel,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: accentColor,
-                      fontSize: isCompact ? 13 : 16,
-                    ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 6 : 8,
+                            vertical: isCompact ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: accentColor.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            order.fulfillmentLabel,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: accentColor,
+                              fontSize: isCompact ? 11 : 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 4 : 6,
+                          vertical: isCompact ? 2 : 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: order.isQris
+                              ? const Color(0xFFEFF6FF)
+                              : const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: order.isQris
+                                ? const Color(0xFFBFDBFE)
+                                : const Color(0xFFA7F3D0),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              order.isQris
+                                  ? Icons.qr_code_2_rounded
+                                  : Icons.payments_rounded,
+                              size: isCompact ? 10 : 12,
+                              color: order.isQris
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF059669),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              order.paymentMethodLabel,
+                              style: TextStyle(
+                                fontSize: isCompact ? 9 : 10,
+                                fontWeight: FontWeight.w700,
+                                color: order.isQris
+                                    ? const Color(0xFF1D4ED8)
+                                    : const Color(0xFF047857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 4),
                 Text(
                   '#${order.code}',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
-                    fontSize: isCompact ? 11 : 12,
+                    fontSize: isCompact ? 10 : 12,
                   ),
                 ),
               ],
@@ -819,6 +1142,56 @@ class _OrderTicketCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (order.customerPhone != null &&
+                      order.customerPhone!.trim().isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Tooltip(
+                      message: 'Chat WhatsApp konsumen',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onWhatsApp(order),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 6 : 8,
+                              vertical: isCompact ? 3 : 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF25D366),
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF25D366).withValues(alpha: 0.3),
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.chat_bubble_rounded,
+                                  size: 11,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  isCompact ? 'WA' : 'Chat WA',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -981,34 +1354,276 @@ class _OrderTicketCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: isCompact ? 8 : 14),
-                if (actionsEnabled)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => onAction(order, nextStatus),
-                      icon: Icon(btnIcon, size: isCompact ? 15 : 18),
-                      label: Text(
-                        btnLabel,
-                        style: TextStyle(
-                          fontSize: isCompact ? 12 : 14,
-                          fontWeight: FontWeight.w700,
+                SizedBox(height: isCompact ? 8 : 12),
+                if (tabIndex == 0) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => onWhatsApp(order),
+                          icon: const Icon(
+                            Icons.chat_rounded,
+                            size: 13,
+                            color: Color(0xFF16A34A),
+                          ),
+                          label: Text(
+                            isCompact ? 'Minta Bukti' : 'Minta Bukti TF (WA)',
+                            style: TextStyle(
+                              fontSize: isCompact ? 10 : 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF16A34A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF22C55E)),
+                            backgroundColor: const Color(0xFFF0FDF4),
+                            padding: EdgeInsets.symmetric(
+                              vertical: isCompact ? 6 : 8,
+                              horizontal: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          vertical: isCompact ? 10 : 14,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => onCancel(order),
+                          icon: const Icon(
+                            Icons.cancel_outlined,
+                            size: 13,
+                            color: Color(0xFFDC2626),
+                          ),
+                          label: Text(
+                            isCompact ? 'Order Palsu' : 'Order Palsu / Batal',
+                            style: TextStyle(
+                              fontSize: isCompact ? 10 : 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFDC2626),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFEF4444)),
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            padding: EdgeInsets.symmetric(
+                              vertical: isCompact ? 6 : 8,
+                              horizontal: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isCompact ? 6 : 8),
+                  if (actionsEnabled)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => onAction(order, nextStatus),
+                        icon: Icon(btnIcon, size: isCompact ? 14 : 17),
+                        label: Text(
+                          btnLabel,
+                          style: TextStyle(
+                            fontSize: isCompact ? 12 : 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                        elevation: 3,
-                        shadowColor: accentColor.withValues(alpha: 0.4),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentColor,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            vertical: isCompact ? 8 : 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 3,
+                          shadowColor: accentColor.withValues(alpha: 0.4),
+                        ),
                       ),
                     ),
+                ] else if (tabIndex == 1) ...[
+                  Row(
+                    children: [
+                      if (actionsEnabled)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => onAction(order, nextStatus),
+                            icon: Icon(btnIcon, size: isCompact ? 14 : 17),
+                            label: Text(
+                              btnLabel,
+                              style: TextStyle(
+                                fontSize: isCompact ? 12 : 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                vertical: isCompact ? 8 : 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 3,
+                              shadowColor: accentColor.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                      if (actionsEnabled) ...[
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: 'Batalkan jika orderan palsu',
+                          onPressed: () => onCancel(order),
+                          icon: const Icon(
+                            Icons.cancel_outlined,
+                            color: AppColors.danger,
+                            size: 20,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: const BorderSide(color: Color(0xFFFECACA)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                ] else if (tabIndex == 2) ...[
+                  Row(
+                    children: [
+                      if (actionsEnabled)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => onAction(order, nextStatus),
+                            icon: Icon(btnIcon, size: isCompact ? 14 : 17),
+                            label: Text(
+                              btnLabel,
+                              style: TextStyle(
+                                fontSize: isCompact ? 12 : 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                vertical: isCompact ? 8 : 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 3,
+                              shadowColor: accentColor.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                      if (order.customerPhone != null &&
+                          order.customerPhone!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: 'Kabari konsumen pesanan siap via WA',
+                          onPressed: () => onWhatsApp(order),
+                          icon: const Icon(
+                            Icons.chat_rounded,
+                            color: Color(0xFF16A34A),
+                            size: 20,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFF0FDF4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: const BorderSide(color: Color(0xFFBBF7D0)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isCompact ? 8 : 10,
+                      horizontal: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.cancel_rounded,
+                          size: 16,
+                          color: Color(0xFFDC2626),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            isCompact
+                                ? 'Dibatalkan'
+                                : 'Pesanan Dibatalkan (Palsu)',
+                            style: TextStyle(
+                              fontSize: isCompact ? 11 : 12,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFDC2626),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (order.customerPhone != null &&
+                      order.customerPhone!.trim().isNotEmpty) ...[
+                    SizedBox(height: isCompact ? 6 : 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => onWhatsApp(order),
+                        icon: const Icon(
+                          Icons.chat_rounded,
+                          size: 13,
+                          color: Color(0xFF16A34A),
+                        ),
+                        label: Text(
+                          'Chat WA Konsumen',
+                          style: TextStyle(
+                            fontSize: isCompact ? 10 : 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF16A34A),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF22C55E)),
+                          backgroundColor: const Color(0xFFF0FDF4),
+                          padding: EdgeInsets.symmetric(
+                            vertical: isCompact ? 6 : 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),

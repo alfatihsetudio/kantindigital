@@ -1025,6 +1025,7 @@ class DemoSessionManager {
         orderType: old.orderType,
         deliveryAddress: old.deliveryAddress,
         createdAt: old.createdAt,
+        paymentMethod: old.paymentMethod,
         items: old.items,
       );
       debugPrint(
