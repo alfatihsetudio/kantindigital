@@ -607,6 +607,26 @@ class ApiClient {
       };
     }
 
+    final deleteOrderMatch = RegExp(r'^orders/(\d+)$').firstMatch(clean);
+    if (deleteOrderMatch != null && method == 'DELETE') {
+      final id = int.parse(deleteOrderMatch.group(1)!);
+      DemoSessionManager.deleteOrder(id);
+      return {
+        'status': true,
+        'message': 'Transaksi berhasil dihapus.',
+      };
+    }
+
+    if (clean == 'orders/bulk-delete' && method == 'POST') {
+      final status = body?['status']?.toString();
+      final count = DemoSessionManager.bulkDeleteOrders(status: status);
+      return {
+        'status': true,
+        'message': '$count transaksi berhasil dihapus.',
+        'data': {'deleted_count': count},
+      };
+    }
+
     if (clean == 'check-subdomain') {
       final sub = (queryParameters?['subdomain'] ?? '').toString().toLowerCase().trim();
       final reserved = [

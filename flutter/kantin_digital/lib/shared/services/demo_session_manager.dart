@@ -1043,6 +1043,27 @@ class DemoSessionManager {
     }
   }
 
+  /// Hapus pesanan oleh admin
+  static void deleteOrder(int orderId) {
+    _initInitialData();
+    _orders.removeWhere((o) => o.id == orderId);
+  }
+
+  /// Hapus banyak pesanan sekaligus oleh admin
+  static int bulkDeleteOrders({String? status, List<int>? orderIds}) {
+    _initInitialData();
+    final before = _orders.length;
+    if (orderIds != null && orderIds.isNotEmpty) {
+      _orders.removeWhere((o) => orderIds.contains(o.id));
+    } else if (status != null && status.isNotEmpty) {
+      final norm = status.toUpperCase();
+      _orders.removeWhere((o) => o.status.toUpperCase() == norm);
+    } else {
+      _orders.removeWhere((o) => o.status.toUpperCase() == 'CANCELLED');
+    }
+    return before - _orders.length;
+  }
+
   /// Ambil OrderModel untuk halaman pelacakan status customer
   static OrderModel? getOrderByCode(String code) {
     _initInitialData();

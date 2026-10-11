@@ -29,4 +29,29 @@ class CashierOrdersService {
 
     await _client.post('/orders/$orderId/status', body: {'status': newStatus});
   }
+
+  Future<void> deleteOrder(int orderId) async {
+    if (DemoSessionManager.isDemoMode) {
+      DemoSessionManager.deleteOrder(orderId);
+      return;
+    }
+
+    await _client.delete('/orders/$orderId');
+  }
+
+  Future<int> bulkDeleteOrders({String? status, List<int>? orderIds}) async {
+    if (DemoSessionManager.isDemoMode) {
+      return DemoSessionManager.bulkDeleteOrders(
+        status: status,
+        orderIds: orderIds,
+      );
+    }
+
+    final body = <String, dynamic>{};
+    if (status != null) body['status'] = status;
+    if (orderIds != null) body['order_ids'] = orderIds;
+
+    final response = await _client.post('/orders/bulk-delete', body: body);
+    return (response['data']?['deleted_count'] as num?)?.toInt() ?? 0;
+  }
 }

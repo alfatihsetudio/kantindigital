@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../admin/widgets/admin_drawer.dart';
+import '../../cashier/orders/orders_service.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -21,11 +23,15 @@ class AdminDashboardPage extends StatefulWidget {
 class _AdminDashboardPageState extends State<AdminDashboardPage>
     with SingleTickerProviderStateMixin {
   final ApiClient _client = ApiClient();
+  final CashierOrdersService _ordersService = CashierOrdersService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   Map<String, dynamic>? _salesStats;
   bool _salesLoading = true;
+  List<CashierOrderModel> _orders = [];
+  bool _ordersLoading = true;
+  String _selectedOrderFilter = 'ALL'; // ALL, CANCELLED, UNPAID, PROCESSED
 
   @override
   void initState() {
@@ -46,6 +52,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ),
         );
     _loadSalesStats();
+    _loadOrders();
     _loadTenantInfo();
     _animationController.forward();
   }
@@ -55,6 +62,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       await TenantService.fetchTenantInfo(forceRefresh: true);
       if (mounted) setState(() {});
     } catch (_) {}
+  }
+
+  Future<void> _loadOrders() async {
+    if (mounted) setState(() => _ordersLoading = true);
+    try {
+      final orders = await _ordersService.getOrders();
+      if (!mounted) return;
+      setState(() {
+        _orders = orders;
+        _ordersLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _ordersLoading = false);
+    }
   }
 
   int _parseInt(dynamic value) {
@@ -126,6 +148,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         child: SlideTransition(
                           position: _slideAnimation,
                           child: _buildSalesReportSection(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: _buildTransactionsSection(tenant.name),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -697,6 +727,697 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ],
           );
         }),
+      ),
+    );
+  }
+
+  List<CashierOrderModel> get _filteredOrders {
+    switch (_selectedOrderFilter) {
+      case 'CANCELLED':
+        return _orders.where((o) => o.status == 'CANCELLED').toList();
+      case 'UNPAID':
+        return _orders.where((o) => o.status == 'UNPAID').toList();
+      case 'PROCESSED':
+        return _orders
+            .where((o) => o.status == 'PROCESSED' || o.status == 'DONE')
+            .toList();
+      case 'ALL':
+      default:
+        return _orders;
+    }
+  }
+
+  String _normalizeWhatsAppPhone(String rawPhone) {
+    final digits = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    if (digits.startsWith('0')) {
+      return '62${digits.substring(1)}';
+    }
+    if (digits.startsWith('8')) {
+      return '62$digits';
+    }
+    return digits;
+  }
+
+  Future<void> _openWhatsAppForOrder(
+    CashierOrderModel order,
+    String storeName,
+  ) async {
+    final normalizedPhone = _normalizeWhatsAppPhone(order.customerPhone ?? '');
+    if (normalizedPhone.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nomor WhatsApp konsumen tidak tersedia.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final customerName = (order.customerName?.trim().isNotEmpty ?? false)
+        ? order.customerName!.trim()
+        : 'Kak';
+    final effectiveStore = storeName.trim().isNotEmpty
+        ? storeName.trim()
+        : 'Kantin Digital';
+    final itemsText = order.items
+        .map((item) => '- ${item.quantity}x ${item.menuName}')
+        .join('\n');
+
+    final message =
+        'Halo $customerName,\n'
+        'Kami dari *$effectiveStore* ingin mengonfirmasi pesanan Anda:\n\n'
+        '*Kode Order:* #${order.code}\n'
+        '*Info:* ${order.fulfillmentLabel}\n'
+        '*Pesanan:*\n$itemsText\n'
+        '*Total:* ${CurrencyFormatter.rupiah(order.totalAmount)}\n\n'
+        'Mohon kirimkan *bukti transfer / pembayaran* pada chat ini agar pesanan Anda dapat segera kami proses. Terima kasih!';
+
+    final uri = Uri.parse(
+      'https://wa.me/$normalizedPhone?text=${Uri.encodeComponent(message)}',
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _confirmCancelOrder(CashierOrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Batalkan Transaksi?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Tandai pesanan #${order.code} (${order.customerName ?? 'Guest'}) sebagai Batal / Order Palsu?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Kembali'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ya, Batalkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    try {
+      await _ordersService.updateOrderStatus(order.id, 'CANCELLED');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Transaksi #${order.code} dibatalkan.'),
+          backgroundColor: AppColors.textPrimary,
+        ),
+      );
+      await _loadOrders();
+      await _loadSalesStats();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membatalkan: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteOrder(CashierOrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Hapus Permanen Transaksi?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus permanen transaksi #${order.code} (${order.customerName ?? 'Guest'} - ${CurrencyFormatter.rupiah(order.totalAmount)}) dari sistem?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_forever_rounded, size: 18),
+            label: const Text('Ya, Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    try {
+      await _ordersService.deleteOrder(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Transaksi #${order.code} berhasil dihapus.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _loadOrders();
+      await _loadSalesStats();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus transaksi: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmBulkDeleteCancelled() async {
+    final cancelledCount = _orders
+        .where((o) => o.status == 'CANCELLED')
+        .length;
+    if (cancelledCount == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Bersihkan Semua Order Batal?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Hapus permanen semua $cancelledCount transaksi yang berstatus Batal / Order Palsu sekaligus?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Kembali'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+            label: Text('Hapus $cancelledCount Transaksi'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    try {
+      final deleted = await _ordersService.bulkDeleteOrders(
+        status: 'CANCELLED',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$deleted transaksi batal berhasil dihapus.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _loadOrders();
+      await _loadSalesStats();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus transaksi: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Widget _buildTransactionsSection(String storeName) {
+    final cancelledCount = _orders
+        .where((o) => o.status == 'CANCELLED')
+        .length;
+    final unpaidCount = _orders.where((o) => o.status == 'UNPAID').length;
+    final processedCount = _orders
+        .where((o) => o.status == 'PROCESSED' || o.status == 'DONE')
+        .length;
+    final filtered = _filteredOrders;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppTheme.shadowMd,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  color: AppColors.danger,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daftar Transaksi & Order Palsu',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Pantau pesanan masuk & hapus transaksi palsu/batal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Muat ulang transaksi',
+                onPressed: _loadOrders,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildOrderFilterChip(
+                  value: 'ALL',
+                  label: 'Semua (${_orders.length})',
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                _buildOrderFilterChip(
+                  value: 'CANCELLED',
+                  label: 'Batal / Palsu ($cancelledCount)',
+                  color: AppColors.danger,
+                ),
+                const SizedBox(width: 8),
+                _buildOrderFilterChip(
+                  value: 'UNPAID',
+                  label: 'Belum Bayar ($unpaidCount)',
+                  color: AppColors.warning,
+                ),
+                const SizedBox(width: 8),
+                _buildOrderFilterChip(
+                  value: 'PROCESSED',
+                  label: 'Proses / Selesai ($processedCount)',
+                  color: AppColors.success,
+                ),
+              ],
+            ),
+          ),
+          if (cancelledCount > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.danger.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.cleaning_services_rounded,
+                    color: AppColors.danger,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Ada $cancelledCount transaksi berstatus Batal / Palsu.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.danger,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: _confirmBulkDeleteCancelled,
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+                    label: const Text(
+                      'Hapus Semua Batal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (_ordersLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (filtered.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_rounded,
+                    size: 40,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tidak ada transaksi pada kategori ini',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filtered.length > 15 ? 15 : filtered.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                return _buildAdminOrderTile(filtered[index], storeName);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderFilterChip({
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    final selected = _selectedOrderFilter == value;
+    return InkWell(
+      onTap: () => setState(() => _selectedOrderFilter = value),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : color,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminOrderTile(CashierOrderModel order, String storeName) {
+    final isCancelled = order.status == 'CANCELLED';
+    final isUnpaid = order.status == 'UNPAID';
+    final hasPhone = (order.customerPhone?.trim().isNotEmpty ?? false);
+
+    Color statusColor;
+    String statusLabel;
+    switch (order.status) {
+      case 'CANCELLED':
+        statusColor = AppColors.danger;
+        statusLabel = 'BATAL / PALSU';
+        break;
+      case 'UNPAID':
+        statusColor = AppColors.warning;
+        statusLabel = 'BELUM BAYAR';
+        break;
+      case 'PROCESSED':
+        statusColor = AppColors.info;
+        statusLabel = 'DIPROSES';
+        break;
+      case 'DONE':
+        statusColor = AppColors.success;
+        statusLabel = 'SELESAI';
+        break;
+      default:
+        statusColor = AppColors.textSecondary;
+        statusLabel = order.status;
+    }
+
+    final itemsSummary = order.items
+        .map((i) => '${i.quantity}x ${i.menuName}')
+        .join(', ');
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isCancelled
+            ? AppColors.danger.withValues(alpha: 0.04)
+            : AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCancelled
+              ? AppColors.danger.withValues(alpha: 0.25)
+              : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '#${order.code}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  order.paymentMethodLabel,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                CurrencyFormatter.rupiah(order.totalAmount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.person_outline_rounded,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${order.customerName?.isNotEmpty == true ? order.customerName : 'Guest'} • ${order.fulfillmentLabel}${hasPhone ? ' • ${order.customerPhone}' : ''}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (itemsSummary.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              itemsSummary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasPhone)
+                OutlinedButton.icon(
+                  onPressed: () => _openWhatsAppForOrder(order, storeName),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1EBE57),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.chat_rounded, size: 15),
+                  label: const Text(
+                    'Hubungi WA',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              if (isUnpaid)
+                OutlinedButton.icon(
+                  onPressed: () => _confirmCancelOrder(order),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.warning,
+                    side: const BorderSide(color: AppColors.warning),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.cancel_outlined, size: 15),
+                  label: const Text(
+                    'Tandai Batal/Palsu',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ElevatedButton.icon(
+                onPressed: () => _confirmDeleteOrder(order),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                label: const Text(
+                  'Hapus Transaksi',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

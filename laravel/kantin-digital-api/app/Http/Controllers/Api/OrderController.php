@@ -435,6 +435,62 @@ class OrderController extends Controller
         ], 200);
     }
 
+    public function destroy(Order $order)
+    {
+        DB::transaction(function () use ($order) {
+            foreach ($order->items as $item) {
+                $item->toppings()->delete();
+            }
+            $order->items()->delete();
+            $order->delete();
+        });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Transaksi berhasil dihapus.',
+        ], 200);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'status' => ['nullable', 'string', 'in:UNPAID,CANCELLED,PAID,PROCESSING,READY,SERVED'],
+            'order_ids' => ['nullable', 'array'],
+            'order_ids.*' => ['integer'],
+        ]);
+
+        $query = Order::query();
+
+        if ($request->filled('order_ids') && is_array($request->order_ids)) {
+            $query->whereIn('id', $request->order_ids);
+        } elseif ($request->filled('status')) {
+            $query->where('status', $request->status);
+        } else {
+            $query->where('status', 'CANCELLED');
+        }
+
+        $orders = $query->with('items')->get();
+        $deletedCount = $orders->count();
+
+        DB::transaction(function () use ($orders) {
+            foreach ($orders as $order) {
+                foreach ($order->items as $item) {
+                    $item->toppings()->delete();
+                }
+                $order->items()->delete();
+                $order->delete();
+            }
+        });
+
+        return response()->json([
+            'status' => true,
+            'message' => "$deletedCount transaksi berhasil dihapus.",
+            'data' => [
+                'deleted_count' => $deletedCount,
+            ],
+        ], 200);
+    }
+
     /**
      * Get sales statistics for manager dashboard
      */

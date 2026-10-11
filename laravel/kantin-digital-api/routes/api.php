@@ -58,6 +58,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/qris-setting', [QrisSettingController::class, 'show']);
             Route::post('/qris-setting', [QrisSettingController::class, 'update']);
             Route::put('/qris-setting', [QrisSettingController::class, 'update']);
+
+            Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+            Route::post('/orders/bulk-delete', [OrderController::class, 'bulkDestroy']);
         });
 
         Route::get('/users', [UserController::class, 'index'])
