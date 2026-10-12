@@ -25,10 +25,14 @@ class UserModel {
     );
   }
 
-  UserModel copyWith({bool? mustChangePassword}) => UserModel(
+  UserModel copyWith({
+    String? name,
+    String? email,
+    bool? mustChangePassword,
+  }) => UserModel(
     id: id,
-    name: name,
-    email: email,
+    name: name ?? this.name,
+    email: email ?? this.email,
     role: role,
     mustChangePassword: mustChangePassword ?? this.mustChangePassword,
   );

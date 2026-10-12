@@ -44,14 +44,17 @@ class UserController extends Controller
         if (!$user) return response()->json(['status' => false, 'message' => 'Not found'], 404);
 
         $request->validate([
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+            'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
             'role' => ['nullable', Rule::in($this->roles)],
         ]);
         
-        $data = $request->only(['name', 'email', 'role']);
+        $data = array_filter(
+            $request->only(['name', 'email', 'role']),
+            fn ($v) => $v !== null && $v !== ''
+        );
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
-            $data['must_change_password'] = true;
+            $data['must_change_password'] = false;
         }
 
         $user->update($data);

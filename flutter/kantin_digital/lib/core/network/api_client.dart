@@ -535,7 +535,7 @@ class ApiClient {
     if (clean == 'change-password') {
       return {'status': true, 'message': 'Password berhasil diubah (Mode Demo)'};
     }
-    if (clean == 'change-email') {
+    if (clean == 'change-email' || clean == 'update-profile') {
       return {'status': true, 'message': 'Email berhasil diubah (Mode Demo)'};
     }
 

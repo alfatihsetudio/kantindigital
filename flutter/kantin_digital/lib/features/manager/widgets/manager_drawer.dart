@@ -7,7 +7,6 @@ import '../../../shared/auth/auth_session.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
-import '../../admin/auth/login_service.dart';
 
 /// Modern Liquid Glass Drawer for Manager Role
 /// Green Gojek theme with glassmorphism effects
@@ -123,16 +122,7 @@ class ManagerDrawer extends StatelessWidget {
               );
 
               try {
-                final auth = AdminAuthService();
                 final user = AuthSession().user;
-
-                // Verify
-                await auth.login(
-                  email: user?.email ?? '',
-                  password: currentPwdCtrl.text,
-                );
-
-                // Change
                 final client = ApiClient();
                 await client.post(
                   '/change-password',
@@ -142,6 +132,11 @@ class ManagerDrawer extends StatelessWidget {
                     'new_password': newPwdCtrl.text,
                   },
                 );
+                if (user != null) {
+                  AuthSession().updateUser(
+                    user.copyWith(mustChangePassword: false),
+                  );
+                }
 
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
@@ -157,7 +152,7 @@ class ManagerDrawer extends StatelessWidget {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
 
-                String msg = e.toString();
+                String msg = e.toString().replaceAll('Exception:', '').trim();
                 if (msg.toLowerCase().contains('gagal') ||
                     msg.toLowerCase().contains('salah') ||
                     msg.contains('401')) {
@@ -291,18 +286,21 @@ class ManagerDrawer extends StatelessWidget {
               );
 
               try {
-                final auth = AdminAuthService();
                 final user = AuthSession().user;
-                await auth.login(
-                  email: user?.email ?? '',
-                  password: passwordCtrl.text,
-                );
-
                 final client = ApiClient();
                 await client.post(
                   '/update-profile',
-                  body: {'user_id': user?.id, 'email': newEmailCtrl.text},
+                  body: {
+                    'user_id': user?.id,
+                    'email': newEmailCtrl.text.trim(),
+                    'current_password': passwordCtrl.text,
+                  },
                 );
+                if (user != null) {
+                  AuthSession().updateUser(
+                    user.copyWith(email: newEmailCtrl.text.trim()),
+                  );
+                }
 
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
@@ -310,7 +308,7 @@ class ManagerDrawer extends StatelessWidget {
 
                 if (!context.mounted) return;
                 TopNotification.show(
-                  message: 'Email berhasil diubah. Login ulang diperlukan.',
+                  message: 'Email berhasil diubah.',
                   backgroundColor: AppColors.success,
                   icon: Icons.check_circle_rounded,
                 );
@@ -318,7 +316,7 @@ class ManagerDrawer extends StatelessWidget {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
 
-                String msg = e.toString();
+                String msg = e.toString().replaceAll('Exception:', '').trim();
                 if (msg.toLowerCase().contains('gagal') ||
                     msg.toLowerCase().contains('salah')) {
                   msg = 'Password salah!';

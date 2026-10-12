@@ -8,7 +8,6 @@ import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/widgets/store_status_control.dart';
-import '../auth/login_service.dart';
 
 /// Modern Liquid Glass Drawer for Admin
 /// Green Gojek theme with glassmorphism effects
@@ -125,6 +124,7 @@ class AdminDrawer extends StatelessWidget {
               );
 
               try {
+                final user = AuthSession().user;
                 final client = ApiClient();
                 await client.post(
                   '/change-password',
@@ -133,6 +133,11 @@ class AdminDrawer extends StatelessWidget {
                     'new_password': newPwdCtrl.text,
                   },
                 );
+                if (user != null) {
+                  AuthSession().updateUser(
+                    user.copyWith(mustChangePassword: false),
+                  );
+                }
 
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
@@ -148,7 +153,7 @@ class AdminDrawer extends StatelessWidget {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
 
-                String msg = e.toString();
+                String msg = e.toString().replaceAll('Exception:', '').trim();
                 // Simple heuristic for login failure
                 if (msg.toLowerCase().contains('gagal') ||
                     msg.toLowerCase().contains('salah') ||
@@ -283,24 +288,21 @@ class AdminDrawer extends StatelessWidget {
               );
 
               try {
-                // Verify password first
-                final auth = AdminAuthService();
                 final user = AuthSession().user;
-                await auth.login(
-                  email: user?.email ?? '',
-                  password: passwordCtrl.text,
-                );
-
-                // Update Profile
                 final client = ApiClient();
                 await client.post(
                   '/update-profile',
                   body: {
                     'user_id': user?.id,
-                    'email': newEmailCtrl.text,
-                    // 'password': passwordCtrl.text, // Backend might re-verify
+                    'email': newEmailCtrl.text.trim(),
+                    'current_password': passwordCtrl.text,
                   },
                 );
+                if (user != null) {
+                  AuthSession().updateUser(
+                    user.copyWith(email: newEmailCtrl.text.trim()),
+                  );
+                }
 
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
@@ -316,7 +318,7 @@ class AdminDrawer extends StatelessWidget {
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext); // Close loading
 
-                String msg = e.toString();
+                String msg = e.toString().replaceAll('Exception:', '').trim();
                 if (msg.toLowerCase().contains('gagal') ||
                     msg.toLowerCase().contains('salah')) {
                   msg = 'Password salah / Gagal update';

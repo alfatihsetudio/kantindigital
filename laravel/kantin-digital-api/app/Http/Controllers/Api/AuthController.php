@@ -86,7 +86,12 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8|different:current_password',
+            'new_password' => 'required|string|min:6|different:current_password',
+        ], [
+            'current_password.required' => 'Password lama wajib diisi.',
+            'new_password.required' => 'Password baru wajib diisi.',
+            'new_password.min' => 'Password baru minimal 6 karakter.',
+            'new_password.different' => 'Password baru harus berbeda dengan password lama.',
         ]);
 
         $user = $request->user();
@@ -105,6 +110,39 @@ class AuthController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Password berhasil diubah',
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'current_password' => 'nullable|string',
+        ], [
+            'email.required' => 'Email baru wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email tersebut sudah digunakan oleh akun lain.',
+        ]);
+
+        if ($request->filled('current_password') && ! Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Password konfirmasi salah',
+            ], 400);
+        }
+
+        $user->email = trim((string) $request->email);
+        if ($request->filled('name')) {
+            $user->name = trim((string) $request->name);
+        }
+        $user->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Profil berhasil diperbarui',
+            'data' => $user,
         ]);
     }
 }

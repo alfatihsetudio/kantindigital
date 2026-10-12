@@ -34,6 +34,7 @@ Route::get('/public/showcase-stores', [TenantController::class, 'showcaseStores'
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/update-profile', [AuthController::class, 'updateProfile']);
 
     Route::middleware('password.changed')->group(function () {
         Route::post('/tenant/update', [TenantController::class, 'update'])
