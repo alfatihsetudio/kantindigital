@@ -15,6 +15,7 @@ class CheckoutService {
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
+    String? voucherCode,
   }) async {
     if (DemoSessionManager.isDemoMode) {
       return DemoSessionManager.createDemoOrder(
@@ -25,6 +26,7 @@ class CheckoutService {
         customerName: customerName,
         customerPhone: customerPhone,
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode,
       );
     }
     final body = {
@@ -34,6 +36,8 @@ class CheckoutService {
       'customer_name': customerName,
       'customer_phone': customerPhone,
       'payment_method': paymentMethod,
+      if (voucherCode != null && voucherCode.trim().isNotEmpty)
+        'voucher_code': voucherCode.trim(),
       'items': items
           .map(
             (e) => {

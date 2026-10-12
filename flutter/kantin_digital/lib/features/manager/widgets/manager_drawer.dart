@@ -394,6 +394,12 @@ class ManagerDrawer extends StatelessWidget {
                     route: RouteName.managerSales,
                     isActive: currentRoute == RouteName.managerSales,
                   ),
+                  _DrawerItem(
+                    icon: Icons.confirmation_number_rounded,
+                    label: 'Voucher Kerjasama',
+                    route: RouteName.adminVouchers,
+                    isActive: currentRoute == RouteName.adminVouchers,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

@@ -419,6 +419,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminTenantProfile,
                     isActive: currentRoute == RouteName.adminTenantProfile,
                   ),
+                  _DrawerItem(
+                    icon: Icons.confirmation_number_rounded,
+                    label: 'Voucher Kerjasama',
+                    route: RouteName.adminVouchers,
+                    isActive: currentRoute == RouteName.adminVouchers,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

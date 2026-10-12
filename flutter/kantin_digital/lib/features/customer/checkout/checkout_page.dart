@@ -11,6 +11,7 @@ import '../../../shared/models/table_model.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
+import '../../../shared/services/voucher_service.dart';
 import '../../../shared/utils/promo_discount_calculator.dart';
 import '../../../shared/utils/store_opening_hours.dart';
 import '../../admin/tables/tables_service.dart';
@@ -38,7 +39,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _mapsUrlController;
+  late TextEditingController _voucherController;
   bool _fetchingLocation = false;
+  bool _checkingVoucher = false;
+  VoucherCheckResult? _appliedVoucher;
+  String? _voucherError;
 
   bool get _isQrOrder {
     final tableCode = CartController.instance.tableNumber;
@@ -60,6 +65,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _mapsUrlController = TextEditingController();
+    _voucherController = TextEditingController();
 
     // Listen to changes to update button state
     _nameController.addListener(() {
@@ -98,10 +104,58 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  int _totalAfterDiscount(CartController cart) =>
-      (cart.totalAmount - _discountFor(cart))
-          .clamp(0, cart.totalAmount)
-          .toInt();
+  int _voucherDiscountFor(CartController cart) {
+    final v = _appliedVoucher;
+    if (v == null || !v.valid || v.amount <= 0) return 0;
+    final afterPromo = (cart.totalAmount - _discountFor(cart))
+        .clamp(0, cart.totalAmount)
+        .toInt();
+    return v.amount.clamp(0, afterPromo).toInt();
+  }
+
+  int _totalAfterDiscount(CartController cart) {
+    final afterPromo = (cart.totalAmount - _discountFor(cart))
+        .clamp(0, cart.totalAmount)
+        .toInt();
+    final vDisc = _voucherDiscountFor(cart);
+    return (afterPromo - vDisc).clamp(0, afterPromo).toInt();
+  }
+
+  Future<void> _applyVoucher() async {
+    final code = _voucherController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _voucherError = 'Masukkan kode voucher terlebih dahulu.');
+      return;
+    }
+    setState(() {
+      _checkingVoucher = true;
+      _voucherError = null;
+    });
+    final res = await VoucherService().checkVoucher(code);
+    if (!mounted) return;
+    setState(() {
+      _checkingVoucher = false;
+      if (res.valid) {
+        _appliedVoucher = res;
+        _voucherController.text = res.code.isNotEmpty ? res.code : code.toUpperCase();
+        _voucherError = null;
+      } else {
+        _appliedVoucher = null;
+        _voucherError = res.message;
+      }
+    });
+    if (res.valid) {
+      AppSnackBar.show(context, message: res.message);
+    }
+  }
+
+  void _removeVoucher() {
+    setState(() {
+      _appliedVoucher = null;
+      _voucherError = null;
+      _voucherController.clear();
+    });
+  }
 
   String get _selectedPaymentLabel =>
       _selectedPayment == 'cash' ? 'Tunai' : 'QRIS';
@@ -112,6 +166,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _phoneController.dispose();
     _addressController.dispose();
     _mapsUrlController.dispose();
+    _voucherController.dispose();
     super.dispose();
   }
 
@@ -218,6 +273,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
       paymentMethod: _selectedPayment,
+      voucherCode: _appliedVoucher?.valid == true ? _appliedVoucher?.code : null,
     );
     if (!mounted) return;
     setState(() {
@@ -287,6 +343,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
                         // Order Summary
                         _buildOrderSummary(cart),
+                        const SizedBox(height: 20),
+
+                        // Voucher Section
+                        _buildVoucherSection(cart),
                         const SizedBox(height: 20),
 
                         if (_isQrOrder) ...[
@@ -878,6 +938,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ],
             ),
           ],
+          if (_voucherDiscountFor(cart) > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Voucher ${_appliedVoucher?.code ?? ''}${(_appliedVoucher?.partnerName ?? '').isNotEmpty ? ' (${_appliedVoucher!.partnerName})' : ''}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: AppColors.success),
+                  ),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.rupiah(_voucherDiscountFor(cart))}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -913,6 +996,218 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFFD97706),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVoucherSection(CartController cart) {
+    final hasVoucher = _appliedVoucher != null && _appliedVoucher!.valid;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.successLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.confirmation_number_rounded,
+                  color: AppColors.success,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kode Voucher',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Punya kode voucher kerjasama? Masukkan di sini',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (hasVoucher)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.successLight.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.success, width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: AppColors.success,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_appliedVoucher!.code} • Potongan ${CurrencyFormatter.rupiah(_voucherDiscountFor(cart))}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.success,
+                          ),
+                        ),
+                        if (_appliedVoucher!.partnerName.isNotEmpty)
+                          Text(
+                            'Mitra: ${_appliedVoucher!.partnerName}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _removeVoucher,
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: AppColors.danger,
+                    ),
+                    label: const Text(
+                      'Hapus',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _voucherController,
+                    textCapitalization: TextCapitalization.characters,
+                    onSubmitted: (_) => _applyVoucher(),
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: VCH-001',
+                      hintStyle: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.local_offer_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: _voucherError != null
+                              ? AppColors.danger
+                              : AppColors.border,
+                        ),
+                      ),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: _checkingVoucher ? null : _applyVoucher,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _checkingVoucher
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Pakai',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          if (_voucherError != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 14,
+                  color: AppColors.danger,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _voucherError!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.danger,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

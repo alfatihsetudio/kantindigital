@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\ToppingController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VoucherController;
 use Illuminate\Support\Facades\Route;
 
 // Public (customer & self-service registration)
@@ -20,6 +21,8 @@ Route::get('/manifest.webmanifest', [\App\Http\Controllers\Web\MetaController::c
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
 Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
+Route::post('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
+Route::get('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
 Route::get('/orders/{code}', [OrderController::class, 'show']);
 Route::post('/orders/{code}/cancel', [OrderController::class, 'cancelCustomerOrder'])->middleware('throttle:public-orders');
@@ -62,8 +65,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
             Route::post('/orders/bulk-delete', [OrderController::class, 'bulkDestroy']);
+
+            Route::post('/vouchers/import', [VoucherController::class, 'import']);
+            Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy']);
+            Route::post('/vouchers/bulk-delete', [VoucherController::class, 'bulkDestroy']);
         });
 
+        Route::get('/vouchers', [VoucherController::class, 'index'])
+            ->middleware('role:admin,manager');
+        Route::post('/vouchers/mark-reported', [VoucherController::class, 'markReported'])
+            ->middleware('role:admin,manager');
         Route::get('/users', [UserController::class, 'index'])
             ->middleware('role:admin,manager');
         Route::get('/kitchen/orders', [OrderController::class, 'indexForKitchen'])

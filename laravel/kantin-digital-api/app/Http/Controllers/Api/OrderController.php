@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderItemTopping;
 use App\Models\Table;
+use App\Models\Voucher;
 use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,22 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    private function releaseOrderVoucher(Order $order): void
+    {
+        Voucher::withoutGlobalScopes()
+            ->where('order_id', $order->id)
+            ->update([
+                'status' => 'unused',
+                'order_id' => null,
+                'order_code' => null,
+                'used_by_name' => null,
+                'used_by_phone' => null,
+                'used_at' => null,
+                'is_reported' => false,
+                'reported_at' => null,
+            ]);
+    }
+
     public function store(Request $request)
     {
         $tenantId = app()->has('tenant') ? app('tenant')->id : null;
@@ -43,6 +60,7 @@ class OrderController extends Controller
             'customer_name' => ['nullable', 'string', 'max:100'],
             'customer_phone' => ['nullable', 'string', 'max:30'],
             'payment_method' => ['nullable', 'string', 'in:qris,cash'],
+            'voucher_code' => ['nullable', 'string', 'max:100'],
             'items' => ['required', 'array', 'min:1', 'max:20'],
             'items.*.menu_id' => [
                 'required',
@@ -118,6 +136,8 @@ class OrderController extends Controller
                 'payment_method' => $paymentMethod,
                 'total_amount' => 0,
                 'discount_amount' => 0,
+                'voucher_code' => null,
+                'voucher_discount_amount' => 0,
             ]);
 
             $total = 0;
@@ -198,9 +218,49 @@ class OrderController extends Controller
                 $totalDiscount += $lineDiscount;
             }
 
+            $voucherCode = null;
+            $voucherDiscount = 0;
+
+            if ($request->filled('voucher_code')) {
+                $rawVoucherCode = strtoupper(trim((string) $request->input('voucher_code')));
+                if ($rawVoucherCode !== '') {
+                    $voucher = Voucher::whereRaw('UPPER(code) = ?', [$rawVoucherCode])
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $voucher) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'voucher_code' => ['Kode voucher tidak ditemukan atau tidak terdaftar.'],
+                        ]);
+                    }
+
+                    if ($voucher->status === 'used') {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'voucher_code' => ['Kode voucher ini sudah pernah digunakan.'],
+                        ]);
+                    }
+
+                    $voucherDiscount = min($total, max(0, (int) $voucher->amount));
+                    $total = max(0, $total - $voucherDiscount);
+                    $totalDiscount += $voucherDiscount;
+                    $voucherCode = $voucher->code;
+
+                    $voucher->update([
+                        'status' => 'used',
+                        'order_id' => $order->id,
+                        'order_code' => $order->code,
+                        'used_by_name' => $order->customer_name,
+                        'used_by_phone' => $order->customer_phone,
+                        'used_at' => now(),
+                    ]);
+                }
+            }
+
             $order->update([
                 'total_amount' => $total,
                 'discount_amount' => $totalDiscount,
+                'voucher_code' => $voucherCode,
+                'voucher_discount_amount' => $voucherDiscount,
             ]);
 
             return $order;
@@ -212,6 +272,8 @@ class OrderController extends Controller
             'data' => [
                 'code' => $order->code,
                 'payment_method' => $order->payment_method,
+                'voucher_code' => $order->voucher_code,
+                'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
             ],
         ], 201);
     }
@@ -251,6 +313,8 @@ class OrderController extends Controller
             'payment_method' => $order->payment_method ?? 'qris',
             'total_amount' => $order->total_amount,
             'discount_amount' => $order->discount_amount,
+            'voucher_code' => $order->voucher_code,
+            'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
             'qris' => [
                 'merchant_name' => $merchantName,
                 'merchant_city' => $merchantCity,
@@ -323,6 +387,7 @@ class OrderController extends Controller
 
         $order->status = 'CANCELLED';
         $order->save();
+        $this->releaseOrderVoucher($order);
 
         return response()->json([
             'status' => true,
@@ -386,6 +451,8 @@ class OrderController extends Controller
                     'payment_method' => $order->payment_method ?? 'qris',
                     'total_amount' => $order->total_amount,
                     'discount_amount' => $order->discount_amount,
+                    'voucher_code' => $order->voucher_code,
+                    'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
                     'created_at' => $order->created_at->toIso8601String(),
                     'order_type' => $order->order_type,
                     'delivery_address' => $order->delivery_address,
@@ -424,6 +491,10 @@ class OrderController extends Controller
         $order->status = $request->status;
         $order->save();
 
+        if ($order->status === 'CANCELLED') {
+            $this->releaseOrderVoucher($order);
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'success',
@@ -438,6 +509,7 @@ class OrderController extends Controller
     public function destroy(Order $order)
     {
         DB::transaction(function () use ($order) {
+            $this->releaseOrderVoucher($order);
             foreach ($order->items as $item) {
                 $item->toppings()->delete();
             }
@@ -474,6 +546,7 @@ class OrderController extends Controller
 
         DB::transaction(function () use ($orders) {
             foreach ($orders as $order) {
+                $this->releaseOrderVoucher($order);
                 foreach ($order->items as $item) {
                     $item->toppings()->delete();
                 }

@@ -22,6 +22,7 @@ class CheckoutController {
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
+    String? voucherCode,
   }) async {
     try {
       final List<CartItemModel> items = CartController.instance.items;
@@ -33,6 +34,7 @@ class CheckoutController {
         customerName: customerName,
         customerPhone: customerPhone,
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode,
       );
       return CheckoutResult.success(code);
     } on ApiException catch (e) {

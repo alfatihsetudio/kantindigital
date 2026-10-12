@@ -53,6 +53,7 @@ class ManualOrderService {
     required List<ManualOrderItem> items,
     String? customerName,
     String? customerPhone,
+    String? voucherCode,
   }) async {
     final rawItems = items.map((e) {
       List<int> toppingIds = [];
@@ -75,6 +76,7 @@ class ManualOrderService {
         customerName: customerName ?? '',
         customerPhone: customerPhone ?? '',
         items: rawItems,
+        voucherCode: voucherCode,
       );
     }
 
@@ -82,6 +84,8 @@ class ManualOrderService {
       'table_code': tableCode,
       'customer_name': customerName ?? '',
       'customer_phone': customerPhone ?? '',
+      if (voucherCode != null && voucherCode.trim().isNotEmpty)
+        'voucher_code': voucherCode.trim(),
       'items': rawItems,
     };
 

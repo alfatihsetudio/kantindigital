@@ -24,6 +24,7 @@ class RouteName {
   static const String adminUsers = '/admin/users';
   static const String adminQris = '/admin/qris';
   static const String adminTenantProfile = '/admin/profile';
+  static const String adminVouchers = '/admin/vouchers';
 
   // platform superadmin
   static const String superAdminDashboard = '/superadmin/dashboard';

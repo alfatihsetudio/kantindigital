@@ -19,6 +19,7 @@ import '../models/cart_item_model.dart';
 import '../utils/promo_discount_calculator.dart';
 
 import 'tenant_service.dart';
+import 'voucher_service.dart';
 
 /// Manajer Sesi Demo Terisolasi (Local Browser Sandbox)
 /// Setiap calon pembeli website memiliki ruang simulasi mandiri di browsernya:
@@ -854,6 +855,7 @@ class DemoSessionManager {
     required String customerName,
     required String customerPhone,
     String paymentMethod = 'qris',
+    String? voucherCode,
   }) {
     _initInitialData();
     final newId = _orderSequence++;
@@ -902,6 +904,19 @@ class DemoSessionManager {
           )
         : 0;
 
+    final afterPromo = (total - discount).clamp(0, total).toInt();
+    int voucherDiscount = 0;
+    if (voucherCode != null && voucherCode.trim().isNotEmpty) {
+      final vAmt = VoucherService.consumeDemoVoucher(
+        voucherCode.trim(),
+        orderId: newId,
+        orderCode: code,
+        usedByName: customerName,
+        usedByPhone: customerPhone,
+      );
+      voucherDiscount = vAmt.clamp(0, afterPromo).toInt();
+    }
+
     final newOrder = CashierOrderModel(
       id: newId,
       code: code,
@@ -910,8 +925,8 @@ class DemoSessionManager {
           : 'Pelanggan Meja $tableCode',
       customerPhone: customerPhone,
       status: 'UNPAID',
-      totalAmount: total - discount,
-      discountAmount: discount,
+      totalAmount: afterPromo - voucherDiscount,
+      discountAmount: discount + voucherDiscount,
       tableCode: tableCode ?? '-',
       orderType: orderType,
       deliveryAddress: deliveryAddress,
@@ -921,7 +936,7 @@ class DemoSessionManager {
 
     _orders.insert(0, newOrder);
     debugPrint(
-      'DemoSessionManager: order baru dibuat $code (Total: Rp ${total - discount})',
+      'DemoSessionManager: order baru dibuat $code (Total: Rp ${afterPromo - voucherDiscount})',
     );
     return code;
   }
@@ -932,6 +947,7 @@ class DemoSessionManager {
     required String customerName,
     required String customerPhone,
     required List<dynamic> items,
+    String? voucherCode,
   }) {
     _initInitialData();
     final newId = _orderSequence++;
@@ -981,6 +997,18 @@ class DemoSessionManager {
       );
     }
 
+    int voucherDiscount = 0;
+    if (voucherCode != null && voucherCode.trim().isNotEmpty) {
+      final vAmt = VoucherService.consumeDemoVoucher(
+        voucherCode.trim(),
+        orderId: newId,
+        orderCode: code,
+        usedByName: customerName,
+        usedByPhone: customerPhone,
+      );
+      voucherDiscount = vAmt.clamp(0, total).toInt();
+    }
+
     final newOrder = CashierOrderModel(
       id: newId,
       code: code,
@@ -989,7 +1017,8 @@ class DemoSessionManager {
           : 'Pelanggan POS Meja $tableCode',
       customerPhone: customerPhone,
       status: 'PAID',
-      totalAmount: total,
+      totalAmount: total - voucherDiscount,
+      discountAmount: voucherDiscount,
       tableCode: tableCode,
       orderType: 'dine_in',
       deliveryAddress: null,

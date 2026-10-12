@@ -440,6 +440,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         color: const Color(0xFF42A5F5), // Blue
         route: RouteName.adminUsers,
       ),
+      _ActionItem(
+        title: 'Voucher Kerjasama',
+        subtitle: 'Import & Laporan',
+        icon: Icons.confirmation_number_rounded,
+        color: const Color(0xFF10B981), // Emerald
+        route: RouteName.adminVouchers,
+      ),
     ];
 
     return SliverPadding(

@@ -20,6 +20,7 @@ import '../features/admin/toppings/toppings_page.dart';
 import '../features/admin/users/users_page.dart';
 import '../features/admin/qris/qris_setting_page.dart';
 import '../features/admin/profile/tenant_profile_page.dart';
+import '../features/admin/vouchers/vouchers_page.dart';
 import '../features/superadmin/superadmin_dashboard_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
@@ -250,6 +251,17 @@ class AppRouter {
         }
         return MaterialPageRoute(
           builder: (_) => const AdminTenantProfilePage(),
+          settings: settings,
+        );
+      case RouteName.adminVouchers:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AdminVouchersPage(),
           settings: settings,
         );
 

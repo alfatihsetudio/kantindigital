@@ -8,6 +8,7 @@ import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/table_model.dart';
 import '../../../shared/models/topping_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
+import '../../../shared/services/voucher_service.dart';
 import 'manual_order_service.dart';
 import 'widgets/item_customization_sheet.dart';
 
@@ -37,6 +38,10 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   // Customer info (optional)
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _voucherController = TextEditingController();
+  bool _checkingVoucher = false;
+  VoucherCheckResult? _appliedVoucher;
+  String? _voucherError;
   
   // Category filter
   String _selectedCategory = 'Semua';
@@ -52,6 +57,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _voucherController.dispose();
     super.dispose();
   }
 
@@ -100,6 +106,52 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
 
   int get _totalAmount {
     return _cartItems.fold(0, (sum, item) => sum + (item.totalPerItem * item.quantity));
+  }
+
+  int get _voucherDiscountAmount {
+    final v = _appliedVoucher;
+    if (v == null || !v.valid || v.amount <= 0) return 0;
+    return v.amount.clamp(0, _totalAmount).toInt();
+  }
+
+  int get _finalTotalAmount =>
+      (_totalAmount - _voucherDiscountAmount).clamp(0, _totalAmount).toInt();
+
+  Future<void> _applyVoucher({VoidCallback? onStateChanged}) async {
+    final code = _voucherController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _voucherError = 'Masukkan kode voucher');
+      onStateChanged?.call();
+      return;
+    }
+    setState(() {
+      _checkingVoucher = true;
+      _voucherError = null;
+    });
+    onStateChanged?.call();
+    final res = await VoucherService().checkVoucher(code);
+    if (!mounted) return;
+    setState(() {
+      _checkingVoucher = false;
+      if (res.valid) {
+        _appliedVoucher = res;
+        _voucherController.text = res.code.isNotEmpty ? res.code : code.toUpperCase();
+        _voucherError = null;
+      } else {
+        _appliedVoucher = null;
+        _voucherError = res.message;
+      }
+    });
+    onStateChanged?.call();
+  }
+
+  void _removeVoucher({VoidCallback? onStateChanged}) {
+    setState(() {
+      _appliedVoucher = null;
+      _voucherError = null;
+      _voucherController.clear();
+    });
+    onStateChanged?.call();
   }
 
   int get _totalItems => _cartItems.fold(0, (sum, item) => sum + item.quantity);
@@ -529,6 +581,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
         items: _cartItems,
         customerName: _nameController.text.trim(),
         customerPhone: _phoneController.text.trim(),
+        voucherCode: _appliedVoucher?.valid == true ? _appliedVoucher?.code : null,
       );
 
       if (!mounted) return;
@@ -1110,6 +1163,92 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
             ),
           ),
 
+          // Kode Voucher (Optional)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: (_appliedVoucher != null && _appliedVoucher!.valid)
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.successLight.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.success),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.confirmation_number_rounded, color: AppColors.success, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${_appliedVoucher!.code} (-${CurrencyFormatter.rupiah(_voucherDiscountAmount)})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _removeVoucher(onStateChanged: onStateChanged),
+                          child: const Icon(Icons.close_rounded, color: AppColors.danger, size: 18),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _voucherController,
+                              textCapitalization: TextCapitalization.characters,
+                              onSubmitted: (_) => _applyVoucher(onStateChanged: onStateChanged),
+                              decoration: InputDecoration(
+                                labelText: 'Kode Voucher (Opsional)',
+                                hintText: 'VCH-001',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                filled: true,
+                                fillColor: AppColors.background,
+                              ),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _checkingVoucher
+                                ? null
+                                : () => _applyVoucher(onStateChanged: onStateChanged),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _checkingVoucher
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Pakai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                      if (_voucherError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, left: 4),
+                          child: Text(
+                            _voucherError!,
+                            style: const TextStyle(fontSize: 11, color: AppColors.danger, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+
               // Total & Submit
           Container(
             padding: const EdgeInsets.all(16),
@@ -1119,6 +1258,36 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
             ),
             child: Column(
               children: [
+                if (_voucherDiscountAmount > 0) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Subtotal',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      Text(
+                        CurrencyFormatter.rupiah(_totalAmount),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Potongan Voucher (${_appliedVoucher?.code ?? ''})',
+                        style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '- ${CurrencyFormatter.rupiah(_voucherDiscountAmount)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.success),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1130,7 +1299,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                       ),
                     ),
                     Text(
-                      CurrencyFormatter.rupiah(_totalAmount),
+                      CurrencyFormatter.rupiah(_finalTotalAmount),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
