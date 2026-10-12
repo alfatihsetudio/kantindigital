@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import 'demo_session_manager.dart';
+import 'tenant_service.dart';
 
 class VoucherCheckResult {
   final int id;
@@ -138,6 +139,7 @@ class VoucherListResponse {
   final int unreportedUsedAmount;
   final List<String> partners;
   final List<VoucherPartnerSummary> partnerSummaries;
+  final String voucherPromoMode;
 
   List<VoucherItemModel> get items => vouchers;
   int get usedAmount => totalUsedAmount;
@@ -153,6 +155,7 @@ class VoucherListResponse {
     required this.unreportedUsedAmount,
     required this.partners,
     required this.partnerSummaries,
+    this.voucherPromoMode = 'both',
   });
 
   factory VoucherListResponse.empty() {
@@ -167,6 +170,7 @@ class VoucherListResponse {
       unreportedUsedAmount: 0,
       partners: [],
       partnerSummaries: [],
+      voucherPromoMode: 'both',
     );
   }
 }
@@ -175,6 +179,8 @@ class VoucherService {
   final ApiClient _client;
 
   VoucherService([ApiClient? client]) : _client = client ?? ApiClient();
+
+  static String _demoVoucherPromoMode = 'both';
 
   static final List<Map<String, dynamic>> _demoVouchers = [
     {
@@ -392,6 +398,7 @@ class VoucherService {
                 .fold(0, (s, e) => s + e.amount),
           );
         }).toList(),
+        voucherPromoMode: _demoVoucherPromoMode,
       );
     }
 
@@ -418,6 +425,7 @@ class VoucherService {
     final partnerSummaries = ((data['partner_summaries'] as List?) ?? [])
         .map((e) => VoucherPartnerSummary.fromJson(e as Map<String, dynamic>))
         .toList();
+    final rawMode = data['voucher_promo_mode']?.toString().trim() ?? 'both';
 
     return VoucherListResponse(
       vouchers: list
@@ -434,7 +442,26 @@ class VoucherService {
           (summary['unreported_used_amount'] as num?)?.toInt() ?? 0,
       partners: partners,
       partnerSummaries: partnerSummaries,
+      voucherPromoMode:
+          const {'both', 'single', 'voucher_only', 'promo_only'}.contains(rawMode)
+              ? rawMode
+              : 'both',
     );
+  }
+
+  Future<String> updateVoucherPromoMode(String mode) async {
+    if (DemoSessionManager.isDemoMode) {
+      _demoVoucherPromoMode = mode;
+      return mode;
+    }
+
+    final response = await _client.post(
+      '/tenant/voucher-promo-mode',
+      body: {'voucher_promo_mode': mode},
+    );
+    TenantService.clearCache();
+    final data = (response['data'] as Map<String, dynamic>?) ?? {};
+    return data['voucher_promo_mode']?.toString() ?? mode;
   }
 
   Future<Map<String, dynamic>> importVouchers({

@@ -28,6 +28,7 @@ class TenantModel {
   final String promoScope;
   final List<int> promoMenuIds;
   final List<String> promoPaymentMethods;
+  final String voucherPromoMode;
 
   const TenantModel({
     required this.id,
@@ -52,6 +53,7 @@ class TenantModel {
     this.promoScope = 'all',
     this.promoMenuIds = const [],
     this.promoPaymentMethods = const ['qris'],
+    this.voucherPromoMode = 'both',
   });
 
   bool? isOpenAt(DateTime utcInstant) =>
@@ -68,9 +70,12 @@ class TenantModel {
     return allowedMethods.contains(paymentMethod.toLowerCase().trim());
   }
 
-  bool get hasPromo => promoDiscountPercent > 0;
+  bool get allowsVoucher => voucherPromoMode != 'promo_only';
+  bool get allowsGeneralPromo => voucherPromoMode != 'voucher_only';
+  bool get hasPromo => promoDiscountPercent > 0 && allowsGeneralPromo;
 
   factory TenantModel.fromJson(Map<String, dynamic> json) {
+    final rawMode = json['voucher_promo_mode']?.toString().trim() ?? '';
     return TenantModel(
       id: (json['id'] as num).toInt(),
       subdomain: json['subdomain']?.toString() ?? '',
@@ -107,6 +112,10 @@ class TenantModel {
               .map((method) => method.toString().toLowerCase().trim())
               .where((method) => method.isNotEmpty)
               .toList(),
+      voucherPromoMode:
+          const {'both', 'single', 'voucher_only', 'promo_only'}.contains(rawMode)
+              ? rawMode
+              : 'both',
     );
   }
 
@@ -165,6 +174,7 @@ class TenantModel {
       'promo_scope': promoScope,
       'promo_menu_ids': promoMenuIds,
       'promo_payment_methods': promoPaymentMethods,
+      'voucher_promo_mode': voucherPromoMode,
     };
   }
 

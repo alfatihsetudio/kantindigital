@@ -42,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('password.changed')->group(function () {
         Route::post('/tenant/update', [TenantController::class, 'update'])
             ->middleware('role:admin');
+        Route::post('/tenant/voucher-promo-mode', [TenantController::class, 'updateVoucherPromoMode'])
+            ->middleware('role:admin');
         Route::post('/tenant/store-status', [TenantController::class, 'updateStoreStatus'])
             ->middleware('role:admin,cashier');
         Route::post('/tenant/opening-hours', [TenantController::class, 'updateOpeningHours'])

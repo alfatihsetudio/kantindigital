@@ -14,6 +14,7 @@ class Tenant extends Model
         'address', 'opening_hours', 'meta_title', 'meta_description', 'meta_image',
         'phone', 'whatsapp', 'plan', 'expires_at', 'is_active', 'is_store_open', 'store_opened_at',
         'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
+        'voucher_promo_mode',
     ];
 
     protected $casts = [

@@ -140,9 +140,42 @@ class OrderController extends Controller
                 'voucher_discount_amount' => 0,
             ]);
 
+            $voucherPromoMode = data_get($tenant, 'voucher_promo_mode', 'both') ?: 'both';
+            $voucher = null;
+
+            if ($request->filled('voucher_code')) {
+                $rawVoucherCode = strtoupper(trim((string) $request->input('voucher_code')));
+                if ($rawVoucherCode !== '') {
+                    if ($voucherPromoMode === 'promo_only') {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'voucher_code' => ['Penggunaan kode voucher sedang dinonaktifkan (hanya berlaku diskon promo umum).'],
+                        ]);
+                    }
+
+                    $voucher = Voucher::whereRaw('UPPER(code) = ?', [$rawVoucherCode])
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $voucher) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'voucher_code' => ['Kode voucher tidak ditemukan atau tidak terdaftar.'],
+                        ]);
+                    }
+
+                    if ($voucher->status === 'used') {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'voucher_code' => ['Kode voucher ini sudah pernah digunakan.'],
+                        ]);
+                    }
+                }
+            }
+
             $total = 0;
             $totalDiscount = 0;
             $promoPercent = min(100, max(0, (int) data_get($tenant, 'promo_discount_percent', 0)));
+            if ($voucherPromoMode === 'voucher_only' || ($voucherPromoMode === 'single' && $voucher !== null)) {
+                $promoPercent = 0;
+            }
             $promoScope = data_get($tenant, 'promo_scope', 'all') ?: 'all';
             $promoMenuIds = collect(data_get($tenant, 'promo_menu_ids', []))
                 ->map(fn ($id) => (int) $id)
@@ -221,39 +254,20 @@ class OrderController extends Controller
             $voucherCode = null;
             $voucherDiscount = 0;
 
-            if ($request->filled('voucher_code')) {
-                $rawVoucherCode = strtoupper(trim((string) $request->input('voucher_code')));
-                if ($rawVoucherCode !== '') {
-                    $voucher = Voucher::whereRaw('UPPER(code) = ?', [$rawVoucherCode])
-                        ->lockForUpdate()
-                        ->first();
+            if ($voucher !== null) {
+                $voucherDiscount = min($total, max(0, (int) $voucher->amount));
+                $total = max(0, $total - $voucherDiscount);
+                $totalDiscount += $voucherDiscount;
+                $voucherCode = $voucher->code;
 
-                    if (! $voucher) {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
-                            'voucher_code' => ['Kode voucher tidak ditemukan atau tidak terdaftar.'],
-                        ]);
-                    }
-
-                    if ($voucher->status === 'used') {
-                        throw \Illuminate\Validation\ValidationException::withMessages([
-                            'voucher_code' => ['Kode voucher ini sudah pernah digunakan.'],
-                        ]);
-                    }
-
-                    $voucherDiscount = min($total, max(0, (int) $voucher->amount));
-                    $total = max(0, $total - $voucherDiscount);
-                    $totalDiscount += $voucherDiscount;
-                    $voucherCode = $voucher->code;
-
-                    $voucher->update([
-                        'status' => 'used',
-                        'order_id' => $order->id,
-                        'order_code' => $order->code,
-                        'used_by_name' => $order->customer_name,
-                        'used_by_phone' => $order->customer_phone,
-                        'used_at' => now(),
-                    ]);
-                }
+                $voucher->update([
+                    'status' => 'used',
+                    'order_id' => $order->id,
+                    'order_code' => $order->code,
+                    'used_by_name' => $order->customer_name,
+                    'used_by_phone' => $order->customer_phone,
+                    'used_at' => now(),
+                ]);
             }
 
             $order->update([

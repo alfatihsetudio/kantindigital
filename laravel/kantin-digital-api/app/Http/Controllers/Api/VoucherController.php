@@ -21,6 +21,19 @@ class VoucherController extends Controller
             'code.required' => 'Kode voucher wajib diisi.',
         ]);
 
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant && $request->user() && $request->user()->tenant_id) {
+            $tenant = \App\Models\Tenant::find($request->user()->tenant_id);
+        }
+        $voucherPromoMode = data_get($tenant, 'voucher_promo_mode', 'both') ?: 'both';
+
+        if ($voucherPromoMode === 'promo_only') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Penggunaan kode voucher sedang dinonaktifkan (hanya berlaku diskon promo umum).',
+            ], 422);
+        }
+
         $rawCode = strtoupper(trim((string) $request->input('code')));
         if ($rawCode === '') {
             return response()->json([
@@ -59,6 +72,7 @@ class VoucherController extends Controller
                 'amount' => $amount,
                 'discount_amount' => $discountAmount,
                 'status' => $voucher->status,
+                'voucher_promo_mode' => $voucherPromoMode,
             ],
         ]);
     }
@@ -158,9 +172,16 @@ class VoucherController extends Controller
             ])
             ->values();
 
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant && $request->user() && $request->user()->tenant_id) {
+            $tenant = \App\Models\Tenant::find($request->user()->tenant_id);
+        }
+        $voucherPromoMode = data_get($tenant, 'voucher_promo_mode', 'both') ?: 'both';
+
         return response()->json([
             'status' => true,
             'data' => [
+                'voucher_promo_mode' => $voucherPromoMode,
                 'vouchers' => $vouchers->map(fn (Voucher $v) => [
                     'id' => $v->id,
                     'partner_name' => $v->partner_name,

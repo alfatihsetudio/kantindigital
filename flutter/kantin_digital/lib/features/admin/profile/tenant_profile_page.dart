@@ -50,6 +50,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   bool _promoAppliesToAll = true;
   bool _promoMenusLoading = true;
   String? _promoMenusError;
+  String _voucherPromoMode = 'both';
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -155,6 +156,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
               ? const ['qris']
               : tenant.promoPaymentMethods,
         );
+      _voucherPromoMode = tenant.voucherPromoMode;
       try {
         _promoMenus = await MenuService(
           ApiClient(),
@@ -781,6 +783,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
           _promoAppliesToAll ? <int>[] : _promoMenuIds.toList(),
         ),
         'promo_payment_methods': jsonEncode(_promoPaymentMethods.toList()),
+        'voucher_promo_mode': _voucherPromoMode,
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'opening_hours': _openingHoursCtrl.text.trim(),
@@ -1026,6 +1029,66 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
               ),
             ),
         ],
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 8),
+        const Text(
+          'Kombinasi Potongan Voucher & Diskon Umum',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Atur apakah pelanggan yang memakai kode voucher kerjasama juga tetap mendapat diskon promo umum atau hanya salah satunya.',
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        ...[
+          (
+            'both',
+            'Bisa Keduanya (Voucher + Diskon Umum)',
+            'Pelanggan mendapat diskon promo umum sekaligus potongan kode voucher.',
+          ),
+          (
+            'single',
+            'Salah Satu Saja (Voucher Menggantikan Diskon Umum)',
+            'Jika pelanggan memakai kode voucher, maka diskon promo umum otomatis tidak berlaku pada pesanan tersebut.',
+          ),
+          (
+            'voucher_only',
+            'Hanya Voucher Saja',
+            'Hanya potongan kode voucher yang aktif (diskon promo umum dinonaktifkan).',
+          ),
+          (
+            'promo_only',
+            'Hanya Diskon Umum Saja',
+            'Hanya diskon promo umum yang aktif (input kode voucher disembunyikan saat checkout).',
+          ),
+        ].map((opt) {
+          final isSelected = _voucherPromoMode == opt.$1;
+          return RadioListTile<String>(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: opt.$1,
+            groupValue: _voucherPromoMode,
+            activeColor: AppColors.primary,
+            title: Text(
+              opt.$2,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              opt.$3,
+              style: const TextStyle(fontSize: 11),
+            ),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() => _voucherPromoMode = val);
+              }
+            },
+          );
+        }),
       ],
     );
   }

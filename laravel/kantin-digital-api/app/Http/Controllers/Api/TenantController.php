@@ -53,6 +53,7 @@ class TenantController extends Controller
                 'promo_scope' => $tenant->promo_scope ?? 'all',
                 'promo_menu_ids' => $tenant->promo_menu_ids ?? [],
                 'promo_payment_methods' => $tenant->promo_payment_methods ?: ['qris'],
+                'voucher_promo_mode' => $tenant->voucher_promo_mode ?? 'both',
             ],
         ]);
     }
@@ -130,6 +131,7 @@ class TenantController extends Controller
                 ],
                 'promo_payment_methods' => 'nullable|array',
                 'promo_payment_methods.*' => 'string|in:qris,cash',
+                'voucher_promo_mode' => 'nullable|string|in:both,single,voucher_only,promo_only',
             ]);
 
             if ((int) $request->input('promo_discount_percent', 0) > 0
@@ -143,6 +145,7 @@ class TenantController extends Controller
             $data = $request->only([
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
                 'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
+                'voucher_promo_mode',
                 'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);
@@ -212,6 +215,8 @@ class TenantController extends Controller
                 $metaUrlVal = $request->input('meta_image_url');
                 $data['meta_image'] = !empty($metaUrlVal) ? $metaUrlVal : null;
             }
+
+            $this->ensureVoucherPromoModeColumnExists();
 
             // Filter hanya kolom yang benar-benar ada di tabel tenants server
             // Mencegah SQL Error 1054 jika server belum menjalankan artisan migrate
@@ -314,6 +319,56 @@ class TenantController extends Controller
                 'opening_hours' => $tenant->opening_hours,
             ],
         ]);
+    }
+
+    public function updateVoucherPromoMode(Request $request)
+    {
+        $tenant = app()->has('tenant') ? app('tenant') : null;
+        if (! $tenant && $request->user() && $request->user()->tenant_id) {
+            $tenant = \App\Models\Tenant::find($request->user()->tenant_id);
+        }
+
+        if (! $tenant) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tenant tidak ditemukan',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'voucher_promo_mode' => 'required|string|in:both,single,voucher_only,promo_only',
+        ]);
+
+        $this->ensureVoucherPromoModeColumnExists();
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('tenants', 'voucher_promo_mode')) {
+            $tenant->update([
+                'voucher_promo_mode' => $validated['voucher_promo_mode'],
+            ]);
+            $tenant->refresh();
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Pengaturan kombinasi voucher & diskon umum berhasil disimpan.',
+            'data' => [
+                'voucher_promo_mode' => $tenant->voucher_promo_mode ?? $validated['voucher_promo_mode'],
+            ],
+        ]);
+    }
+
+    private function ensureVoucherPromoModeColumnExists(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('tenants')
+                && ! \Illuminate\Support\Facades\Schema::hasColumn('tenants', 'voucher_promo_mode')) {
+                \Illuminate\Support\Facades\Schema::table('tenants', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('voucher_promo_mode', 30)->default('both');
+                });
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika gagal auto-alter
+        }
     }
 
     private function storeCompressedLogo(Tenant $tenant, string $binaryData, string $extension): ?string

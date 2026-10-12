@@ -22,6 +22,8 @@ class _AdminVouchersPageState extends State<AdminVouchersPage> {
   final TextEditingController _searchController = TextEditingController();
 
   bool _loading = true;
+  bool _savingPromoMode = false;
+  String _voucherPromoMode = 'both';
   String _statusFilter = 'ALL'; // ALL, UNUSED, USED, UNREPORTED, REPORTED
   String _partnerFilter = 'ALL';
 
@@ -64,9 +66,41 @@ class _AdminVouchersPageState extends State<AdminVouchersPage> {
     if (!mounted) return;
     setState(() {
       _data = res;
+      _voucherPromoMode = res.voucherPromoMode;
       _selectedIds.removeWhere((id) => !res.items.any((e) => e.id == id));
       _loading = false;
     });
+  }
+
+  Future<void> _changeVoucherPromoMode(String newMode) async {
+    if (_savingPromoMode || newMode == _voucherPromoMode) return;
+    final previous = _voucherPromoMode;
+    setState(() {
+      _voucherPromoMode = newMode;
+      _savingPromoMode = true;
+    });
+    try {
+      final saved = await _service.updateVoucherPromoMode(newMode);
+      if (!mounted) return;
+      setState(() {
+        _voucherPromoMode = saved;
+        _savingPromoMode = false;
+      });
+      AppSnackBar.show(
+        context,
+        message: 'Pengaturan kombinasi voucher & diskon umum berhasil disimpan!',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _voucherPromoMode = previous;
+        _savingPromoMode = false;
+      });
+      AppSnackBar.show(
+        context,
+        message: 'Gagal menyimpan pengaturan: $e',
+      );
+    }
   }
 
   Future<void> _showImportDialog() async {
@@ -642,6 +676,8 @@ class _AdminVouchersPageState extends State<AdminVouchersPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildVoucherPromoModeCard(isReadOnly: isManager),
+              const SizedBox(height: 18),
               _buildSummaryGrid(),
               const SizedBox(height: 18),
               if (_data.partnerSummaries.isNotEmpty) ...[
@@ -652,6 +688,175 @@ class _AdminVouchersPageState extends State<AdminVouchersPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVoucherPromoModeCard({required bool isReadOnly}) {
+    final options = [
+      (
+        'both',
+        'Keduanya (Voucher + Diskon Umum)',
+        'Pelanggan bisa mendapat potongan voucher sekaligus diskon promo umum.',
+        Icons.done_all_rounded,
+      ),
+      (
+        'single',
+        'Salah Satu (Utamakan Voucher)',
+        'Jika pelanggan memakai kode voucher, diskon promo umum otomatis tidak berlaku.',
+        Icons.filter_1_rounded,
+      ),
+      (
+        'voucher_only',
+        'Hanya Voucher Saja',
+        'Hanya potongan kode voucher yang berlaku (diskon promo umum dinonaktifkan).',
+        Icons.confirmation_number_outlined,
+      ),
+      (
+        'promo_only',
+        'Hanya Diskon Umum Saja',
+        'Hanya diskon promo umum yang berlaku (input voucher disembunyikan).',
+        Icons.percent_rounded,
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.primary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pengaturan Potongan Voucher & Diskon Umum',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Pilih apakah pelanggan bisa mendapat potongan voucher dan diskon umum sekaligus, atau salah satunya saja',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_savingPromoMode)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              final itemWidth = isWide
+                  ? (constraints.maxWidth - 12) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: options.map((opt) {
+                  final selected = _voucherPromoMode == opt.$1;
+                  return SizedBox(
+                    width: itemWidth,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: isReadOnly || _savingPromoMode
+                          ? null
+                          : () => _changeVoucherPromoMode(opt.$1),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primaryLight.withValues(alpha: 0.45)
+                              : AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.border,
+                            width: selected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              selected
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              size: 18,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    opt.$2,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    opt.$3,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

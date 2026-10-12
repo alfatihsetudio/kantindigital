@@ -94,6 +94,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   int _discountFor(CartController cart) {
+    if (!_promoTenant.allowsGeneralPromo) return 0;
+    if (_promoTenant.voucherPromoMode == 'single' &&
+        _appliedVoucher != null &&
+        _appliedVoucher!.valid) {
+      return 0;
+    }
     if (!_promoTenant.promoAppliesToPayment(_selectedPayment)) return 0;
 
     return PromoDiscountCalculator.calculate(
@@ -346,8 +352,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         const SizedBox(height: 20),
 
                         // Voucher Section
-                        _buildVoucherSection(cart),
-                        const SizedBox(height: 20),
+                        if (_promoTenant.allowsVoucher) ...[
+                          _buildVoucherSection(cart),
+                          const SizedBox(height: 20),
+                        ],
 
                         if (_isQrOrder) ...[
                           _buildTableSection(),
@@ -1056,6 +1064,39 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ],
           ),
           const SizedBox(height: 14),
+          if (_promoTenant.voucherPromoMode == 'single' &&
+              _promoTenant.promoDiscountPercent > 0) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppColors.warning,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasVoucher
+                          ? 'Kode voucher aktif (menggantikan diskon promo umum ${_promoTenant.promoDiscountPercent}%).'
+                          : 'Catatan: Pemakaian voucher tidak digabung dengan diskon umum ${_promoTenant.promoDiscountPercent}% (berlaku salah satu).',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (hasVoucher)
             Container(
               padding: const EdgeInsets.all(14),
