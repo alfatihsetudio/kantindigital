@@ -4,8 +4,6 @@ import '../../../../core/widgets/top_notification.dart';
 import '../../../../shared/models/stock_item_model.dart';
 import '../../../../shared/models/stock_check_model.dart';
 import '../stock_service.dart';
-import 'add_stock_item_dialog.dart';
-import 'stock_items_management_sheet.dart';
 
 class ClosingStockView extends StatefulWidget {
   final StockService service;
@@ -83,7 +81,6 @@ class _ClosingStockViewState extends State<ClosingStockView> {
 
       _inputHolders = items.map((item) {
         final existing = latestItemMap[item.name.toLowerCase().trim()];
-        // Kita biarkan input bersih atau pre-fill 0 agar kasir menginput stok fisik aktual
         final wholeCtrl = TextEditingController(
           text: existing != null ? existing.wholeQuantity.toStringAsFixed(existing.wholeQuantity.truncateToDouble() == existing.wholeQuantity ? 0 : 2) : '0',
         );
@@ -112,29 +109,6 @@ class _ClosingStockViewState extends State<ClosingStockView> {
           icon: Icons.error_outline_rounded,
         );
       }
-    }
-  }
-
-  Future<void> _addNewItemQuick() async {
-    final newItem = await AddStockItemDialog.show(
-      context,
-      service: widget.service,
-    );
-    if (newItem != null) {
-      final holder = _ItemInputHolder(
-        item: newItem,
-        wholeController: TextEditingController(text: '0'),
-        remainderController: TextEditingController(text: '0'),
-        notesController: TextEditingController(),
-      );
-      setState(() {
-        _inputHolders.add(holder);
-      });
-      TopNotification.show(
-        message: 'Item "${newItem.name}" ditambahkan ke form catatan',
-        backgroundColor: AppColors.success,
-        icon: Icons.check_circle_rounded,
-      );
     }
   }
 
@@ -309,10 +283,22 @@ class _ClosingStockViewState extends State<ClosingStockView> {
             ),
             const SizedBox(height: 16),
 
-            // Header Row & Quick Actions
+            // Header Row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.format_list_bulleted_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Text(
                   'Daftar Barang & Bahan (${_inputHolders.length} Item)',
                   style: const TextStyle(
@@ -320,41 +306,6 @@ class _ClosingStockViewState extends State<ClosingStockView> {
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
-                ),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                      onPressed: () => StockItemsManagementSheet.show(
-                        context,
-                        service: widget.service,
-                        onUpdated: _loadItems,
-                      ),
-                      icon: const Icon(Icons.settings_outlined, size: 16),
-                      label: const Text('Kelola Master', style: TextStyle(fontSize: 12)),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onPressed: _addNewItemQuick,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Tambah Item', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -374,11 +325,15 @@ class _ClosingStockViewState extends State<ClosingStockView> {
                   children: [
                     const Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey),
                     const SizedBox(height: 12),
-                    const Text('Belum ada item bahan di toko ini'),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _addNewItemQuick,
-                      child: const Text('Tambah Bahan Sekarang'),
+                    const Text(
+                      'Belum ada master bahan yang didaftarkan',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Daftar bahan diatur oleh Admin melalui menu "Master Stok & Bahan" di Dashboard Admin.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ],
                 ),

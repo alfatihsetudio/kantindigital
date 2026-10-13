@@ -4,7 +4,6 @@ import 'stock_service.dart';
 import 'widgets/closing_stock_view.dart';
 import 'widgets/opening_stock_view.dart';
 import 'widgets/stock_history_view.dart';
-import 'widgets/stock_items_management_sheet.dart';
 
 class CashierStockCheckPage extends StatefulWidget {
   final int initialTabIndex;
@@ -74,28 +73,6 @@ class _CashierStockCheckPageState extends State<CashierStockCheckPage>
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.tune_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            tooltip: 'Kelola Master Bahan',
-            onPressed: () => StockItemsManagementSheet.show(
-              context,
-              service: _service,
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,

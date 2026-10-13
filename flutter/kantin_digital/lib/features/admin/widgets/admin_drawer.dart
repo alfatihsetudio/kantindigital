@@ -391,6 +391,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminToppings,
                     isActive: currentRoute == RouteName.adminToppings,
                   ),
+                  _DrawerItem(
+                    icon: Icons.inventory_2_rounded,
+                    label: 'Master Stok & Bahan',
+                    route: RouteName.adminStockItems,
+                    isActive: currentRoute == RouteName.adminStockItems,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

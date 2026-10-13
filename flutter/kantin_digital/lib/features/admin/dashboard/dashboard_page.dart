@@ -447,6 +447,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         color: const Color(0xFF10B981), // Emerald
         route: RouteName.adminVouchers,
       ),
+      _ActionItem(
+        title: 'Master Stok',
+        subtitle: 'Bahan & Satuan',
+        icon: Icons.inventory_2_rounded,
+        color: const Color(0xFFD97706), // Amber
+        route: RouteName.adminStockItems,
+      ),
     ];
 
     return SliverPadding(
