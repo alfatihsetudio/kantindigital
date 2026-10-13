@@ -55,8 +55,12 @@
         }
       });
     }
+    // Dynamic cache buster selalu memuat JS terbaru tanpa tertahan cache browser
+    var fb = document.createElement('script');
+    fb.src = 'flutter_bootstrap.js?t=' + (new Date().getTime());
+    fb.async = true;
+    document.body.appendChild(fb);
   </script>
-  <script src="flutter_bootstrap.js?v=20261012_04" async></script>
 </body>
 
 </html>
