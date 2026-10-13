@@ -4,7 +4,6 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/top_notification.dart';
 import '../models/tenant_model.dart';
-import '../services/demo_session_manager.dart';
 import '../services/tenant_service.dart';
 
 class StoreStatusControl extends StatefulWidget {
@@ -72,7 +71,6 @@ class _StoreStatusControlState extends State<StoreStatusControl> {
       );
     }
 
-    final scheduleOpen = tenant.isOpenAt(DateTime.now().toUtc()) == true;
     final isOpen = tenant.isStoreOpen;
 
     return Container(

@@ -397,6 +397,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminStockItems,
                     isActive: currentRoute == RouteName.adminStockItems,
                   ),
+                  _DrawerItem(
+                    icon: Icons.assessment_rounded,
+                    label: 'Laporan Stok & Opname',
+                    route: RouteName.adminStockReport,
+                    isActive: currentRoute == RouteName.adminStockReport,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
