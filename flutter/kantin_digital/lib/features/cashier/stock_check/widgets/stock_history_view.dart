@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/top_notification.dart';
 import '../../../../shared/models/stock_check_model.dart';
 import '../stock_service.dart';
@@ -110,7 +111,7 @@ class _StockHistoryViewState extends State<StockHistoryView> {
                                 ),
                               ),
                               Text(
-                                '${check.checkDate} • Dicatat oleh ${check.userName ?? "Kasir"}',
+                                '${DateFormatter.formatFriendly(check.createdAt ?? check.checkDate)} • Dicatat oleh ${check.userName ?? "Kasir"}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textSecondary,
@@ -403,7 +404,7 @@ class _StockHistoryViewState extends State<StockHistoryView> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          '${item.checkDate} • ${item.items.length} item • Oleh: ${item.userName ?? "Kasir"}',
+                                          '${DateFormatter.formatFriendly(item.createdAt ?? item.checkDate)} • ${item.items.length} item • Oleh: ${item.userName ?? "Kasir"}',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: AppColors.textSecondary,

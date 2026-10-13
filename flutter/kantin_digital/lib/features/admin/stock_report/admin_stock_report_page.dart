@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/models/stock_check_model.dart';
 import '../../../shared/models/stock_item_model.dart';
@@ -163,7 +164,7 @@ class _AdminStockReportPageState extends State<AdminStockReportPage>
                                 ),
                               ),
                               Text(
-                                'Tanggal: ${check.checkDate} • Petugas: ${check.userName ?? "Kasir"}',
+                                'Tanggal: ${DateFormatter.formatFriendly(check.createdAt ?? check.checkDate)} • Petugas: ${check.userName ?? "Kasir"}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textSecondary,
@@ -493,7 +494,7 @@ class _AdminStockReportPageState extends State<AdminStockReportPage>
                         const SizedBox(height: 4),
                         Text(
                           _latestClosing != null
-                              ? 'Berdasarkan catatan tutup toko tanggal ${_latestClosing!.checkDate} oleh ${_latestClosing!.userName ?? "Kasir"}'
+                              ? 'Berdasarkan catatan tutup toko tanggal ${DateFormatter.formatFriendly(_latestClosing!.createdAt ?? _latestClosing!.checkDate)} oleh ${_latestClosing!.userName ?? "Kasir"}'
                               : 'Belum ada catatan tutup toko dari kasir.',
                           style: const TextStyle(color: Colors.white, fontSize: 12),
                         ),
@@ -801,7 +802,7 @@ class _AdminStockReportPageState extends State<AdminStockReportPage>
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          '${item.checkDate} • Dicatat oleh: ${item.userName ?? "Kasir"} • ${item.items.length} Bahan',
+                                          '${DateFormatter.formatFriendly(item.createdAt ?? item.checkDate)} • Dicatat oleh: ${item.userName ?? "Kasir"} • ${item.items.length} Bahan',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: AppColors.textSecondary,
