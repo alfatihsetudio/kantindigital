@@ -627,6 +627,73 @@ class ApiClient {
       };
     }
 
+    // ── DEMO STOCK ITEMS & CHECKS ──
+    if (clean == 'stock-items' && method == 'GET') {
+      final activeOnly = (queryParameters?['active_only'] ?? '1') == '1';
+      return {
+        'status': true,
+        'data': DemoSessionManager.getStockItems(activeOnly: activeOnly),
+      };
+    }
+
+    if (clean == 'stock-items' && method == 'POST') {
+      final name = (body?['name'] ?? '').toString();
+      final unit = (body?['unit'] ?? 'gram').toString();
+      final category = body?['category']?.toString();
+      final item = DemoSessionManager.createStockItem(name, unit, category: category);
+      return {
+        'status': true,
+        'message': 'Item stok berhasil ditambahkan',
+        'data': item,
+      };
+    }
+
+    final stockItemMatch = RegExp(r'^stock-items/(\d+)$').firstMatch(clean);
+    if (stockItemMatch != null) {
+      final id = int.parse(stockItemMatch.group(1)!);
+      if (method == 'PUT') {
+        final updated = DemoSessionManager.updateStockItem(id, body ?? {});
+        return {
+          'status': true,
+          'message': 'Item stok berhasil diperbarui',
+          'data': updated,
+        };
+      }
+      if (method == 'DELETE') {
+        DemoSessionManager.deleteStockItem(id);
+        return {
+          'status': true,
+          'message': 'Item berhasil dihapus',
+        };
+      }
+    }
+
+    if (clean == 'stock-checks/latest-closing' && method == 'GET') {
+      final latest = DemoSessionManager.getLatestClosingStock();
+      return {
+        'status': true,
+        'data': latest,
+      };
+    }
+
+    if (clean == 'stock-checks' && method == 'GET') {
+      final type = queryParameters?['type']?.toString();
+      final date = queryParameters?['date']?.toString();
+      return {
+        'status': true,
+        'data': DemoSessionManager.getStockChecksList(type: type, date: date),
+      };
+    }
+
+    if (clean == 'stock-checks' && method == 'POST') {
+      final saved = DemoSessionManager.saveStockCheck(body ?? {});
+      return {
+        'status': true,
+        'message': 'Catatan stok berhasil disimpan',
+        'data': saved,
+      };
+    }
+
     if (clean == 'check-subdomain') {
       final sub = (queryParameters?['subdomain'] ?? '').toString().toLowerCase().trim();
       final reserved = [

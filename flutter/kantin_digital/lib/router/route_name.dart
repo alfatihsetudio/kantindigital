@@ -32,6 +32,7 @@ class RouteName {
   // cashier
   static const String cashierOrders = '/cashier/orders';
   static const String cashierOrderDetail = '/cashier/order-detail';
+  static const String cashierStockCheck = '/cashier/stock-check';
 
   // manager/pimpinan (read only)
   static const String managerDashboard = '/manager/dashboard';

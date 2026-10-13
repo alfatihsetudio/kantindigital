@@ -11,6 +11,7 @@ import '../../../shared/providers/tenant_provider.dart';
 import '../widgets/cashier_drawer.dart';
 import '../widgets/calculator_widget.dart';
 import '../manual_order/manual_order_page.dart';
+import '../../../router/route_name.dart';
 import 'order_alert_sound.dart';
 import 'orders_service.dart';
 
@@ -619,6 +620,35 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           if (!isOperations)
             Row(
               children: [
+                // Stock Check button
+                Tooltip(
+                  message: 'Catatan Stok (Buka / Tutup Toko)',
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).pushNamed(RouteName.cashierStockCheck);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(50),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      child: const CircleAvatar(
+                        backgroundColor: AppColors.primaryLight,
+                        child: Icon(
+                          Icons.inventory_2_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 // Calculator button
                 GestureDetector(
                   onTap: () => CalculatorWidget.show(context),

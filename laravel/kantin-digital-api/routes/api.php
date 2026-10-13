@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QrisSettingController;
 use App\Http\Controllers\Api\RegisterStoreController;
+use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\SuperAdminController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TenantController;
@@ -87,6 +88,19 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware('role:admin,cashier,operations');
         Route::get('/manager/stats', [OrderController::class, 'salesStats'])
             ->middleware('role:admin,manager');
+
+        // Catatan Stok & Stock Opname (Buka Toko & Tutup Usaha)
+        Route::middleware('role:admin,cashier,operations,manager')->group(function () {
+            Route::get('/stock-items', [StockController::class, 'items']);
+            Route::post('/stock-items', [StockController::class, 'storeItem']);
+            Route::put('/stock-items/{id}', [StockController::class, 'updateItem']);
+            Route::delete('/stock-items/{id}', [StockController::class, 'destroyItem']);
+
+            Route::get('/stock-checks/latest-closing', [StockController::class, 'latestClosing']);
+            Route::get('/stock-checks', [StockController::class, 'indexChecks']);
+            Route::get('/stock-checks/{id}', [StockController::class, 'showCheck']);
+            Route::post('/stock-checks', [StockController::class, 'storeCheck']);
+        });
 
         Route::prefix('superadmin')->middleware('role:superadmin')->group(function () {
             Route::get('/tenants', [SuperAdminController::class, 'index']);

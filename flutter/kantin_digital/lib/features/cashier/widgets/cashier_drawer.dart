@@ -368,6 +368,12 @@ class CashierDrawer extends StatelessWidget {
                     route: RouteName.cashierOrders,
                     isActive: currentRoute == RouteName.cashierOrders,
                   ),
+                  _DrawerItem(
+                    icon: Icons.inventory_2_rounded,
+                    label: 'Catatan Stok (Buka / Tutup)',
+                    route: RouteName.cashierStockCheck,
+                    isActive: currentRoute == RouteName.cashierStockCheck,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

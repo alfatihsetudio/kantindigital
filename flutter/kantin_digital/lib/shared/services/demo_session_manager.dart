@@ -1306,6 +1306,228 @@ class DemoSessionManager {
     };
   }
 
+  // ── STOCK MANAGEMENT (DEMO) ──
+  static final List<Map<String, dynamic>> _initialStockItems = [
+    {'id': 1, 'name': 'Gula Merah', 'unit': 'gram', 'category': 'Bahan Baku', 'is_active': true},
+    {'id': 2, 'name': 'Gula Pasir', 'unit': 'gram', 'category': 'Bahan Baku', 'is_active': true},
+    {'id': 3, 'name': 'Biji Kopi Arabika', 'unit': 'gram', 'category': 'Bahan Baku', 'is_active': true},
+    {'id': 4, 'name': 'Susu UHT Full Cream', 'unit': 'ml', 'category': 'Bahan Baku', 'is_active': true},
+    {'id': 5, 'name': 'Cup Plastik 16oz', 'unit': 'pcs', 'category': 'Kemasan', 'is_active': true},
+    {'id': 6, 'name': 'Sedotan Steril', 'unit': 'pcs', 'category': 'Kemasan', 'is_active': true},
+  ];
+
+  static List<Map<String, dynamic>> demoStockItems = List.from(_initialStockItems);
+  static int _stockItemSequence = 7;
+  static final List<Map<String, dynamic>> demoStockChecks = [
+    {
+      'id': 1,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'check_type': 'closing',
+      'check_date': '2026-10-12',
+      'status': 'completed',
+      'total_items': 6,
+      'matched_items': 6,
+      'notes': 'Tutup shift sore normal',
+      'created_at': '2026-10-12 21:30:00',
+      'items': [
+        {
+          'id': 1,
+          'stock_check_id': 1,
+          'stock_item_id': 1,
+          'item_name': 'Gula Merah',
+          'unit': 'gram',
+          'whole_quantity': 2.0,
+          'remainder_quantity': 450.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+          'notes': 'Sisa timbangan 450 gram',
+        },
+        {
+          'id': 2,
+          'stock_check_id': 1,
+          'stock_item_id': 2,
+          'item_name': 'Gula Pasir',
+          'unit': 'gram',
+          'whole_quantity': 5.0,
+          'remainder_quantity': 800.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+        },
+        {
+          'id': 3,
+          'stock_check_id': 1,
+          'stock_item_id': 3,
+          'item_name': 'Biji Kopi Arabika',
+          'unit': 'gram',
+          'whole_quantity': 3.0,
+          'remainder_quantity': 650.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+        },
+        {
+          'id': 4,
+          'stock_check_id': 1,
+          'stock_item_id': 4,
+          'item_name': 'Susu UHT Full Cream',
+          'unit': 'ml',
+          'whole_quantity': 8.0,
+          'remainder_quantity': 500.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+        },
+        {
+          'id': 5,
+          'stock_check_id': 1,
+          'stock_item_id': 5,
+          'item_name': 'Cup Plastik 16oz',
+          'unit': 'pcs',
+          'whole_quantity': 2.0,
+          'remainder_quantity': 42.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+        },
+        {
+          'id': 6,
+          'stock_check_id': 1,
+          'stock_item_id': 6,
+          'item_name': 'Sedotan Steril',
+          'unit': 'pcs',
+          'whole_quantity': 1.0,
+          'remainder_quantity': 75.0,
+          'previous_whole_quantity': null,
+          'previous_remainder_quantity': null,
+          'difference_whole': 0.0,
+          'difference_remainder': 0.0,
+          'is_matched': true,
+        },
+      ],
+    }
+  ];
+  static int _stockCheckSequence = 2;
+
+  static List<Map<String, dynamic>> getStockItems({bool activeOnly = true}) {
+    if (activeOnly) {
+      return demoStockItems.where((i) => i['is_active'] == true).toList();
+    }
+    return List.from(demoStockItems);
+  }
+
+  static Map<String, dynamic> createStockItem(String name, String unit, {String? category}) {
+    final newItem = {
+      'id': _stockItemSequence++,
+      'name': name,
+      'unit': unit,
+      'category': category ?? 'Bahan Baku',
+      'is_active': true,
+    };
+    demoStockItems.add(newItem);
+    return newItem;
+  }
+
+  static Map<String, dynamic>? updateStockItem(int id, Map<String, dynamic> data) {
+    final idx = demoStockItems.indexWhere((i) => i['id'] == id);
+    if (idx != -1) {
+      demoStockItems[idx] = {...demoStockItems[idx], ...data};
+      return demoStockItems[idx];
+    }
+    return null;
+  }
+
+  static void deleteStockItem(int id) {
+    demoStockItems.removeWhere((i) => i['id'] == id);
+  }
+
+  static Map<String, dynamic>? getLatestClosingStock() {
+    final closings = demoStockChecks.where((c) => c['check_type'] == 'closing').toList();
+    if (closings.isEmpty) return null;
+    return closings.first; // yang paling baru ada di urutan awal
+  }
+
+  static List<Map<String, dynamic>> getStockChecksList({String? type, String? date}) {
+    var list = List<Map<String, dynamic>>.from(demoStockChecks);
+    if (type != null && type.isNotEmpty) {
+      list = list.where((c) => c['check_type'] == type).toList();
+    }
+    return list;
+  }
+
+  static Map<String, dynamic> saveStockCheck(Map<String, dynamic> payload) {
+    final checkType = payload['check_type']?.toString() ?? 'closing';
+    final itemsData = (payload['items'] as List?) ?? [];
+    int matchedCount = 0;
+    bool hasDiscrepancy = false;
+
+    final processedItems = itemsData.map((row) {
+      final whole = (row['whole_quantity'] as num?)?.toDouble() ?? 0.0;
+      final remainder = (row['remainder_quantity'] as num?)?.toDouble() ?? 0.0;
+      final prevWhole = (row['previous_whole_quantity'] as num?)?.toDouble();
+      final prevRemainder = (row['previous_remainder_quantity'] as num?)?.toDouble();
+
+      double diffWhole = 0;
+      double diffRemainder = 0;
+      bool isMatched = true;
+
+      if (checkType == 'opening' && (prevWhole != null || prevRemainder != null)) {
+        if (prevWhole != null) diffWhole = whole - prevWhole;
+        if (prevRemainder != null) diffRemainder = remainder - prevRemainder;
+        if (diffWhole.abs() > 0.001 || diffRemainder.abs() > 0.001) {
+          isMatched = false;
+          hasDiscrepancy = true;
+        }
+      }
+
+      if (isMatched) matchedCount++;
+
+      return {
+        'id': DateTime.now().millisecondsSinceEpoch,
+        'stock_item_id': row['stock_item_id'],
+        'item_name': row['item_name'] ?? '',
+        'unit': row['unit'] ?? 'gram',
+        'whole_quantity': whole,
+        'remainder_quantity': remainder,
+        'previous_whole_quantity': prevWhole,
+        'previous_remainder_quantity': prevRemainder,
+        'difference_whole': diffWhole,
+        'difference_remainder': diffRemainder,
+        'is_matched': isMatched,
+        'notes': row['notes'],
+      };
+    }).toList();
+
+    final newCheck = {
+      'id': _stockCheckSequence++,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'check_type': checkType,
+      'check_date': payload['check_date'] ?? DateTime.now().toString().split(' ').first,
+      'status': (checkType == 'opening' && hasDiscrepancy) ? 'has_difference' : 'completed',
+      'total_items': processedItems.length,
+      'matched_items': matchedCount,
+      'notes': payload['notes'],
+      'created_at': DateTime.now().toString(),
+      'items': processedItems,
+    };
+
+    demoStockChecks.insert(0, newCheck);
+    return newCheck;
+  }
+
   /// Reset semua data pesanan & master data demo lokal ke kondisi awal
   static void resetDemoData() {
     _orders.clear();
@@ -1320,6 +1542,8 @@ class DemoSessionManager {
     _tableSequence = 11;
     demoUsers = List.from(_initialUsers);
     _userSequence = 5;
+    demoStockItems = List.from(_initialStockItems);
+    _stockItemSequence = 7;
     demoTenant = _initialTenant;
     _initInitialData();
   }

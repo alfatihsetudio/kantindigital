@@ -24,6 +24,7 @@ import '../features/admin/vouchers/vouchers_page.dart';
 import '../features/superadmin/superadmin_dashboard_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
+import '../features/cashier/stock_check/stock_check_page.dart';
 import '../features/customer/cart/cart_page.dart';
 import '../features/customer/checkout/checkout_page.dart';
 import '../features/customer/menu/menu_page.dart';
@@ -274,6 +275,11 @@ class AppRouter {
       case RouteName.cashierOrderDetail:
         return MaterialPageRoute(
           builder: (_) => const CashierOrderDetailPage(),
+          settings: settings,
+        );
+      case RouteName.cashierStockCheck:
+        return MaterialPageRoute(
+          builder: (_) => const CashierStockCheckPage(),
           settings: settings,
         );
 
