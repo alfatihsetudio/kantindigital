@@ -191,6 +191,19 @@ class _AdminStockReportPageState extends State<AdminStockReportPage>
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                          ),
+                          tooltip: 'Tutup',
+                          onPressed: () => Navigator.pop(context),
+                        ),
                       ],
                     ),
                   ),
