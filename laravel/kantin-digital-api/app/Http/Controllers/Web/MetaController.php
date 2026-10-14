@@ -236,7 +236,7 @@ HTML;
         // 5. Dynamic Cache-Busting for flutter_bootstrap.js
         $bootstrapFile = public_path('flutter_bootstrap.js');
         $bootstrapVersion = File::exists($bootstrapFile) ? File::lastModified($bootstrapFile) : time();
-        $html = preg_replace('/flutter_bootstrap\.js(\?v=[^"\'\s>]+)?/i', "flutter_bootstrap.js?v={$bootstrapVersion}", $html);
+        $html = preg_replace('/flutter_bootstrap\.js(\?[^"\'\s>]+)?/i', "flutter_bootstrap.js?v={$bootstrapVersion}&t=" . time(), $html);
 
         return response($html, 200)
             ->header('Content-Type', 'text/html; charset=UTF-8')
