@@ -315,6 +315,7 @@ class _CartPageState extends State<CartPage> {
       scheduleOpen: scheduleOpen,
       staffHasOpened: staffHasOpened,
       utcInstant: DateTime.now().toUtc(),
+      contactPhone: tenant.confirmationPhoneNumber,
     );
 
     showDialog(

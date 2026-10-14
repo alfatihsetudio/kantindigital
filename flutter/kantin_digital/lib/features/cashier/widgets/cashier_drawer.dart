@@ -8,6 +8,7 @@ import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/demo_session_manager.dart';
 import '../../../shared/widgets/store_status_control.dart';
+import '../shift/cashier_shift_dialog.dart';
 
 /// Modern Liquid Glass Drawer for Cashier
 /// Green Gojek theme with glassmorphism effects
@@ -373,6 +374,16 @@ class CashierDrawer extends StatelessWidget {
                     label: 'Catatan Stok (Buka / Tutup)',
                     route: RouteName.cashierStockCheck,
                     isActive: currentRoute == RouteName.cashierStockCheck,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Laporan Uang Kasir (Shift)',
+                    route: '',
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      CashierShiftDialog.show(context);
+                    },
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),

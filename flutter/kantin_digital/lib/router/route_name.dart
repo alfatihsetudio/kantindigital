@@ -27,6 +27,7 @@ class RouteName {
   static const String adminVouchers = '/admin/vouchers';
   static const String adminStockItems = '/admin/stock-items';
   static const String adminStockReport = '/admin/stock-report';
+  static const String adminCashierReports = '/admin/cashier-reports';
 
   // platform superadmin
   static const String superAdminDashboard = '/superadmin/dashboard';

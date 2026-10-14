@@ -12,6 +12,7 @@ class Order extends Model
     protected $fillable = [
         'tenant_id', 'code', 'customer_name', 'customer_phone',
         'table_id', 'order_type', 'delivery_address', 'status',
+        'cashier_shift_report_id',
         'payment_method', 'total_amount', 'discount_amount',
         'voucher_code', 'voucher_discount_amount',
     ];
@@ -29,5 +30,10 @@ class Order extends Model
     public function voucher()
     {
         return $this->hasOne(Voucher::class, 'order_id');
+    }
+
+    public function shiftReport()
+    {
+        return $this->belongsTo(CashierShiftReport::class, 'cashier_shift_report_id');
     }
 }

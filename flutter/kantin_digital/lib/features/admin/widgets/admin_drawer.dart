@@ -403,6 +403,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminStockReport,
                     isActive: currentRoute == RouteName.adminStockReport,
                   ),
+                  _DrawerItem(
+                    icon: Icons.point_of_sale_rounded,
+                    label: 'ACC Laporan Kasir',
+                    route: RouteName.adminCashierReports,
+                    isActive: currentRoute == RouteName.adminCashierReports,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

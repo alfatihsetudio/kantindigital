@@ -14,6 +14,7 @@ class TenantModel {
   final String? address;
   final String? phone;
   final String? whatsapp;
+  final String? whatsappNumber;
   final String openingHours;
   final bool isStoreOpen;
   final String plan;
@@ -39,6 +40,7 @@ class TenantModel {
     this.address,
     this.phone,
     this.whatsapp,
+    this.whatsappNumber,
     this.openingHours = '08:00 - 22:00',
     this.isStoreOpen = false,
     this.plan = 'free',
@@ -74,6 +76,19 @@ class TenantModel {
   bool get allowsGeneralPromo => voucherPromoMode != 'voucher_only';
   bool get hasPromo => promoDiscountPercent > 0 && allowsGeneralPromo;
 
+  String? get confirmationPhoneNumber {
+    if (whatsappNumber != null && whatsappNumber!.trim().isNotEmpty) {
+      return whatsappNumber!.trim();
+    }
+    if (whatsapp != null && whatsapp!.trim().isNotEmpty) {
+      return whatsapp!.trim();
+    }
+    if (phone != null && phone!.trim().isNotEmpty) {
+      return phone!.trim();
+    }
+    return null;
+  }
+
   factory TenantModel.fromJson(Map<String, dynamic> json) {
     final rawMode = json['voucher_promo_mode']?.toString().trim() ?? '';
     return TenantModel(
@@ -85,6 +100,9 @@ class TenantModel {
       address: json['address']?.toString(),
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
+      whatsappNumber: json['whatsapp_number']?.toString() ??
+          json['whatsapp']?.toString() ??
+          json['phone']?.toString(),
       openingHours: (json['opening_hours'] != null &&
               json['opening_hours'].toString().trim().isNotEmpty)
           ? json['opening_hours'].toString().trim()
@@ -160,6 +178,7 @@ class TenantModel {
       'address': address,
       'phone': phone,
       'whatsapp': whatsapp,
+      'whatsapp_number': whatsappNumber,
       'opening_hours': openingHours,
       'is_store_open': isStoreOpen,
       'plan': plan,

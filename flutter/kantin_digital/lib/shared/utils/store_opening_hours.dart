@@ -3,12 +3,14 @@ class StoreClosedStatus {
   final String message;
   final String statusBadge;
   final bool isPoliteApology;
+  final String? contactPhone;
 
   const StoreClosedStatus({
     required this.title,
     required this.message,
     this.statusBadge = 'Katalog Menu',
     this.isPoliteApology = false,
+    this.contactPhone,
   });
 }
 
@@ -198,6 +200,7 @@ class StoreOpeningHours {
     required bool scheduleOpen,
     required bool staffHasOpened,
     required DateTime utcInstant,
+    String? contactPhone,
   }) {
     final hoursText = openingHours.trim().isNotEmpty
         ? openingHours.trim()
@@ -206,12 +209,16 @@ class StoreOpeningHours {
     // 1. Sedang dalam jam operasional tapi toko belum dibuka oleh pengelola
     //    (Permintaan maaf halus karena ada sesuatu hal / kendala)
     if (scheduleOpen && !staffHasOpened) {
+      final contactText = (contactPhone != null && contactPhone.trim().isNotEmpty)
+          ? ' Layanan Konsumen: ${contactPhone.trim()}.'
+          : '';
       return StoreClosedStatus(
-        title: 'Mohon Maaf, Toko Belum Buka',
+        title: 'Mohon Maaf, Toko Sedang Tutup',
         statusBadge: 'Katalog Menu',
         isPoliteApology: true,
+        contactPhone: contactPhone,
         message:
-            'Mohon maaf yang sebesar-besarnya atas ketidaknyamanannya. Saat ini kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: $hoursText. Kami berupaya untuk segera buka kembali. Anda tetap dapat melihat menu & menambah ke keranjang terlebih dahulu.',
+            'Mohon Maaf karena suatu hal, saat ini kami sedang Tutup. Jam Operasional: $hoursText.$contactText Anda tetap dapat melihat menu & menambah ke keranjang terlebih dahulu.',
       );
     }
 

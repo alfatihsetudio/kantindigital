@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CashierShiftReportController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
@@ -88,6 +89,18 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware('role:admin,cashier,operations');
         Route::get('/manager/stats', [OrderController::class, 'salesStats'])
             ->middleware('role:admin,manager');
+
+        // Laporan Penjualan Waktu Buka Berjalan & ACC Uang Kasir
+        Route::middleware('role:admin,cashier,manager')->group(function () {
+            Route::get('/cashier/shift/current', [CashierShiftReportController::class, 'currentShift']);
+            Route::post('/cashier/shift/submit', [CashierShiftReportController::class, 'submitReport']);
+            Route::get('/cashier/shift/reports', [CashierShiftReportController::class, 'index']);
+        });
+
+        Route::middleware('role:admin,manager')->group(function () {
+            Route::post('/cashier/shift/reports/{id}/approve', [CashierShiftReportController::class, 'approve']);
+            Route::post('/cashier/shift/reports/{id}/reject', [CashierShiftReportController::class, 'reject']);
+        });
 
         // Catatan Stok & Stock Opname (Buka Toko & Tutup Usaha)
         Route::middleware('role:admin,cashier,operations,manager')->group(function () {

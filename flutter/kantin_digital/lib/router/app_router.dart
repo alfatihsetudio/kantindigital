@@ -23,6 +23,7 @@ import '../features/admin/profile/tenant_profile_page.dart';
 import '../features/admin/vouchers/vouchers_page.dart';
 import '../features/admin/stock_items/admin_stock_items_page.dart';
 import '../features/admin/stock_report/admin_stock_report_page.dart';
+import '../features/admin/cashier_reports/cashier_reports_page.dart';
 import '../features/superadmin/superadmin_dashboard_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
@@ -287,6 +288,17 @@ class AppRouter {
         }
         return MaterialPageRoute(
           builder: (_) => const AdminStockReportPage(),
+          settings: settings,
+        );
+      case RouteName.adminCashierReports:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AdminCashierReportsPage(),
           settings: settings,
         );
 

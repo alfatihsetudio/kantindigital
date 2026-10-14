@@ -180,10 +180,12 @@ void main() {
       scheduleOpen: true,
       staffHasOpened: false,
       utcInstant: monday8Am,
+      contactPhone: '087771262100',
     );
     expect(apologyStatus.isPoliteApology, isTrue);
     expect(apologyStatus.title, contains('Mohon Maaf'));
-    expect(apologyStatus.message, contains('kendala operasional'));
+    expect(apologyStatus.message, contains('Mohon Maaf karena suatu hal, saat ini kami sedang Tutup'));
+    expect(apologyStatus.message, contains('087771262100'));
 
     // Case 2: Hari Libur (Minggu)
     final offDayStatus = StoreOpeningHours.getClosedStatus(

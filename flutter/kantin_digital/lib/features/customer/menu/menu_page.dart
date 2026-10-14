@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/image_saver.dart';
 import '../../../core/widgets/empty_view.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/glass_components.dart';
@@ -196,6 +197,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       scheduleOpen: scheduleOpen,
       staffHasOpened: staffHasOpened,
       utcInstant: DateTime.now().toUtc(),
+      contactPhone: tenant.confirmationPhoneNumber,
     );
 
     return Container(
@@ -282,6 +284,55 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (status.contactPhone != null &&
+                    status.contactPhone!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      final rawPhone = status.contactPhone!.trim();
+                      String cleanPhone = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                      if (cleanPhone.startsWith('0')) {
+                        cleanPhone = '62${cleanPhone.substring(1)}';
+                      } else if (!cleanPhone.startsWith('62')) {
+                        cleanPhone = '62$cleanPhone';
+                      }
+                      final url =
+                          'https://wa.me/$cleanPhone?text=${Uri.encodeComponent("Halo Admin ${tenant.name}, saya ingin menanyakan jam operasional dan pesanan.")}';
+                      ImageSaver.openUrl(url);
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFDBA74)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.chat_rounded,
+                            size: 14,
+                            color: Color(0xFF16A34A),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Layanan Konsumen: ${status.contactPhone}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

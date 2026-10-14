@@ -1899,6 +1899,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       scheduleOpen: scheduleOpen,
       staffHasOpened: staffHasOpened,
       utcInstant: DateTime.now().toUtc(),
+      contactPhone: tenant.confirmationPhoneNumber,
     );
 
     showDialog(

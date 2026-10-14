@@ -14,6 +14,7 @@ import '../manual_order/manual_order_page.dart';
 import '../../../router/route_name.dart';
 import 'order_alert_sound.dart';
 import 'orders_service.dart';
+import '../shift/cashier_shift_dialog.dart';
 
 class CashierOrdersPage extends StatefulWidget {
   const CashierOrdersPage({super.key});
@@ -91,11 +92,19 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           newOrdersArrived = true;
         }
         _hasLoadedOrders = true;
+
+        final now = DateTime.now();
+        final todayCancelled = cancelled.where((order) {
+          final dt = DateTime.tryParse(order.createdAt)?.toLocal();
+          if (dt == null) return true;
+          return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+        }).toList();
+
         setState(() {
           _pendingOrders = pending;
           _processingOrders = processing;
           _completedOrders = completed;
-          _cancelledOrders = cancelled;
+          _cancelledOrders = todayCancelled;
           _loading = false;
         });
       }
@@ -325,6 +334,117 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       if (!mounted) return;
       TopNotification.show(
         message: 'Gagal membatalkan pesanan: $e',
+        backgroundColor: AppColors.danger,
+        icon: Icons.error_rounded,
+      );
+    }
+  }
+
+  Future<void> _restoreOrder(CashierOrderModel order) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.replay_circle_filled_rounded, color: Color(0xFF0284C7), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Jadi Buat Pesanan?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Aktifkan kembali pesanan #${order.code} atas nama "${order.customerName?.isNotEmpty == true ? order.customerName : "Pelanggan"}"?',
+              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total Tagihan:', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        CurrencyFormatter.rupiah(order.totalAmount),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Metode:', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(order.paymentMethodLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0369A1))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Pilih status pengaktifan pesanan:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop('UNPAID'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFEAB308)),
+              foregroundColor: const Color(0xFFCA8A04),
+            ),
+            child: const Text('Menunggu Bayar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop('PROCESSING'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sudah Bayar & Proses'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == null) return;
+
+    try {
+      await _service.updateOrderStatus(order.id, action);
+      _loadOrders();
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Pesanan #${order.code} berhasil diaktifkan kembali (Jadi Pesan)!',
+        backgroundColor: AppColors.success,
+        icon: Icons.check_circle_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotification.show(
+        message: 'Gagal mengaktifkan pesanan: $e',
         backgroundColor: AppColors.danger,
         icon: Icons.error_rounded,
       );
@@ -620,6 +740,47 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           if (!isOperations)
             Row(
               children: [
+                // Lapor Uang Shift Kasir button
+                Tooltip(
+                  message: 'Laporan Penjualan (Shift Berjalan)',
+                  child: GestureDetector(
+                    onTap: () {
+                      CashierShiftDialog.show(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF86EFAC),
+                        ),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: Color(0xFF16A34A),
+                            size: 16,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Lapor Kas',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
                 // Stock Check button
                 Tooltip(
                   message: 'Catatan Stok (Buka / Tutup Toko)',
@@ -905,6 +1066,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 onAction: (order, action) => _updateStatus(order, action),
                 onCancel: (order) => _cancelOrder(order),
                 onWhatsApp: (order) => _sendWhatsAppMessage(order),
+                onRestore: (order) => _restoreOrder(order),
               );
             },
           );
@@ -929,6 +1091,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
               onAction: (order, action) => _updateStatus(order, action),
               onCancel: (order) => _cancelOrder(order),
               onWhatsApp: (order) => _sendWhatsAppMessage(order),
+              onRestore: (order) => _restoreOrder(order),
             );
           },
         );
@@ -945,6 +1108,7 @@ class _OrderTicketCard extends StatelessWidget {
   final Function(CashierOrderModel, String) onAction;
   final Function(CashierOrderModel) onCancel;
   final Function(CashierOrderModel) onWhatsApp;
+  final Function(CashierOrderModel)? onRestore;
 
   const _OrderTicketCard({
     required this.order,
@@ -954,6 +1118,7 @@ class _OrderTicketCard extends StatelessWidget {
     required this.onAction,
     required this.onCancel,
     required this.onWhatsApp,
+    this.onRestore,
   });
 
   @override
@@ -1620,6 +1785,38 @@ class _OrderTicketCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onRestore != null) ...[
+                    SizedBox(height: isCompact ? 6 : 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => onRestore!(order),
+                        icon: Icon(
+                          Icons.replay_rounded,
+                          size: isCompact ? 14 : 17,
+                        ),
+                        label: Text(
+                          'Jadi Pesan',
+                          style: TextStyle(
+                            fontSize: isCompact ? 12 : 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0284C7),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            vertical: isCompact ? 8 : 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 2,
+                          shadowColor: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (order.customerPhone != null &&
                       order.customerPhone!.trim().isNotEmpty) ...[
                     SizedBox(height: isCompact ? 6 : 8),

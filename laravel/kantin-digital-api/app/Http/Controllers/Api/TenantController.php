@@ -28,6 +28,14 @@ class TenantController extends Controller
             ], 404);
         }
 
+        $qrisSetting = $tenant
+            ? \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first()
+            : null;
+        if (! $qrisSetting) {
+            $qrisSetting = \App\Models\QrisSetting::withoutGlobalScopes()->first();
+        }
+        $whatsappNumber = $qrisSetting?->whatsapp_number ?? data_get($tenant, 'whatsapp') ?? data_get($tenant, 'phone') ?? '087771262100';
+
         return response()->json([
             'status' => true,
             'data' => [
@@ -41,6 +49,7 @@ class TenantController extends Controller
                 'is_store_open' => (bool) $tenant->is_store_open,
                 'phone' => $tenant->phone,
                 'whatsapp' => $tenant->whatsapp,
+                'whatsapp_number' => $whatsappNumber,
                 'plan' => $tenant->plan,
                 'is_active' => $tenant->is_active,
                 'meta_title' => $tenant->meta_title,

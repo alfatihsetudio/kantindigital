@@ -345,10 +345,12 @@ class OnlineOrderTest extends TestCase
                     ],
                 ],
             ])->assertUnprocessable()
-                ->assertJsonPath(
-                    'message',
-                    'Mohon maaf yang sebesar-besarnya, saat ini toko kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: 08:00 - 22:00. Silakan tunggu toko buka kembali.'
-                );
+                ->assertJson(function ($json) {
+                    $json->where('status', false)
+                        ->where('message', function ($msg) {
+                            return str_contains($msg, 'Mohon Maaf karena suatu hal, saat ini kami sedang Tutup');
+                        });
+                });
         } finally {
             Carbon::setTestNow();
         }

@@ -39,8 +39,17 @@ class OrderController extends Controller
         $tenant = app()->has('tenant') ? app('tenant') : null;
         if ($tenant && ! $tenant->is_store_open) {
             $hoursText = $tenant->opening_hours ?: 'belum diatur';
+            $qrisSetting = $tenant
+                ? \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first()
+                : null;
+            if (! $qrisSetting) {
+                $qrisSetting = \App\Models\QrisSetting::withoutGlobalScopes()->first();
+            }
+            $whatsappNumber = $qrisSetting?->whatsapp_number ?? data_get($tenant, 'whatsapp') ?? data_get($tenant, 'phone');
+            $contactInfo = $whatsappNumber ? ' Layanan Konsumen: '.$whatsappNumber.'.' : '';
+
             if (StoreOpeningHours::isOpen($tenant->opening_hours)) {
-                $message = 'Mohon maaf yang sebesar-besarnya, saat ini toko kami belum dapat melayani pesanan sebagaimana mestinya karena ada kendala operasional yang sedang kami tangani. Jadwal operasional: '.$hoursText.'. Silakan tunggu toko buka kembali.';
+                $message = 'Mohon Maaf karena suatu hal, saat ini kami sedang Tutup. Jam Operasional: '.$hoursText.'.'.$contactInfo.' Silakan tunggu toko buka kembali.';
             } elseif (StoreOpeningHours::isTodayClosed($tenant->opening_hours)) {
                 $message = 'Hari ini toko kami sedang libur operasional. Jadwal buka: '.$hoursText.'.';
             } else {
@@ -445,9 +454,17 @@ class OrderController extends Controller
     {
         $query = Order::with(['table', 'items.toppings']);
 
-        // Filter by status if provided
-        if ($request->has('status')) {
+        // Filter by status if provided (pesanan palsu/batal tidak ditampilkan untuk hari kemarin)
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
+            if ($request->status === 'CANCELLED') {
+                $query->whereDate('created_at', '>=', now()->startOfDay());
+            }
+        } else {
+            $query->where(function ($q) {
+                $q->where('status', '!=', 'CANCELLED')
+                  ->orWhereDate('created_at', '>=', now()->startOfDay());
+            });
         }
 
         $orders = $query->orderByDesc('created_at')->limit(100)->get();
@@ -502,7 +519,16 @@ class OrderController extends Controller
             'status' => ['required', 'string', 'in:UNPAID,PAID,PROCESSING,READY,SERVED,CANCELLED'],
         ]);
 
+        $prevStatus = $order->status;
         $order->status = $request->status;
+
+        // Jika pesanan sebelumnya CANCELLED dan diaktifkan kembali ("Jadi Pesan" hari ini)
+        if ($prevStatus === 'CANCELLED' && in_array($request->status, ['UNPAID', 'PROCESSING', 'PAID'])) {
+            if ($request->boolean('restore_today', true) || $order->created_at->lt(now()->startOfDay())) {
+                $order->created_at = now();
+            }
+        }
+
         $order->save();
 
         if ($order->status === 'CANCELLED') {

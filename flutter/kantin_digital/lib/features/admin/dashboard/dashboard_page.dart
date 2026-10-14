@@ -881,6 +881,80 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
   }
 
+  Future<void> _restoreOrder(CashierOrderModel order) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.replay_circle_filled_rounded, color: Color(0xFF0284C7), size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Jadi Buat Pesanan?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Aktifkan kembali pesanan #${order.code} (${order.customerName ?? "Guest"}) menjadi pesanan aktif hari ini?',
+              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Total: ${CurrencyFormatter.rupiah(order.totalAmount)} (${order.paymentMethodLabel})',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Batal'),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop('UNPAID'),
+            child: const Text('Menunggu Bayar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop('PROCESSING'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text('Sudah Bayar & Proses'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == null) return;
+
+    try {
+      await _ordersService.updateOrderStatus(order.id, action);
+      await _loadOrders();
+      await _loadSalesStats();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pesanan #${order.code} berhasil diaktifkan kembali (Jadi Pesan)!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengaktifkan: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
   Future<void> _confirmDeleteOrder(CashierOrderModel order) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1395,6 +1469,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   icon: const Icon(Icons.chat_rounded, size: 15),
                   label: const Text(
                     'Hubungi WA',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              if (isCancelled)
+                ElevatedButton.icon(
+                  onPressed: () => _restoreOrder(order),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.replay_rounded, size: 15),
+                  label: const Text(
+                    'Jadi Pesan',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),

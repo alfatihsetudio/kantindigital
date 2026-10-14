@@ -16,6 +16,7 @@ import '../models/topping_model.dart';
 import '../models/user_model.dart';
 import '../models/cashier_order_model.dart';
 import '../models/cart_item_model.dart';
+import '../models/cashier_shift_report_model.dart';
 import '../utils/promo_discount_calculator.dart';
 
 import 'tenant_service.dart';
@@ -1033,9 +1034,30 @@ class DemoSessionManager {
   /// Ambil order kasir yang difilter status
   static List<CashierOrderModel> getCashierOrders({String? status}) {
     _initInitialData();
-    if (status == null || status.isEmpty) return List.unmodifiable(_orders);
+    final now = DateTime.now();
+    bool isToday(String? dateStr) {
+      if (dateStr == null) return true;
+      final dt = DateTime.tryParse(dateStr)?.toLocal();
+      if (dt == null) return true;
+      return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    }
+
+    if (status == null || status.isEmpty) {
+      return _orders.where((o) {
+        if (o.status.toUpperCase() == 'CANCELLED') {
+          return isToday(o.createdAt);
+        }
+        return true;
+      }).toList();
+    }
     final norm = status.toUpperCase();
-    return _orders.where((o) => o.status.toUpperCase() == norm).toList();
+    return _orders.where((o) {
+      if (o.status.toUpperCase() != norm) return false;
+      if (norm == 'CANCELLED') {
+        return isToday(o.createdAt);
+      }
+      return true;
+    }).toList();
   }
 
   /// Update status order oleh kasir
@@ -1043,6 +1065,8 @@ class DemoSessionManager {
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx != -1) {
       final old = _orders[idx];
+      final isRestore = old.status.toUpperCase() == 'CANCELLED' &&
+          newStatus.toUpperCase() != 'CANCELLED';
       _orders[idx] = CashierOrderModel(
         id: old.id,
         code: old.code,
@@ -1053,7 +1077,7 @@ class DemoSessionManager {
         tableCode: old.tableCode,
         orderType: old.orderType,
         deliveryAddress: old.deliveryAddress,
-        createdAt: old.createdAt,
+        createdAt: isRestore ? DateTime.now().toIso8601String() : old.createdAt,
         paymentMethod: old.paymentMethod,
         items: old.items,
       );
@@ -1526,6 +1550,158 @@ class DemoSessionManager {
 
     demoStockChecks.insert(0, newCheck);
     return newCheck;
+  }
+
+  // ==========================================
+  // LAPORAN SHIFT PENJUALAN KASIR (DEMO MODE)
+  // ==========================================
+  static final Set<int> _demoReportedOrderIds = <int>{};
+  static final List<CashierShiftReportModel> _demoShiftReports = <CashierShiftReportModel>[];
+  static int _demoShiftReportSequence = 1;
+
+  static CurrentShiftData getCurrentShiftData() {
+    _initInitialData();
+    final paidOrders = _orders.where((o) =>
+        !_demoReportedOrderIds.contains(o.id) &&
+        o.status != 'CANCELLED' &&
+        o.status != 'UNPAID').toList();
+
+    final unpaidOrders = _orders.where((o) =>
+        !_demoReportedOrderIds.contains(o.id) &&
+        o.status == 'UNPAID').toList();
+
+    final cashOrders = paidOrders.where((o) => o.paymentMethod.toLowerCase() == 'cash').toList();
+    final qrisOrders = paidOrders.where((o) => o.paymentMethod.toLowerCase() == 'qris').toList();
+
+    final cashExpected = cashOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
+    final qrisExpected = qrisOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
+    final unpaidAmount = unpaidOrders.fold<double>(0, (sum, o) => sum + o.totalAmount);
+
+    CashierShiftReportModel? pending;
+    try {
+      pending = _demoShiftReports.firstWhere((r) => r.isPending);
+    } catch (_) {
+      pending = null;
+    }
+
+    return CurrentShiftData(
+      isStoreOpen: demoTenant.isStoreOpen,
+      storeOpenedAt: DateTime.now().subtract(const Duration(hours: 4)).toIso8601String(),
+      totalOrders: paidOrders.length,
+      cashOrdersCount: cashOrders.length,
+      qrisOrdersCount: qrisOrders.length,
+      totalCashExpected: cashExpected,
+      totalQrisExpected: qrisExpected,
+      totalSalesExpected: cashExpected + qrisExpected,
+      unpaidOrdersCount: unpaidOrders.length,
+      unpaidAmount: unpaidAmount,
+      pendingReport: pending,
+      recentReports: List.unmodifiable(_demoShiftReports),
+    );
+  }
+
+  static CashierShiftReportModel submitShiftReport({
+    required double cashReceived,
+    String? notes,
+  }) {
+    _initInitialData();
+    final shift = getCurrentShiftData();
+    final paidOrders = _orders.where((o) =>
+        !_demoReportedOrderIds.contains(o.id) &&
+        o.status != 'CANCELLED' &&
+        o.status != 'UNPAID').toList();
+
+    for (final o in paidOrders) {
+      _demoReportedOrderIds.add(o.id);
+    }
+
+    final diff = cashReceived - shift.totalCashExpected;
+    final report = CashierShiftReportModel(
+      id: _demoShiftReportSequence++,
+      cashierId: 1,
+      cashierName: 'Kasir Demo',
+      shiftOpenedAt: DateTime.now().subtract(const Duration(hours: 4)),
+      shiftClosedAt: DateTime.now(),
+      totalOrders: shift.totalOrders,
+      totalCashExpected: shift.totalCashExpected,
+      totalQrisExpected: shift.totalQrisExpected,
+      totalSalesExpected: shift.totalSalesExpected,
+      cashReceived: cashReceived,
+      cashDifference: diff,
+      status: 'PENDING',
+      cashierNotes: notes,
+      createdAt: DateTime.now(),
+    );
+
+    _demoShiftReports.insert(0, report);
+    return report;
+  }
+
+  static List<CashierShiftReportModel> getShiftReports({String? status}) {
+    if (status == null || status.isEmpty) return List.unmodifiable(_demoShiftReports);
+    final norm = status.toUpperCase();
+    return _demoShiftReports.where((r) => r.status.toUpperCase() == norm).toList();
+  }
+
+  static CashierShiftReportModel approveShiftReport(int reportId, {String? notes}) {
+    final idx = _demoShiftReports.indexWhere((r) => r.id == reportId);
+    if (idx != -1) {
+      final old = _demoShiftReports[idx];
+      final updated = CashierShiftReportModel(
+        id: old.id,
+        cashierId: old.cashierId,
+        cashierName: old.cashierName,
+        shiftOpenedAt: old.shiftOpenedAt,
+        shiftClosedAt: old.shiftClosedAt,
+        totalOrders: old.totalOrders,
+        totalCashExpected: old.totalCashExpected,
+        totalQrisExpected: old.totalQrisExpected,
+        totalSalesExpected: old.totalSalesExpected,
+        cashReceived: old.cashReceived,
+        cashDifference: old.cashDifference,
+        status: 'APPROVED',
+        cashierNotes: old.cashierNotes,
+        approvedBy: 1,
+        approverName: 'Admin / Manager Demo',
+        approvedAt: DateTime.now(),
+        approvalNotes: notes ?? 'Disetujui',
+        createdAt: old.createdAt,
+      );
+      _demoShiftReports[idx] = updated;
+      return updated;
+    }
+    throw Exception('Report not found');
+  }
+
+  static CashierShiftReportModel rejectShiftReport(int reportId, {String? notes}) {
+    final idx = _demoShiftReports.indexWhere((r) => r.id == reportId);
+    if (idx != -1) {
+      final old = _demoShiftReports[idx];
+      _demoReportedOrderIds.clear(); // un-link
+      final updated = CashierShiftReportModel(
+        id: old.id,
+        cashierId: old.cashierId,
+        cashierName: old.cashierName,
+        shiftOpenedAt: old.shiftOpenedAt,
+        shiftClosedAt: old.shiftClosedAt,
+        totalOrders: old.totalOrders,
+        totalCashExpected: old.totalCashExpected,
+        totalQrisExpected: old.totalQrisExpected,
+        totalSalesExpected: old.totalSalesExpected,
+        cashReceived: old.cashReceived,
+        cashDifference: old.cashDifference,
+        status: 'REJECTED',
+        cashierNotes: old.cashierNotes,
+        approvedBy: 1,
+        approverName: 'Admin / Manager Demo',
+        approvedAt: DateTime.now(),
+        approvalNotes: notes ?? 'Ditolak',
+        createdAt: old.createdAt,
+      );
+      _demoShiftReports[idx] = updated;
+      return updated;
+    }
+    throw Exception('Report not found');
   }
 
   /// Reset semua data pesanan & master data demo lokal ke kondisi awal
