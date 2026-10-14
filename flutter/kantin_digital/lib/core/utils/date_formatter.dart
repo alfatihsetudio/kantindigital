@@ -1,11 +1,29 @@
-import 'package:intl/intl.dart';
-
 class DateFormatter {
-  static final _dateTime = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
-  static final _date = DateFormat('dd MMMM yyyy', 'id_ID');
+  static const _monthsShort = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+  ];
 
-  static String dateTime(DateTime value) => _dateTime.format(value.toLocal());
-  static String date(DateTime value) => _date.format(value.toLocal());
+  static const _monthsLong = [
+    '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  static String dateTime(DateTime value) {
+    final local = value.toLocal();
+    final d = local.day.toString().padLeft(2, '0');
+    final m = _monthsShort[local.month];
+    final y = local.year;
+    final h = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$d $m $y, $h:$min WIB';
+  }
+
+  static String date(DateTime value) {
+    final local = value.toLocal();
+    final d = local.day.toString().padLeft(2, '0');
+    final m = _monthsLong[local.month];
+    final y = local.year;
+    return '$d $m $y';
+  }
 
   /// Format string tanggal ISO / datetime / timestamp menjadi format Indonesia yang ramah (contoh: "12 Okt 2026, 17:00 WIB")
   static String formatFriendly(dynamic dateOrString) {
@@ -20,13 +38,17 @@ class DateFormatter {
     if (dt == null) return dateOrString.toString();
 
     final local = dt.toLocal();
-    final dateStr = DateFormat('dd MMM yyyy', 'id_ID').format(local);
-    final timeStr = DateFormat('HH:mm', 'id_ID').format(local);
-    // Jika jam tidak 00:00 atau string aslinya berisi jam
-    if (dateOrString.toString().contains('T') || dateOrString.toString().contains(':')) {
-      return '$dateStr, $timeStr WIB';
+    final d = local.day.toString().padLeft(2, '0');
+    final m = _monthsShort[local.month];
+    final y = local.year;
+    final h = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+
+    final str = dateOrString.toString();
+    if (str.contains('T') || str.contains(':')) {
+      return '$d $m $y, $h:$min WIB';
     }
-    return dateStr;
+    return '$d $m $y';
   }
 }
 
