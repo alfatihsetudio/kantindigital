@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashierShiftReportController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\QrisSettingController;
@@ -23,6 +24,9 @@ Route::get('/manifest.webmanifest', [\App\Http\Controllers\Web\MetaController::c
 Route::get('/tenant/info', [TenantController::class, 'info']); // info tenant dari subdomain
 Route::get('/menus', [MenuController::class, 'index']);
 Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
+Route::get('/tables', [TableController::class, 'index']);
+Route::get('/toppings', [ToppingController::class, 'index']);
+Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
 Route::get('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
@@ -54,10 +58,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('role:admin')->group(function () {
             Route::apiResource('menus', MenuController::class)->except(['index']);
             Route::post('/menus/{id}', [MenuController::class, 'update']);
-            Route::apiResource('categories', CategoryController::class);
+            Route::apiResource('categories', CategoryController::class)->except(['index']);
             Route::post('/categories/{id}/toggle', [CategoryController::class, 'toggle']);
-            Route::apiResource('tables', TableController::class);
-            Route::apiResource('toppings', ToppingController::class);
+            Route::apiResource('tables', TableController::class)->except(['index']);
+            Route::apiResource('toppings', ToppingController::class)->except(['index']);
             Route::post('/users', [UserController::class, 'store']);
             Route::put('/users/{id}', [UserController::class, 'update']);
             Route::patch('/users/{id}', [UserController::class, 'update']);
@@ -113,6 +117,18 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/stock-checks', [StockController::class, 'indexChecks']);
             Route::get('/stock-checks/{id}', [StockController::class, 'showCheck']);
             Route::post('/stock-checks', [StockController::class, 'storeCheck']);
+        });
+
+        // Daftar Belanja & Pengeluaran (input kasir, dilihat admin/owner & manajer)
+        Route::middleware('role:admin,cashier,operations,manager')->group(function () {
+            Route::get('/expenses', [ExpenseController::class, 'index']);
+        });
+
+        Route::middleware('role:admin,cashier,operations')->group(function () {
+            Route::post('/expenses', [ExpenseController::class, 'store']);
+            Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+            Route::patch('/expenses/{id}', [ExpenseController::class, 'update']);
+            Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
         });
 
         Route::prefix('superadmin')->middleware('role:superadmin')->group(function () {

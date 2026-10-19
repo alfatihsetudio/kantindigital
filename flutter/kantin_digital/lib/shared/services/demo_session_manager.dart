@@ -944,7 +944,8 @@ class DemoSessionManager {
 
   /// Manual Order dari Layar POS Kasir
   static String createManualOrder({
-    required String tableCode,
+    String? tableCode,
+    String? orderType,
     required String customerName,
     required String customerPhone,
     required List<dynamic> items,
@@ -1010,18 +1011,22 @@ class DemoSessionManager {
       voucherDiscount = vAmt.clamp(0, total).toInt();
     }
 
+    final String? trimmedTableCode = (tableCode != null && tableCode.trim().isNotEmpty) ? tableCode.trim() : null;
+    final hasTable = trimmedTableCode != null;
+    final effectiveOrderType = orderType ?? (hasTable ? 'dine_in' : 'pickup');
+
     final newOrder = CashierOrderModel(
       id: newId,
       code: code,
       customerName: customerName.isNotEmpty
           ? customerName
-          : 'Pelanggan POS Meja $tableCode',
+          : (hasTable ? 'Pelanggan POS Meja $trimmedTableCode' : 'Pelanggan POS (Takeaway)'),
       customerPhone: customerPhone,
       status: 'PAID',
       totalAmount: total - voucherDiscount,
       discountAmount: voucherDiscount,
-      tableCode: tableCode,
-      orderType: 'dine_in',
+      tableCode: trimmedTableCode ?? '-',
+      orderType: effectiveOrderType,
       deliveryAddress: null,
       createdAt: 'Baru saja',
       items: cashierItems,
@@ -1550,6 +1555,139 @@ class DemoSessionManager {
 
     demoStockChecks.insert(0, newCheck);
     return newCheck;
+  }
+
+  // ==========================================
+  // DAFTAR BELANJA / PENGELUARAN (DEMO MODE)
+  // ==========================================
+  static String _demoExpenseDate(int daysAgo) {
+    final d = DateTime.now().subtract(Duration(days: daysAgo));
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  static final List<Map<String, dynamic>> demoExpenses = [
+    {
+      'id': 1,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'expense_date': _demoExpenseDate(0),
+      'category': 'Bahan Baku',
+      'description': 'Belanja gula merah & gula pasir 5 kg',
+      'amount': 185000,
+      'notes': 'Belanja pagi di pasar induk',
+      'created_at': DateTime.now().toIso8601String(),
+    },
+    {
+      'id': 2,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'expense_date': _demoExpenseDate(0),
+      'category': 'Kemasan & Perlengkapan',
+      'description': 'Cup plastik 16oz 2 dus + sedotan',
+      'amount': 240000,
+      'notes': null,
+      'created_at': DateTime.now().toIso8601String(),
+    },
+    {
+      'id': 3,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'expense_date': _demoExpenseDate(1),
+      'category': 'Gas & Listrik',
+      'description': 'Isi ulang gas LPG 3 kg (4 tabung)',
+      'amount': 120000,
+      'notes': null,
+      'created_at': DateTime.now().toIso8601String(),
+    },
+    {
+      'id': 4,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'expense_date': _demoExpenseDate(3),
+      'category': 'Air & Kebersihan',
+      'description': 'Sabun cuci piring & tisu dapur',
+      'amount': 65000,
+      'notes': 'Sekalian bayar galon isi ulang',
+      'created_at': DateTime.now().toIso8601String(),
+    },
+  ];
+  static int _expenseSequence = 5;
+
+  static Map<String, dynamic> getExpenses({
+    String? startDate,
+    String? endDate,
+    String? category,
+  }) {
+    var list = List<Map<String, dynamic>>.from(demoExpenses);
+
+    if (startDate != null && startDate.isNotEmpty) {
+      list = list
+          .where((e) => (e['expense_date']?.toString() ?? '').compareTo(startDate) >= 0)
+          .toList();
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      list = list
+          .where((e) => (e['expense_date']?.toString() ?? '').compareTo(endDate) <= 0)
+          .toList();
+    }
+    if (category != null && category.isNotEmpty) {
+      list = list.where((e) => e['category'] == category).toList();
+    }
+
+    list.sort((a, b) =>
+        (b['expense_date']?.toString() ?? '').compareTo(a['expense_date']?.toString() ?? ''));
+
+    final total = list.fold<double>(
+      0,
+      (sum, e) => sum + ((e['amount'] as num?)?.toDouble() ?? 0),
+    );
+
+    return {
+      'status': true,
+      'data': list,
+      'summary': {
+        'total_amount': total,
+        'total_transactions': list.length,
+      },
+    };
+  }
+
+  static Map<String, dynamic> createExpense(Map<String, dynamic> payload) {
+    final newExpense = <String, dynamic>{
+      'id': _expenseSequence++,
+      'user_id': 1,
+      'user': {'id': 1, 'name': 'Kasir Demo'},
+      'expense_date': payload['expense_date'] ?? _demoExpenseDate(0),
+      'category': payload['category'] ?? 'Lainnya',
+      'description': payload['description'] ?? '',
+      'amount': (payload['amount'] as num?)?.toDouble() ?? 0.0,
+      'notes': payload['notes'],
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    demoExpenses.insert(0, newExpense);
+    return {
+      'status': true,
+      'message': 'Pengeluaran berhasil dicatat',
+      'data': newExpense,
+    };
+  }
+
+  static Map<String, dynamic> updateExpense(int id, Map<String, dynamic> data) {
+    final idx = demoExpenses.indexWhere((e) => e['id'] == id);
+    if (idx == -1) {
+      return {'status': false, 'message': 'Data pengeluaran tidak ditemukan'};
+    }
+    demoExpenses[idx] = {...demoExpenses[idx], ...data};
+    return {
+      'status': true,
+      'message': 'Pengeluaran berhasil diperbarui',
+      'data': demoExpenses[idx],
+    };
+  }
+
+  static Map<String, dynamic> deleteExpense(int id) {
+    demoExpenses.removeWhere((e) => e['id'] == id);
+    return {'status': true, 'message': 'Pengeluaran berhasil dihapus'};
   }
 
   // ==========================================

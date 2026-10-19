@@ -401,6 +401,12 @@ class ManagerDrawer extends StatelessWidget {
                     isActive: currentRoute == RouteName.adminCashierReports,
                   ),
                   _DrawerItem(
+                    icon: Icons.shopping_cart_rounded,
+                    label: 'Daftar Belanja & Pengeluaran',
+                    route: RouteName.adminExpenses,
+                    isActive: currentRoute == RouteName.adminExpenses,
+                  ),
+                  _DrawerItem(
                     icon: Icons.confirmation_number_rounded,
                     label: 'Voucher Kerjasama',
                     route: RouteName.adminVouchers,

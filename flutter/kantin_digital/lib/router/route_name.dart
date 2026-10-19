@@ -28,6 +28,7 @@ class RouteName {
   static const String adminStockItems = '/admin/stock-items';
   static const String adminStockReport = '/admin/stock-report';
   static const String adminCashierReports = '/admin/cashier-reports';
+  static const String adminExpenses = '/admin/expenses';
 
   // platform superadmin
   static const String superAdminDashboard = '/superadmin/dashboard';
@@ -36,6 +37,7 @@ class RouteName {
   static const String cashierOrders = '/cashier/orders';
   static const String cashierOrderDetail = '/cashier/order-detail';
   static const String cashierStockCheck = '/cashier/stock-check';
+  static const String cashierExpenses = '/cashier/expenses';
 
   // manager/pimpinan (read only)
   static const String managerDashboard = '/manager/dashboard';

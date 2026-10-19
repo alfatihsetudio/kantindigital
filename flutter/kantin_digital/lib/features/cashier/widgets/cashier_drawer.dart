@@ -376,6 +376,12 @@ class CashierDrawer extends StatelessWidget {
                     isActive: currentRoute == RouteName.cashierStockCheck,
                   ),
                   _DrawerItem(
+                    icon: Icons.shopping_cart_rounded,
+                    label: 'Catat Belanja / Pengeluaran',
+                    route: RouteName.cashierExpenses,
+                    isActive: currentRoute == RouteName.cashierExpenses,
+                  ),
+                  _DrawerItem(
                     icon: Icons.account_balance_wallet_rounded,
                     label: 'Laporan Uang Kasir (Shift)',
                     route: '',

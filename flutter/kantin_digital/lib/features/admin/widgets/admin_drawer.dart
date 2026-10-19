@@ -409,6 +409,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminCashierReports,
                     isActive: currentRoute == RouteName.adminCashierReports,
                   ),
+                  _DrawerItem(
+                    icon: Icons.shopping_cart_rounded,
+                    label: 'Daftar Belanja & Pengeluaran',
+                    route: RouteName.adminExpenses,
+                    isActive: currentRoute == RouteName.adminExpenses,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
