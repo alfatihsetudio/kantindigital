@@ -14,9 +14,11 @@ class ManualOrderService {
       return DemoSessionManager.getMenus().where((m) => m.isAvailable).toList();
     }
     final response = await _client.get('/menus');
-    final data = response['data'] as List;
-    return data
-        .map((json) => MenuModel.fromJson(json))
+    final rawList = (response is Map<String, dynamic> && response['data'] is List)
+        ? response['data'] as List
+        : (response is List ? response : []);
+    return rawList
+        .map((json) => MenuModel.fromJson(json as Map<String, dynamic>))
         .where((menu) => menu.isAvailable)
         .toList();
   }
@@ -27,8 +29,12 @@ class ManualOrderService {
       return DemoSessionManager.getTables();
     }
     final response = await _client.get('/tables');
-    final data = response['data'] as List;
-    return data.map((json) => TableModel.fromJson(json)).toList();
+    final rawList = (response is Map<String, dynamic> && response['data'] is List)
+        ? response['data'] as List
+        : (response is List ? response : []);
+    return rawList
+        .map((json) => TableModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Fetch toppings, optionall filtered by menu ID
@@ -38,18 +44,23 @@ class ManualOrderService {
     }
     String endpoint = '/toppings';
     if (menuId != null) {
-      endpoint += '?menu_id=$menuId';
+      endpoint = '/menus/$menuId/toppings';
     }
 
     final response = await _client.get(endpoint);
-    final data = response['data'] as List;
-    return data.map((json) => ToppingModel.fromJson(json)).toList();
+    final rawList = (response is Map<String, dynamic> && response['data'] is List)
+        ? response['data'] as List
+        : (response is List ? response : []);
+    return rawList
+        .map((json) => ToppingModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Create a new order
   /// Returns order code on success
   Future<String> createOrder({
-    required String tableCode,
+    String? tableCode,
+    String? orderType,
     required List<ManualOrderItem> items,
     String? customerName,
     String? customerPhone,
@@ -70,9 +81,13 @@ class ManualOrderService {
       };
     }).toList();
 
+    final hasTable = tableCode != null && tableCode.trim().isNotEmpty;
+    final effectiveOrderType = orderType ?? (hasTable ? 'dine_in' : 'pickup');
+
     if (DemoSessionManager.isDemoMode) {
       return DemoSessionManager.createManualOrder(
-        tableCode: tableCode,
+        tableCode: hasTable ? tableCode.trim() : null,
+        orderType: effectiveOrderType,
         customerName: customerName ?? '',
         customerPhone: customerPhone ?? '',
         items: rawItems,
@@ -81,7 +96,8 @@ class ManualOrderService {
     }
 
     final body = {
-      'table_code': tableCode,
+      if (hasTable) 'table_code': tableCode.trim(),
+      'order_type': effectiveOrderType,
       'customer_name': customerName ?? '',
       'customer_phone': customerPhone ?? '',
       if (voucherCode != null && voucherCode.trim().isNotEmpty)

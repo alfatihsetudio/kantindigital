@@ -32,8 +32,13 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   // Cart items: List of complex items instead of Map
   final List<ManualOrderItem> _cartItems = [];
   
-  // Selected table
+  // Selected table & Takeaway
   TableModel? _selectedTable;
+  bool _isTakeaway = false;
+
+  // Search filter
+  final TextEditingController _menuSearchController = TextEditingController();
+  String _menuSearchQuery = '';
   
   // Customer info (optional)
   final TextEditingController _nameController = TextEditingController();
@@ -58,6 +63,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
     _nameController.dispose();
     _phoneController.dispose();
     _voucherController.dispose();
+    _menuSearchController.dispose();
     super.dispose();
   }
 
@@ -65,14 +71,20 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
     setState(() => _loading = true);
     try {
       final menus = await _service.getMenus();
-      // Toppings are now fetched per menu, so we don't load them globally here
-      final tables = await _service.getTables(); 
+      List<TableModel> tables = [];
+      try {
+        tables = await _service.getTables();
+      } catch (e) {
+        debugPrint('ManualOrder: failed to load tables: $e');
+        tables = [];
+      }
       
       // Extract categories
       final cats = <String>{'Semua'};
       for (final menu in menus) {
-        if (menu.categoryName.isNotEmpty) {
-          cats.add(menu.categoryName);
+        final cat = menu.categoryName.trim();
+        if (cat.isNotEmpty) {
+          cats.add(cat);
         }
       }
       
@@ -99,7 +111,20 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   List<MenuModel> get _filteredMenus {
     var list = _selectedCategory == 'Semua'
         ? List<MenuModel>.from(_menus)
-        : _menus.where((m) => m.categoryName == _selectedCategory).toList();
+        : _menus.where((m) => m.categoryName.trim() == _selectedCategory.trim()).toList();
+
+    if (_menuSearchQuery.isNotEmpty) {
+      final q = _menuSearchQuery.toLowerCase();
+      final prefix = TenantProvider.of(context).menuCodePrefix;
+      list = list.where((m) {
+        final nameMatch = m.name.toLowerCase().contains(q);
+        final codeMatch = (m.code ?? '').toLowerCase().contains(q);
+        final formattedCode = m.formattedCode(prefix).toLowerCase();
+        final seqMatch = m.sequenceNumber.contains(q);
+        return nameMatch || codeMatch || formattedCode.contains(q) || seqMatch;
+      }).toList();
+    }
+
     list.sort((a, b) => a.flyerOrder.compareTo(b.flyerOrder));
     return list;
   }
@@ -311,12 +336,16 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
         String searchQuery = '';
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final filteredTables = _tables.where((t) {
+            // Filter hanya meja yang aktif (tidak sedang terisi/occupied)
+            final activeTables = _tables.where((t) => !t.isOccupied).toList();
+            final filteredTables = activeTables.where((t) {
               if (searchQuery.isEmpty) return true;
               final codeMatch = t.code.toLowerCase().contains(searchQuery.toLowerCase());
               final nameMatch = (t.name ?? '').toLowerCase().contains(searchQuery.toLowerCase());
               return codeMatch || nameMatch;
             }).toList();
+
+            final totalItems = 1 + filteredTables.length; // 1 for Tanpa Meja
 
             return Container(
               height: MediaQuery.of(context).size.height * 0.92,
@@ -391,70 +420,151 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                   const Divider(height: 1),
                   // Tables List
                   Expanded(
-                    child: filteredTables.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Meja tidak ditemukan',
-                              style: TextStyle(color: AppColors.textSecondary),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: totalItems,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          // Opsi: Tanpa Meja (Takeaway / Bawa Pulang)
+                          final isTakeawaySelected = _selectedTable == null && _isTakeaway;
+                          return ListTile(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            itemCount: filteredTables.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final table = filteredTables[index];
-                              final isSelected = _selectedTable?.id == table.id;
-
-                              return ListTile(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            tileColor: isTakeawaySelected
+                                ? AppColors.primary.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: isTakeawaySelected
+                                    ? AppColors.primary
+                                    : AppColors.background,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.takeout_dining_rounded,
+                                  color: isTakeawaySelected
+                                      ? Colors.white
+                                      : AppColors.primary,
+                                  size: 22,
                                 ),
-                                tileColor: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
-                                leading: Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? AppColors.primary : AppColors.background,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      table.code,
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : AppColors.primary,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 15,
-                                      ),
+                              ),
+                            ),
+                            title: Text(
+                              'Tanpa Meja (Bawa Pulang / Takeaway)',
+                              style: TextStyle(
+                                fontWeight: isTakeawaySelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                                color: isTakeawaySelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Pesanan langsung dibawa pulang tanpa duduk di meja',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            trailing: isTakeawaySelected
+                                ? const Icon(Icons.check_circle_rounded,
+                                    color: AppColors.primary, size: 24)
+                                : Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.grey.shade300, width: 1.5),
                                     ),
                                   ),
+                            onTap: () {
+                              setState(() {
+                                _selectedTable = null;
+                                _isTakeaway = true;
+                              });
+                              onStateChanged?.call();
+                              Navigator.of(context).pop();
+                            },
+                          );
+                        }
+
+                        final table = filteredTables[index - 1];
+                        final isSelected = _selectedTable?.id == table.id;
+
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          tileColor: isSelected
+                              ? AppColors.primary.withValues(alpha: 0.08)
+                              : Colors.transparent,
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                table.code,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
                                 ),
-                                title: Text(
-                                  table.name != null && table.name!.isNotEmpty ? table.name! : 'Meja ${table.code}',
-                                  style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                                    fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            table.name != null && table.name!.isNotEmpty
+                                ? table.name!
+                                : 'Meja ${table.code}',
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check_circle_rounded,
+                                  color: AppColors.primary, size: 24)
+                              : Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.grey.shade300, width: 1.5),
                                   ),
                                 ),
-                                trailing: isSelected
-                                    ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 24)
-                                    : Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.grey.shade300, width: 1.5),
-                                        ),
-                                      ),
-                                onTap: () {
-                                  setState(() => _selectedTable = table);
-                                  onStateChanged?.call();
-                                  Navigator.of(context).pop();
-                                },
-                              );
-                            },
-                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedTable = table;
+                              _isTakeaway = false;
+                            });
+                            onStateChanged?.call();
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -467,7 +577,16 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
 
   Future<bool> _confirmRemoveCartItem(int index) async {
     final item = _cartItems[index];
-    final menu = item.menu ?? _menus.firstWhere((m) => m.id == item.menuId);
+    final menu = item.menu ??
+        _menus.firstWhere(
+          (m) => m.id == item.menuId,
+          orElse: () => MenuModel(
+            id: item.menuId,
+            name: 'Menu #${item.menuId}',
+            categoryName: '',
+            price: 0,
+          ),
+        );
 
     final result = await showDialog<bool>(
       context: context,
@@ -555,9 +674,10 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   }
 
   Future<void> _submitOrder({bool isMobileModal = false}) async {
-    if (_selectedTable == null) {
+    final bool isTableMissing = _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
+    if (isTableMissing) {
       TopNotification.show(
-        message: 'Pilih nomor meja terlebih dahulu',
+        message: 'Pilih nomor meja atau opsi Tanpa Meja terlebih dahulu',
         backgroundColor: AppColors.warning,
         icon: Icons.warning_rounded,
       );
@@ -576,8 +696,12 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
     setState(() => _submitting = true);
 
     try {
+      final String? tableCode = (_isTakeaway || _selectedTable == null) ? null : _selectedTable!.code;
+      final String orderType = (tableCode != null && tableCode.isNotEmpty) ? 'dine_in' : 'pickup';
+
       final orderCode = await _service.createOrder(
-        tableCode: _selectedTable!.code,
+        tableCode: tableCode,
+        orderType: orderType,
         items: _cartItems,
         customerName: _nameController.text.trim(),
         customerPhone: _phoneController.text.trim(),
@@ -674,6 +798,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                     ),
                   )
                 else ...[
+                  _buildSearchBar(isMobile: isMobile),
                   _buildCategoryChips(),
                   Expanded(
                     child: isMobile
@@ -766,6 +891,52 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar({bool isMobile = false}) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, isMobile ? 8 : 12, 16, 4),
+      child: TextField(
+        controller: _menuSearchController,
+        onChanged: (val) {
+          setState(() {
+            _menuSearchQuery = val.trim();
+          });
+        },
+        decoration: InputDecoration(
+          hintText: 'Cari nama atau kode menu...',
+          hintStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+          suffixIcon: _menuSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
+                  onPressed: () {
+                    _menuSearchController.clear();
+                    setState(() {
+                      _menuSearchQuery = '';
+                    });
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+        ),
       ),
     );
   }
@@ -1030,11 +1201,20 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: _cartItems.length,
-                    separatorBuilder: (_, __) => const Divider(height: 16),
+                    separatorBuilder: (_, _) => const Divider(height: 16),
                     itemBuilder: (context, index) {
                       final item = _cartItems[index];
-                      // Use stored menu or find it
-                      final menu = item.menu ?? _menus.firstWhere((m) => m.id == item.menuId);
+                      // Use stored menu or find it safely
+                      final menu = item.menu ??
+                          _menus.firstWhere(
+                            (m) => m.id == item.menuId,
+                            orElse: () => MenuModel(
+                              id: item.menuId,
+                              name: 'Menu #${item.menuId}',
+                              categoryName: '',
+                              price: 0,
+                            ),
+                          );
                       return _CartItemTile(
                         menu: menu,
                         item: item,
@@ -1055,69 +1235,72 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                   ),
           ),
 
-          // Table Selection
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showTableSelectionSheet(onStateChanged: onStateChanged),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedTable != null ? AppColors.primary : Colors.grey.shade400,
-                      width: _selectedTable != null ? 1.5 : 1.0,
+          // Table Selection (Hanya tampil jika ada meja aktif/terdaftar)
+          if (_tables.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showTableSelectionSheet(onStateChanged: onStateChanged),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (_isTakeaway || _selectedTable != null) ? AppColors.primary : Colors.grey.shade400,
+                        width: (_isTakeaway || _selectedTable != null) ? 1.5 : 1.0,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.table_restaurant_rounded,
-                        size: 20,
-                        color: _selectedTable != null ? AppColors.primary : AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Nomor Meja *',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: _selectedTable != null ? AppColors.primary : AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _selectedTable != null
-                                  ? (_selectedTable!.name != null && _selectedTable!.name!.isNotEmpty
-                                      ? _selectedTable!.name!
-                                      : 'Meja ${_selectedTable!.code}')
-                                  : 'Pilih meja pesanan...',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: _selectedTable != null ? FontWeight.w700 : FontWeight.normal,
-                                color: _selectedTable != null ? AppColors.textPrimary : AppColors.textSecondary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isTakeaway ? Icons.takeout_dining_rounded : Icons.table_restaurant_rounded,
+                          size: 20,
+                          color: (_isTakeaway || _selectedTable != null) ? AppColors.primary : AppColors.textSecondary,
                         ),
-                      ),
-                      const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 28),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isTakeaway ? 'Tipe Pesanan' : 'Nomor Meja *',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: (_isTakeaway || _selectedTable != null) ? AppColors.primary : AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _isTakeaway
+                                    ? 'Tanpa Meja (Bawa Pulang / Takeaway)'
+                                    : (_selectedTable != null
+                                        ? (_selectedTable!.name != null && _selectedTable!.name!.isNotEmpty
+                                            ? _selectedTable!.name!
+                                            : 'Meja ${_selectedTable!.code}')
+                                        : 'Pilih meja pesanan...'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: (_isTakeaway || _selectedTable != null) ? FontWeight.w700 : FontWeight.normal,
+                                  color: (_isTakeaway || _selectedTable != null) ? AppColors.textPrimary : AppColors.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 28),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
           // Customer Name (Required)
           Padding(
@@ -1313,8 +1496,9 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                   width: double.infinity,
                   child: Builder(
                     builder: (context) {
+                      final bool isTableMissing = _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
                       final bool isFormValid = _cartItems.isNotEmpty && 
-                          _selectedTable != null && 
+                          !isTableMissing && 
                           _nameController.text.trim().isNotEmpty && 
                           _phoneController.text.trim().isNotEmpty;
 
@@ -1324,8 +1508,8 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                              String missing = '';
                              if (_cartItems.isEmpty) {
                                missing = 'Pilih menu minimal 1 item';
-                             } else if (_selectedTable == null) {
-                               missing = 'Nomor Meja';
+                             } else if (isTableMissing) {
+                               missing = 'Nomor Meja atau opsi Tanpa Meja';
                              } else if (_nameController.text.trim().isEmpty) {
                                missing = 'Nama Pelanggan';
                              } else if (_phoneController.text.trim().isEmpty) {
@@ -1434,7 +1618,7 @@ class _MenuCard extends StatelessWidget {
                             menu.imageUrl!,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                            errorBuilder: (_, _, _) => _buildPlaceholder(),
                           ),
                         )
                       : _buildPlaceholder(),
@@ -1660,7 +1844,7 @@ class _CartItemTile extends StatelessWidget {
                               child: Image.network(
                                 menu.imageUrl!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.restaurant, color: AppColors.textMuted),
+                                errorBuilder: (_, _, _) => const Icon(Icons.restaurant, color: AppColors.textMuted),
                               ),
                             )
                           : const Icon(Icons.restaurant, color: AppColors.textMuted),

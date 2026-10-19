@@ -15,8 +15,10 @@ class MenuController extends Controller
     public function index()
     {
         $menus = Menu::with(['category', 'toppings'])
-            ->whereHas('category', function ($q) {
-                $q->where('is_active', true);
+            ->where(function ($query) {
+                $query->whereHas('category', function ($q) {
+                    $q->where('is_active', true);
+                })->orWhereNull('category_id');
             })
             ->get()
             ->map(function ($menu) {
