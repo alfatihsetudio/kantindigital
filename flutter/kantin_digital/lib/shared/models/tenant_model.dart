@@ -30,6 +30,8 @@ class TenantModel {
   final List<int> promoMenuIds;
   final List<String> promoPaymentMethods;
   final String voucherPromoMode;
+  final List<DeliveryDiscountTier> deliveryDiscountTiers;
+  final String orderNotificationSound;
 
   const TenantModel({
     required this.id,
@@ -56,6 +58,8 @@ class TenantModel {
     this.promoMenuIds = const [],
     this.promoPaymentMethods = const ['qris'],
     this.voucherPromoMode = 'both',
+    this.deliveryDiscountTiers = const [],
+    this.orderNotificationSound = 'dingdong',
   });
 
   bool? isOpenAt(DateTime utcInstant) =>
@@ -134,6 +138,14 @@ class TenantModel {
           const {'both', 'single', 'voucher_only', 'promo_only'}.contains(rawMode)
               ? rawMode
               : 'both',
+      deliveryDiscountTiers: (json['delivery_discount_tiers'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => DeliveryDiscountTier.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
+      orderNotificationSound: (json['order_notification_sound'] != null &&
+              json['order_notification_sound'].toString().trim().isNotEmpty)
+          ? json['order_notification_sound'].toString().trim()
+          : 'dingdong',
     );
   }
 
@@ -194,7 +206,36 @@ class TenantModel {
       'promo_menu_ids': promoMenuIds,
       'promo_payment_methods': promoPaymentMethods,
       'voucher_promo_mode': voucherPromoMode,
+      'delivery_discount_tiers':
+          deliveryDiscountTiers.map((t) => t.toJson()).toList(),
+      'order_notification_sound': orderNotificationSound,
     };
+  }
+
+  /// Menghitung diskon pengantaran berdasarkan jumlah seluruh item (cup) di keranjang
+  int calculateDeliveryDiscount(int totalQuantity) {
+    if (deliveryDiscountTiers.isEmpty || totalQuantity <= 0) return 0;
+    final sorted = List<DeliveryDiscountTier>.from(deliveryDiscountTiers)
+      ..sort((a, b) => b.minQty.compareTo(a.minQty));
+    for (final tier in sorted) {
+      if (totalQuantity >= tier.minQty) {
+        return tier.discountAmount;
+      }
+    }
+    return 0;
+  }
+
+  /// Ambil tier pengantaran yang sedang aktif
+  DeliveryDiscountTier? getActiveDeliveryTier(int totalQuantity) {
+    if (deliveryDiscountTiers.isEmpty || totalQuantity <= 0) return null;
+    final sorted = List<DeliveryDiscountTier>.from(deliveryDiscountTiers)
+      ..sort((a, b) => b.minQty.compareTo(a.minQty));
+    for (final tier in sorted) {
+      if (totalQuantity >= tier.minQty) {
+        return tier;
+      }
+    }
+    return null;
   }
 
   /// Default tenant platform utama (ekasir.my.id)
@@ -204,10 +245,35 @@ class TenantModel {
     name: 'eKasir',
     primaryColor: '#2563EB',
     plan: 'enterprise',
+    orderNotificationSound: 'dingdong',
   );
 
   /// Default tenant jika gagal load
   static const TenantModel fallback = platformRoot;
+}
+
+class DeliveryDiscountTier {
+  final int minQty;
+  final int discountAmount;
+
+  const DeliveryDiscountTier({
+    required this.minQty,
+    required this.discountAmount,
+  });
+
+  factory DeliveryDiscountTier.fromJson(Map<String, dynamic> json) {
+    return DeliveryDiscountTier(
+      minQty: (json['min_qty'] as num?)?.toInt() ?? 0,
+      discountAmount: (json['discount_amount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'min_qty': minQty,
+      'discount_amount': discountAmount,
+    };
+  }
 }
 
 ImageProvider<Object>? tenantLogoImageProvider(String? logoUrl) {

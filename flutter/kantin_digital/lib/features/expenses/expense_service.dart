@@ -73,6 +73,9 @@ class ExpenseService {
     required String category,
     required String description,
     required double amount,
+    int? stockItemId,
+    double? quantity,
+    String? unit,
     String? notes,
   }) async {
     try {
@@ -81,6 +84,9 @@ class ExpenseService {
         'category': category,
         'description': description.trim(),
         'amount': amount,
+        if (stockItemId != null) 'stock_item_id': stockItemId,
+        if (quantity != null) 'quantity': quantity,
+        if (unit != null && unit.trim().isNotEmpty) 'unit': unit.trim(),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       };
 
@@ -108,6 +114,9 @@ class ExpenseService {
     required String category,
     required String description,
     required double amount,
+    int? stockItemId,
+    double? quantity,
+    String? unit,
     String? notes,
   }) async {
     try {
@@ -116,6 +125,9 @@ class ExpenseService {
         'category': category,
         'description': description.trim(),
         'amount': amount,
+        if (stockItemId != null) 'stock_item_id': stockItemId,
+        if (quantity != null) 'quantity': quantity,
+        if (unit != null) 'unit': unit.trim(),
         'notes': notes?.trim(),
       };
 

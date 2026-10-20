@@ -279,11 +279,32 @@ class OrderController extends Controller
                 ]);
             }
 
+            // Hitung diskon potongan pengiriman berdasarkan total kuantitas seluruh item
+            $deliveryDiscount = 0;
+            $totalQuantity = collect($request->items)->sum(fn ($i) => (int) ($i['quantity'] ?? 0));
+            $tiers = collect(data_get($tenant, 'delivery_discount_tiers', []))
+                ->filter(fn ($t) => is_array($t) && ! empty($t['min_qty']) && ! empty($t['discount_amount']))
+                ->sortByDesc(fn ($t) => (int) $t['min_qty']);
+
+            foreach ($tiers as $tier) {
+                if ($totalQuantity >= (int) $tier['min_qty']) {
+                    $deliveryDiscount = (int) $tier['discount_amount'];
+                    break;
+                }
+            }
+
+            if ($deliveryDiscount > 0) {
+                $deliveryDiscount = min($total, $deliveryDiscount);
+                $total = max(0, $total - $deliveryDiscount);
+                $totalDiscount += $deliveryDiscount;
+            }
+
             $order->update([
                 'total_amount' => $total,
                 'discount_amount' => $totalDiscount,
                 'voucher_code' => $voucherCode,
                 'voucher_discount_amount' => $voucherDiscount,
+                'delivery_discount_amount' => $deliveryDiscount,
             ]);
 
             return $order;
@@ -297,6 +318,7 @@ class OrderController extends Controller
                 'payment_method' => $order->payment_method,
                 'voucher_code' => $order->voucher_code,
                 'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
+                'delivery_discount_amount' => (int) ($order->delivery_discount_amount ?? 0),
             ],
         ], 201);
     }
@@ -338,6 +360,7 @@ class OrderController extends Controller
             'discount_amount' => $order->discount_amount,
             'voucher_code' => $order->voucher_code,
             'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
+            'delivery_discount_amount' => (int) ($order->delivery_discount_amount ?? 0),
             'qris' => [
                 'merchant_name' => $merchantName,
                 'merchant_city' => $merchantCity,
@@ -484,6 +507,7 @@ class OrderController extends Controller
                     'discount_amount' => $order->discount_amount,
                     'voucher_code' => $order->voucher_code,
                     'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
+                    'delivery_discount_amount' => (int) ($order->delivery_discount_amount ?? 0),
                     'created_at' => $order->created_at->toIso8601String(),
                     'order_type' => $order->order_type,
                     'delivery_address' => $order->delivery_address,

@@ -63,6 +63,8 @@ class TenantController extends Controller
                 'promo_menu_ids' => $tenant->promo_menu_ids ?? [],
                 'promo_payment_methods' => $tenant->promo_payment_methods ?: ['qris'],
                 'voucher_promo_mode' => $tenant->voucher_promo_mode ?? 'both',
+                'delivery_discount_tiers' => $tenant->delivery_discount_tiers ?? [],
+                'order_notification_sound' => $tenant->order_notification_sound ?: 'dingdong',
             ],
         ]);
     }
@@ -100,6 +102,15 @@ class TenantController extends Controller
                     'promo_payment_methods' => is_array($paymentMethods)
                         ? $paymentMethods
                         : $request->input('promo_payment_methods'),
+                ]);
+            }
+
+            if ($request->has('delivery_discount_tiers') && is_string($request->input('delivery_discount_tiers'))) {
+                $tiers = json_decode($request->input('delivery_discount_tiers'), true);
+                $request->merge([
+                    'delivery_discount_tiers' => is_array($tiers)
+                        ? $tiers
+                        : $request->input('delivery_discount_tiers'),
                 ]);
             }
 
@@ -141,6 +152,10 @@ class TenantController extends Controller
                 'promo_payment_methods' => 'nullable|array',
                 'promo_payment_methods.*' => 'string|in:qris,cash',
                 'voucher_promo_mode' => 'nullable|string|in:both,single,voucher_only,promo_only',
+                'delivery_discount_tiers' => 'nullable|array',
+                'delivery_discount_tiers.*.min_qty' => 'required|integer|min:1',
+                'delivery_discount_tiers.*.discount_amount' => 'required|integer|min:1',
+                'order_notification_sound' => 'nullable|string|max:50',
             ]);
 
             if ((int) $request->input('promo_discount_percent', 0) > 0
@@ -154,7 +169,7 @@ class TenantController extends Controller
             $data = $request->only([
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
                 'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
-                'voucher_promo_mode',
+                'voucher_promo_mode', 'delivery_discount_tiers', 'order_notification_sound',
                 'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);
@@ -226,6 +241,7 @@ class TenantController extends Controller
             }
 
             $this->ensureVoucherPromoModeColumnExists();
+            $this->ensureOrderNotificationSoundColumnExists();
 
             // Filter hanya kolom yang benar-benar ada di tabel tenants server
             // Mencegah SQL Error 1054 jika server belum menjalankan artisan migrate
@@ -373,6 +389,20 @@ class TenantController extends Controller
                 && ! \Illuminate\Support\Facades\Schema::hasColumn('tenants', 'voucher_promo_mode')) {
                 \Illuminate\Support\Facades\Schema::table('tenants', function (\Illuminate\Database\Schema\Blueprint $table) {
                     $table->string('voucher_promo_mode', 30)->default('both');
+                });
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika gagal auto-alter
+        }
+    }
+
+    private function ensureOrderNotificationSoundColumnExists(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('tenants')
+                && ! \Illuminate\Support\Facades\Schema::hasColumn('tenants', 'order_notification_sound')) {
+                \Illuminate\Support\Facades\Schema::table('tenants', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('order_notification_sound', 50)->default('dingdong');
                 });
             }
         } catch (\Throwable $e) {

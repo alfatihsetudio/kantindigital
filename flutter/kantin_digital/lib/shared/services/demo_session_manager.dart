@@ -62,6 +62,7 @@ class DemoSessionManager {
     metaTitle: 'Demo eKasir - Self Order & POS Resto',
     metaDescription: 'Simulasi Sistem Pemesanan Mandiri & Kasir POS',
     menuCodePrefix: 'DEMO',
+    orderNotificationSound: 'dingdong',
   );
 
   static TenantModel demoTenant = _initialTenant;
@@ -117,6 +118,9 @@ class DemoSessionManager {
                 .where((method) => method.isNotEmpty)
                 .toList()
           : demoTenant.promoPaymentMethods,
+      orderNotificationSound:
+          data['order_notification_sound']?.toString() ??
+          demoTenant.orderNotificationSound,
     );
     TenantService.clearCache();
   }
@@ -1572,8 +1576,12 @@ class DemoSessionManager {
       'user': {'id': 1, 'name': 'Kasir Demo'},
       'expense_date': _demoExpenseDate(0),
       'category': 'Bahan Baku',
-      'description': 'Belanja gula merah & gula pasir 5 kg',
-      'amount': 185000,
+      'stock_item_id': 2,
+      'quantity': 5.0,
+      'unit': 'kg',
+      'stock_item': {'id': 2, 'name': 'Gula Pasir', 'unit': 'gram', 'category': 'Bahan Baku'},
+      'description': 'Beli Gula Pasir 5 kg',
+      'amount': 85000,
       'notes': 'Belanja pagi di pasar induk',
       'created_at': DateTime.now().toIso8601String(),
     },
@@ -1583,6 +1591,10 @@ class DemoSessionManager {
       'user': {'id': 1, 'name': 'Kasir Demo'},
       'expense_date': _demoExpenseDate(0),
       'category': 'Kemasan & Perlengkapan',
+      'stock_item_id': 5,
+      'quantity': 2.0,
+      'unit': 'dus',
+      'stock_item': {'id': 5, 'name': 'Cup Minuman 16oz', 'unit': 'pcs', 'category': 'Kemasan'},
       'description': 'Cup plastik 16oz 2 dus + sedotan',
       'amount': 240000,
       'notes': null,
@@ -1653,12 +1665,25 @@ class DemoSessionManager {
   }
 
   static Map<String, dynamic> createExpense(Map<String, dynamic> payload) {
+    Map<String, dynamic>? stockItemData;
+    final stockId = payload['stock_item_id'];
+    if (stockId != null) {
+      final found = demoStockItems.where((s) => s['id'] == stockId).toList();
+      if (found.isNotEmpty) {
+        stockItemData = Map<String, dynamic>.from(found.first);
+      }
+    }
+
     final newExpense = <String, dynamic>{
       'id': _expenseSequence++,
       'user_id': 1,
       'user': {'id': 1, 'name': 'Kasir Demo'},
       'expense_date': payload['expense_date'] ?? _demoExpenseDate(0),
       'category': payload['category'] ?? 'Lainnya',
+      'stock_item_id': payload['stock_item_id'],
+      'quantity': (payload['quantity'] as num?)?.toDouble(),
+      'unit': payload['unit'],
+      'stock_item': stockItemData,
       'description': payload['description'] ?? '',
       'amount': (payload['amount'] as num?)?.toDouble() ?? 0.0,
       'notes': payload['notes'],
@@ -1677,7 +1702,20 @@ class DemoSessionManager {
     if (idx == -1) {
       return {'status': false, 'message': 'Data pengeluaran tidak ditemukan'};
     }
-    demoExpenses[idx] = {...demoExpenses[idx], ...data};
+    Map<String, dynamic>? stockItemData = demoExpenses[idx]['stock_item'];
+    final stockId = data['stock_item_id'] ?? demoExpenses[idx]['stock_item_id'];
+    if (stockId != null) {
+      final found = demoStockItems.where((s) => s['id'] == stockId).toList();
+      if (found.isNotEmpty) {
+        stockItemData = Map<String, dynamic>.from(found.first);
+      }
+    }
+
+    demoExpenses[idx] = {
+      ...demoExpenses[idx],
+      ...data,
+      if (stockItemData != null) 'stock_item': stockItemData,
+    };
     return {
       'status': true,
       'message': 'Pengeluaran berhasil diperbarui',

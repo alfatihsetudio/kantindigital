@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../router/route_name.dart';
+import '../../../shared/auth/auth_session.dart';
+import '../../../shared/constants/user_role.dart';
+import '../../admin/widgets/admin_drawer.dart';
+import '../widgets/cashier_drawer.dart';
+import '../../manager/widgets/manager_drawer.dart';
 import 'stock_service.dart';
 import 'widgets/closing_stock_view.dart';
 import 'widgets/opening_stock_view.dart';
@@ -45,14 +51,37 @@ class _CashierStockCheckPageState extends State<CashierStockCheckPage>
     });
   }
 
+  Widget _buildDrawer() {
+    switch (AuthSession().role) {
+      case UserRole.cashier:
+      case UserRole.operations:
+        return const CashierDrawer();
+      case UserRole.manager:
+        return const ManagerDrawer();
+      default:
+        return const AdminDrawer();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: _buildDrawer(),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 1,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(
+              Icons.menu_rounded,
+              color: AppColors.textPrimary,
+            ),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
@@ -73,6 +102,20 @@ class _CashierStockCheckPageState extends State<CashierStockCheckPage>
             ),
           ],
         ),
+        actions: [
+          Tooltip(
+            message: 'Buka Halaman Menu Pembeli',
+            child: IconButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed(RouteName.customerMenu);
+              },
+              icon: const Icon(
+                Icons.restaurant_menu_rounded,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,

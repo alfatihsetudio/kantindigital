@@ -25,4 +25,9 @@ class StockItem extends Model
     {
         return $this->hasMany(StockCheckItem::class);
     }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
 }

@@ -1,8 +1,14 @@
+import 'stock_item_model.dart';
+
 /// Model catatan belanja / pengeluaran operasional kantin.
 class ExpenseModel {
   final int id;
   final int? userId;
   final String? userName;
+  final int? stockItemId;
+  final double? quantity;
+  final String? unit;
+  final StockItemModel? stockItem;
   final String expenseDate;
   final String category;
   final String description;
@@ -14,6 +20,10 @@ class ExpenseModel {
     required this.id,
     this.userId,
     this.userName,
+    this.stockItemId,
+    this.quantity,
+    this.unit,
+    this.stockItem,
     required this.expenseDate,
     required this.category,
     required this.description,
@@ -26,6 +36,11 @@ class ExpenseModel {
     final rawUser = json['user'];
     final userMap = rawUser is Map<String, dynamic> ? rawUser : null;
 
+    final rawStockItem = json['stock_item'] ?? json['stockItem'];
+    final stockItem = rawStockItem is Map<String, dynamic>
+        ? StockItemModel.fromJson(rawStockItem)
+        : null;
+
     DateTime? created;
     if (json['created_at'] != null) {
       created = DateTime.tryParse(json['created_at'].toString())?.toLocal();
@@ -35,6 +50,10 @@ class ExpenseModel {
       id: (json['id'] as num?)?.toInt() ?? 0,
       userId: (json['user_id'] as num?)?.toInt(),
       userName: userMap?['name']?.toString() ?? json['user_name']?.toString(),
+      stockItemId: (json['stock_item_id'] as num?)?.toInt(),
+      quantity: (json['quantity'] as num?)?.toDouble(),
+      unit: json['unit']?.toString(),
+      stockItem: stockItem,
       expenseDate: json['expense_date']?.toString() ?? '',
       category: json['category']?.toString() ?? 'Lainnya',
       description: json['description']?.toString() ?? '',
@@ -49,6 +68,10 @@ class ExpenseModel {
       'id': id,
       'user_id': userId,
       'user_name': userName,
+      'stock_item_id': stockItemId,
+      'quantity': quantity,
+      'unit': unit,
+      'stock_item': stockItem?.toJson(),
       'expense_date': expenseDate,
       'category': category,
       'description': description,

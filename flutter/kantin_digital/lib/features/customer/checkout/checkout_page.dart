@@ -119,12 +119,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return v.amount.clamp(0, afterPromo).toInt();
   }
 
+  int _deliveryDiscountFor(CartController cart) {
+    final rawDiscount = _promoTenant.calculateDeliveryDiscount(cart.totalItems);
+    if (rawDiscount <= 0) return 0;
+
+    final afterPromoAndVoucher = (cart.totalAmount - _discountFor(cart) - _voucherDiscountFor(cart))
+        .clamp(0, cart.totalAmount)
+        .toInt();
+    return rawDiscount.clamp(0, afterPromoAndVoucher).toInt();
+  }
+
   int _totalAfterDiscount(CartController cart) {
     final afterPromo = (cart.totalAmount - _discountFor(cart))
         .clamp(0, cart.totalAmount)
         .toInt();
     final vDisc = _voucherDiscountFor(cart);
-    return (afterPromo - vDisc).clamp(0, afterPromo).toInt();
+    final delivDisc = _deliveryDiscountFor(cart);
+    return (afterPromo - vDisc - delivDisc).clamp(0, afterPromo).toInt();
   }
 
   Future<void> _applyVoucher() async {
@@ -969,6 +980,39 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ],
             ),
           ],
+          if (_deliveryDiscountFor(cart) > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_shipping_rounded,
+                        size: 16,
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Diskon Pengiriman (${cart.totalItems} cup)',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: AppColors.success),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.rupiah(_deliveryDiscountFor(cart))}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1518,6 +1562,58 @@ class _CheckoutPageState extends State<CheckoutPage> {
             color: AppColors.success,
             onTap: () => setState(() => _selectedOrderType = 'delivery'),
           ),
+          if (_promoTenant.deliveryDiscountTiers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Builder(
+              builder: (context) {
+                final activeTier = _promoTenant.getActiveDeliveryTier(CartController.instance.totalItems);
+                final currentQty = CartController.instance.totalItems;
+                final sortedTiers = List<DeliveryDiscountTier>.from(_promoTenant.deliveryDiscountTiers)
+                  ..sort((a, b) => a.minQty.compareTo(b.minQty));
+                final nextTier = sortedTiers.firstWhere(
+                  (t) => t.minQty > currentQty,
+                  orElse: () => const DeliveryDiscountTier(minQty: 0, discountAmount: 0),
+                );
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.stars_rounded, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              activeTier != null
+                                  ? '🎉 Selamat! Hemat ${CurrencyFormatter.rupiah(activeTier.discountAmount)} (Pesan $currentQty Cup)'
+                                  : 'Promo Ongkir: Diskon hingga ${CurrencyFormatter.rupiah(sortedTiers.last.discountAmount)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF166534),
+                              ),
+                            ),
+                            if (nextTier.minQty > 0)
+                              Text(
+                                'Tambah ${nextTier.minQty - currentQty} cup lagi untuk dapat diskon ${CurrencyFormatter.rupiah(nextTier.discountAmount)}!',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
           if (_selectedOrderType == 'delivery') ...[
             const SizedBox(height: 16),
             // Keterangan Pembayaran Belum Termasuk Biaya Pengantaran

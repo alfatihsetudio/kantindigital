@@ -14,7 +14,7 @@ class Tenant extends Model
         'address', 'opening_hours', 'meta_title', 'meta_description', 'meta_image',
         'phone', 'whatsapp', 'plan', 'expires_at', 'is_active', 'is_store_open', 'store_opened_at',
         'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
-        'voucher_promo_mode',
+        'voucher_promo_mode', 'delivery_discount_tiers', 'order_notification_sound',
     ];
 
     protected $casts = [
@@ -24,6 +24,7 @@ class Tenant extends Model
         'promo_discount_percent' => 'integer',
         'promo_menu_ids' => 'array',
         'promo_payment_methods' => 'array',
+        'delivery_discount_tiers' => 'array',
     ];
 
     public function getLogoUrlAttribute($value): ?string

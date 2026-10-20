@@ -662,6 +662,31 @@ class _AdminStockReportPageState extends State<AdminStockReportPage>
                                 ),
                               ],
                             ),
+                            if (mItem.todayPurchasedQty > 0)
+                              Container(
+                                margin: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.shopping_bag_outlined, size: 11, color: Color(0xFF2563EB)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Belanja hari ini: +${mItem.todayPurchasedQty.toStringAsFixed(mItem.todayPurchasedQty.truncateToDouble() == mItem.todayPurchasedQty ? 0 : 2)} ${mItem.unit}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             if (recorded?.notes != null && recorded!.notes!.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

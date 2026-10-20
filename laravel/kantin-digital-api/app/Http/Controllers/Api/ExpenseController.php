@@ -14,7 +14,7 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Expense::with(['user:id,name']);
+        $query = Expense::with(['user:id,name', 'stockItem:id,name,unit,category']);
 
         if ($request->filled('start_date')) {
             $query->whereDate('expense_date', '>=', $request->start_date);
@@ -26,6 +26,10 @@ class ExpenseController extends Controller
 
         if ($request->filled('category')) {
             $query->where('category', $request->category);
+        }
+
+        if ($request->filled('stock_item_id')) {
+            $query->where('stock_item_id', $request->stock_item_id);
         }
 
         $totalAmount = (float) (clone $query)->sum('amount');
@@ -57,21 +61,27 @@ class ExpenseController extends Controller
         $request->validate([
             'expense_date' => 'required|date',
             'category' => 'required|string|max:100',
+            'stock_item_id' => 'nullable|integer|exists:stock_items,id',
             'description' => 'required|string|max:255',
+            'quantity' => 'nullable|numeric|min:0',
+            'unit' => 'nullable|string|max:50',
             'amount' => 'required|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         $expense = Expense::create([
             'user_id' => $request->user()?->id,
+            'stock_item_id' => $request->stock_item_id,
             'expense_date' => $request->expense_date,
             'category' => trim($request->category),
             'description' => trim($request->description),
+            'quantity' => $request->quantity,
+            'unit' => $request->unit ? trim($request->unit) : null,
             'amount' => $request->amount,
             'notes' => $request->notes,
         ]);
 
-        $expense->load(['user:id,name']);
+        $expense->load(['user:id,name', 'stockItem:id,name,unit,category']);
 
         return response()->json([
             'status' => true,
@@ -94,13 +104,26 @@ class ExpenseController extends Controller
         $request->validate([
             'expense_date' => 'sometimes|required|date',
             'category' => 'sometimes|required|string|max:100',
+            'stock_item_id' => 'nullable|integer|exists:stock_items,id',
             'description' => 'sometimes|required|string|max:255',
+            'quantity' => 'nullable|numeric|min:0',
+            'unit' => 'nullable|string|max:50',
             'amount' => 'sometimes|required|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $expense->update($request->only(['expense_date', 'category', 'description', 'amount', 'notes']));
-        $expense->load(['user:id,name']);
+        $expense->update($request->only([
+            'expense_date',
+            'category',
+            'stock_item_id',
+            'description',
+            'quantity',
+            'unit',
+            'amount',
+            'notes',
+        ]));
+
+        $expense->load(['user:id,name', 'stockItem:id,name,unit,category']);
 
         return response()->json([
             'status' => true,

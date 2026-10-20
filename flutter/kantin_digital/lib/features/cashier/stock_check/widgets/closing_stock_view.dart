@@ -400,6 +400,31 @@ class _ClosingStockViewState extends State<ClosingStockView> {
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
+                                  if (holder.item.todayPurchasedQty > 0)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEFF6FF),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.shopping_bag_outlined, size: 12, color: Color(0xFF2563EB)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Ada belanja hari ini: +${holder.item.todayPurchasedQty.toStringAsFixed(holder.item.todayPurchasedQty.truncateToDouble() == holder.item.todayPurchasedQty ? 0 : 2)} $unit',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF1D4ED8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),

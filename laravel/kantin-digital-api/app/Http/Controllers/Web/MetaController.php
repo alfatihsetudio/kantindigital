@@ -233,10 +233,10 @@ HTML;
             $html = str_replace('<body>', "<body>\n{$splashHtml}", $html);
         }
 
-        // 5. Dynamic Cache-Busting for flutter_bootstrap.v2.js
-        $bootstrapFile = public_path('flutter_bootstrap.v2.js');
+        // 5. Dynamic Cache-Busting for flutter_bootstrap.v4.js
+        $bootstrapFile = public_path('flutter_bootstrap.v4.js');
         $bootstrapVersion = File::exists($bootstrapFile) ? File::lastModified($bootstrapFile) : time();
-        $html = preg_replace('/flutter_bootstrap(\.v2)?\.js(\?[^"\'\s>]*)?/i', "flutter_bootstrap.v2.js?v={$bootstrapVersion}_" . time(), $html);
+        $html = preg_replace('/flutter_bootstrap(\.v[0-9]+)?\.js(\?[^"\'\s>]*)?/i', "flutter_bootstrap.v4.js?v={$bootstrapVersion}_" . time(), $html);
 
         return response($html, 200)
             ->header('Content-Type', 'text/html; charset=UTF-8')

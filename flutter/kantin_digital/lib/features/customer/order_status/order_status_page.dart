@@ -1237,6 +1237,64 @@ ${order.deliveryAddress == null ? '' : '*Alamat Pengantaran:* ${order.deliveryAd
             );
           }),
           const Divider(height: 24),
+          if (order.deliveryDiscountAmount > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.local_shipping_rounded,
+                      size: 15,
+                      color: AppColors.success,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Diskon Pengiriman',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '- ${CurrencyFormatter.rupiah(order.deliveryDiscountAmount)}',
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (order.discountAmount > order.deliveryDiscountAmount) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Diskon Promo / Voucher',
+                  style: TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  '- ${CurrencyFormatter.rupiah(order.discountAmount - order.deliveryDiscountAmount)}',
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

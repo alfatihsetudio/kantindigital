@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Expense;
 use App\Models\StockCheck;
 use App\Models\StockCheckItem;
 use App\Models\StockItem;
@@ -43,6 +44,22 @@ class StockController extends Controller
 
             $items = StockItem::where('is_active', true)->orderBy('name', 'asc')->get();
         }
+
+        // Hitung total belanja bahan hari ini dari pengeluaran
+        $today = now()->toDateString();
+        $todayExpenses = Expense::whereDate('expense_date', $today)
+            ->whereNotNull('stock_item_id')
+            ->selectRaw('stock_item_id, SUM(quantity) as today_qty, SUM(amount) as today_amount, COUNT(*) as today_count')
+            ->groupBy('stock_item_id')
+            ->get()
+            ->keyBy('stock_item_id');
+
+        $items->each(function ($item) use ($todayExpenses) {
+            $exp = $todayExpenses->get($item->id);
+            $item->today_purchased_qty = $exp ? (float) $exp->today_qty : 0.0;
+            $item->today_purchased_amount = $exp ? (float) $exp->today_amount : 0.0;
+            $item->today_purchased_count = $exp ? (int) $exp->today_count : 0;
+        });
 
         return response()->json([
             'status' => true,

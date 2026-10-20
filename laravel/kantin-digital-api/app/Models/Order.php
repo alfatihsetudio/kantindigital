@@ -15,6 +15,14 @@ class Order extends Model
         'cashier_shift_report_id',
         'payment_method', 'total_amount', 'discount_amount',
         'voucher_code', 'voucher_discount_amount',
+        'delivery_discount_amount',
+    ];
+
+    protected $casts = [
+        'total_amount' => 'integer',
+        'discount_amount' => 'integer',
+        'voucher_discount_amount' => 'integer',
+        'delivery_discount_amount' => 'integer',
     ];
 
     public function table()

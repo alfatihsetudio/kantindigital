@@ -366,6 +366,16 @@ class ManagerDrawer extends StatelessWidget {
                     route: RouteName.managerDashboard,
                     isActive: currentRoute == RouteName.managerDashboard,
                   ),
+                  _DrawerItem(
+                    icon: Icons.storefront_rounded,
+                    label: 'Lihat Menu Pembeli',
+                    route: RouteName.customerMenu,
+                    isActive: currentRoute == RouteName.customerMenu,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).pushNamed(RouteName.customerMenu);
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

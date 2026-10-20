@@ -13,6 +13,7 @@ class RouteName {
   static const String customerOrderStatus = '/order-status';
 
   // admin
+  static const String admin = '/admin';
   static const String adminLogin = '/admin/login';
   static const String forcePasswordChange = '/account/change-password';
   static const String adminDashboard = '/admin/dashboard';
@@ -24,6 +25,7 @@ class RouteName {
   static const String adminUsers = '/admin/users';
   static const String adminQris = '/admin/qris';
   static const String adminTenantProfile = '/admin/profile';
+  static const String adminOrderSound = '/admin/order-sound';
   static const String adminVouchers = '/admin/vouchers';
   static const String adminStockItems = '/admin/stock-items';
   static const String adminStockReport = '/admin/stock-report';
@@ -34,12 +36,14 @@ class RouteName {
   static const String superAdminDashboard = '/superadmin/dashboard';
 
   // cashier
+  static const String cashier = '/cashier';
   static const String cashierOrders = '/cashier/orders';
   static const String cashierOrderDetail = '/cashier/order-detail';
   static const String cashierStockCheck = '/cashier/stock-check';
   static const String cashierExpenses = '/cashier/expenses';
 
   // manager/pimpinan (read only)
+  static const String manager = '/manager';
   static const String managerDashboard = '/manager/dashboard';
   static const String managerMenus = '/manager/menus';
   static const String managerCategories = '/manager/categories';

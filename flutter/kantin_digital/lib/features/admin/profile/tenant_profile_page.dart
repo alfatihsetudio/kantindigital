@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/auth/auth_session.dart';
@@ -12,11 +13,14 @@ import '../../../shared/models/menu_model.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/store_opening_hours.dart';
+import '../../cashier/orders/order_alert_sound.dart';
 import '../../customer/menu/menu_service.dart';
 import '../widgets/admin_drawer.dart';
 
 class AdminTenantProfilePage extends StatefulWidget {
-  const AdminTenantProfilePage({super.key});
+  final String? initialSection;
+
+  const AdminTenantProfilePage({super.key, this.initialSection});
 
   @override
   State<AdminTenantProfilePage> createState() => _AdminTenantProfilePageState();
@@ -30,6 +34,10 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _logoSectionKey = GlobalKey();
   final _appearanceSectionKey = GlobalKey();
   final _socialPreviewSectionKey = GlobalKey();
+  final _soundSectionKey = GlobalKey();
+  String _selectedSound = 'dingdong';
+  final OrderAlertSound _alertSound = OrderAlertSound();
+  String? _currentlyPlayingSound;
   final _nameCtrl = TextEditingController();
   final _logoCtrl = TextEditingController();
   final _colorCtrl = TextEditingController();
@@ -51,6 +59,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   bool _promoMenusLoading = true;
   String? _promoMenusError;
   String _voucherPromoMode = 'both';
+  List<DeliveryDiscountTier> _deliveryDiscountTiers = [];
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -89,10 +98,16 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   void initState() {
     super.initState();
     _loadTenantData();
+    if (widget.initialSection == 'sound') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToSection(_soundSectionKey);
+      });
+    }
   }
 
   @override
   void dispose() {
+    _alertSound.dispose();
     _scrollController.dispose();
     _nameCtrl.dispose();
     _logoCtrl.dispose();
@@ -109,6 +124,32 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     _promoMessageCtrl.dispose();
     _promoDiscountCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _previewSound(String soundId) async {
+    if (_currentlyPlayingSound == soundId) {
+      _alertSound.stopPreview();
+      setState(() => _currentlyPlayingSound = null);
+      return;
+    }
+    setState(() => _currentlyPlayingSound = soundId);
+    try {
+      await _alertSound.preview(soundId);
+      Future.delayed(const Duration(milliseconds: 1700), () {
+        if (mounted && _currentlyPlayingSound == soundId) {
+          setState(() => _currentlyPlayingSound = null);
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _currentlyPlayingSound = null);
+        TopNotification.show(
+          message: 'Gagal memutar audio: $e',
+          backgroundColor: AppColors.danger,
+          icon: Icons.volume_off_rounded,
+        );
+      }
+    }
   }
 
   Future<void> _scrollToSection(GlobalKey key) async {
@@ -157,6 +198,8 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
               : tenant.promoPaymentMethods,
         );
       _voucherPromoMode = tenant.voucherPromoMode;
+      _deliveryDiscountTiers = List<DeliveryDiscountTier>.from(tenant.deliveryDiscountTiers);
+      _selectedSound = tenant.orderNotificationSound;
       try {
         _promoMenus = await MenuService(
           ApiClient(),
@@ -784,6 +827,10 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
         ),
         'promo_payment_methods': jsonEncode(_promoPaymentMethods.toList()),
         'voucher_promo_mode': _voucherPromoMode,
+        'delivery_discount_tiers': jsonEncode(
+          _deliveryDiscountTiers.map((t) => t.toJson()).toList(),
+        ),
+        'order_notification_sound': _selectedSound,
         'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'opening_hours': _openingHoursCtrl.text.trim(),
@@ -1089,7 +1136,249 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
             },
           );
         }),
+        const SizedBox(height: 16),
+        _buildDeliveryDiscountTiersSettings(),
       ],
+    );
+  }
+
+  Widget _buildDeliveryDiscountTiersSettings() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.local_shipping_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Diskon Pengiriman / Ongkir (Bertingkat)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF166534),
+                      ),
+                    ),
+                    Text(
+                      'Potongan otomatis berdasarkan total jumlah cup/item di keranjang.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF15803D),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_deliveryDiscountTiers.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: const Text(
+                'Belum ada aturan diskon pengiriman. Tekan "+ Tambah Tingkat Diskon" di bawah.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            ...List.generate(_deliveryDiscountTiers.length, (index) {
+              final tier = _deliveryDiscountTiers[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFDCFCE7)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Min. ${tier.minQty} Cup / Item',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF166534),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Diskon ${CurrencyFormatter.rupiah(tier.discountAmount)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                      tooltip: 'Hapus Tingkat Diskon',
+                      onPressed: () {
+                        setState(() {
+                          _deliveryDiscountTiers.removeAt(index);
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _showAddDeliveryTierDialog,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Tambah Tingkat Diskon'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddDeliveryTierDialog() {
+    final qtyCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.local_shipping_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Tambah Diskon Pengiriman', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tentukan batas minimal jumlah pesanan (cup) dan potongan diskonnya:',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: qtyCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Minimal Jumlah Cup / Item',
+                hintText: 'Contoh: 3',
+                prefixIcon: Icon(Icons.shopping_bag_outlined),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Nominal Potongan Diskon (Rp)',
+                hintText: 'Contoh: 5000',
+                prefixIcon: Icon(Icons.money_rounded),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final minQty = int.tryParse(qtyCtrl.text.trim()) ?? 0;
+              final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
+
+              if (minQty <= 0) {
+                TopNotification.show(
+                  message: 'Minimal jumlah cup harus lebih dari 0',
+                  backgroundColor: AppColors.warning,
+                  icon: Icons.warning_amber_rounded,
+                );
+                return;
+              }
+              if (amount <= 0) {
+                TopNotification.show(
+                  message: 'Nominal diskon harus lebih dari 0',
+                  backgroundColor: AppColors.warning,
+                  icon: Icons.warning_amber_rounded,
+                );
+                return;
+              }
+
+              setState(() {
+                _deliveryDiscountTiers.removeWhere((t) => t.minQty == minQty);
+                _deliveryDiscountTiers.add(
+                  DeliveryDiscountTier(minQty: minQty, discountAmount: amount),
+                );
+                _deliveryDiscountTiers.sort((a, b) => a.minQty.compareTo(b.minQty));
+              });
+
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1213,6 +1502,12 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
               label: 'Preview Link',
               color: activeThemeColor,
               onTap: () => _scrollToSection(_socialPreviewSectionKey),
+            ),
+            _SubMenuButton(
+              icon: Icons.notifications_active_rounded,
+              label: 'Suara Pesanan',
+              color: activeThemeColor,
+              onTap: () => _scrollToSection(_soundSectionKey),
             ),
           ],
         ),
@@ -2131,6 +2426,10 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           ),
                           const SizedBox(height: 24),
 
+                          // 7. SUARA NOTIFIKASI PESANAN MASUK
+                          _buildOrderSoundSection(activeThemeColor),
+                          const SizedBox(height: 28),
+
                           // TOMBOL SIMPAN
                           SizedBox(
                             width: double.infinity,
@@ -2179,6 +2478,267 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildOrderSoundSection(Color activeThemeColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KeyedSubtree(
+          key: _soundSectionKey,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: activeThemeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.notifications_active_rounded,
+                  size: 18,
+                  color: activeThemeColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Suara Notifikasi Pesanan Masuk',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Pilih nada dering yang berbunyi di Kasir saat ada pesanan baru masuk dari pembeli. Anda dapat menekan tombol Tes Suara untuk mendengarkan setiap nada.',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // List kartu nada preset
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: kOrderSoundPresets.map((preset) {
+              final isSelected = _selectedSound == preset.id;
+              final isPlaying = _currentlyPlayingSound == preset.id;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? activeThemeColor.withValues(alpha: 0.06)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected ? activeThemeColor : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  boxShadow: [
+                    if (isSelected)
+                      BoxShadow(
+                        color: activeThemeColor.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                  ],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    setState(() => _selectedSound = preset.id);
+                    _previewSound(preset.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        // Radio button custom
+                        Icon(
+                          isSelected
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_off_rounded,
+                          color: isSelected
+                              ? activeThemeColor
+                              : Colors.grey.shade400,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        // Preset Icon
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? activeThemeColor.withValues(alpha: 0.15)
+                                : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            preset.icon,
+                            size: 20,
+                            color: isSelected
+                                ? activeThemeColor
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        // Text info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    preset.name,
+                                    style: TextStyle(
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w600,
+                                      fontSize: 14,
+                                      color: isSelected
+                                          ? activeThemeColor
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: activeThemeColor,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Text(
+                                        'Terpilih',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                preset.description,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isSelected
+                                      ? Colors.grey.shade800
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Tombol Play / Preview
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: isPlaying
+                                ? activeThemeColor.withValues(alpha: 0.15)
+                                : Colors.transparent,
+                            foregroundColor: isPlaying
+                                ? activeThemeColor
+                                : Colors.grey.shade800,
+                            side: BorderSide(
+                              color: isPlaying
+                                  ? activeThemeColor
+                                  : Colors.grey.shade400,
+                              width: 1.2,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () => _previewSound(preset.id),
+                          icon: Icon(
+                            isPlaying
+                                ? Icons.stop_circle_rounded
+                                : Icons.play_circle_fill_rounded,
+                            size: 18,
+                            color: isPlaying
+                                ? activeThemeColor
+                                : Colors.grey.shade800,
+                          ),
+                          label: Text(
+                            isPlaying ? 'Stop' : 'Tes Suara',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isPlaying
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+        // Tips banner
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                size: 18,
+                color: Colors.amber.shade900,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Pengaturan suara ini otomatis diterapkan di akun Kasir. Kasir cukup menekan tombol "Aktifkan suara" satu kali saat membuka kasir agar browser mengizinkan pemutaran audio otomatis.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.amber.shade900,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

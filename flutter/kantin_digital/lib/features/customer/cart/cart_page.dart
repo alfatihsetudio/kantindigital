@@ -46,10 +46,17 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  int _qrisTotalFor(CartController cart) =>
-      (cart.totalAmount - _qrisDiscountFor(cart))
-          .clamp(0, cart.totalAmount)
-          .toInt();
+  int _deliveryDiscountFor(CartController cart) {
+    return _promoTenant.calculateDeliveryDiscount(cart.totalItems);
+  }
+
+  int _qrisTotalFor(CartController cart) {
+    final promoDiscount = _qrisDiscountFor(cart);
+    final delivDiscount = _deliveryDiscountFor(cart);
+    return (cart.totalAmount - promoDiscount - delivDiscount)
+        .clamp(0, cart.totalAmount)
+        .toInt();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,15 +100,81 @@ class _CartPageState extends State<CartPage> {
                       return ListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 220),
                         physics: const BouncingScrollPhysics(),
-                        itemCount: items.length,
+                        itemCount: items.length + (_promoTenant.deliveryDiscountTiers.isNotEmpty ? 1 : 0),
                         itemBuilder: (_, index) {
-                          final item = items[index];
+                          if (_promoTenant.deliveryDiscountTiers.isNotEmpty && index == 0) {
+                            final activeTier = _promoTenant.getActiveDeliveryTier(cart.totalItems);
+                            final currentQty = cart.totalItems;
+                            final sortedTiers = List<DeliveryDiscountTier>.from(_promoTenant.deliveryDiscountTiers)
+                              ..sort((a, b) => a.minQty.compareTo(b.minQty));
+                            final nextTier = sortedTiers.firstWhere(
+                              (t) => t.minQty > currentQty,
+                              orElse: () => const DeliveryDiscountTier(minQty: 0, discountAmount: 0),
+                            );
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.local_shipping_rounded,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          activeTier != null
+                                              ? '🎉 Diskon Ongkir ${CurrencyFormatter.rupiah(activeTier.discountAmount)} Aktif!'
+                                              : 'Promo Ongkir: Diskon s/d ${CurrencyFormatter.rupiah(sortedTiers.last.discountAmount)}',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF166534),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          nextTier.minQty > 0
+                                              ? 'Beli ${nextTier.minQty - currentQty} item/cup lagi untuk diskon ${CurrencyFormatter.rupiah(nextTier.discountAmount)}!'
+                                              : 'Total $currentQty item/cup telah memenuhi diskon pengiriman maksimal!',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF15803D),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final itemIndex = _promoTenant.deliveryDiscountTiers.isNotEmpty ? index - 1 : index;
+                          final item = items[itemIndex];
                           return _CartItemCard(
                             item: item,
-                            index: index,
-                            onIncrement: () => cart.incrementQuantity(index),
-                            onDecrement: () => cart.decrementQuantity(index),
-                            onRemove: () => cart.removeAt(index),
+                            index: itemIndex,
+                            onIncrement: () => cart.incrementQuantity(itemIndex),
+                            onDecrement: () => cart.decrementQuantity(itemIndex),
+                            onRemove: () => cart.removeAt(itemIndex),
                           );
                         },
                       );
@@ -520,9 +593,26 @@ class _CartPageState extends State<CartPage> {
                             ),
                             const SizedBox(height: 6),
                           ],
+                          if (_deliveryDiscountFor(cart) > 0) ...[
+                            Text(
+                              'Diskon Pengiriman (${cart.totalItems} cup)',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.success),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '- ${CurrencyFormatter.rupiah(_deliveryDiscountFor(cart))}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.success,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
                           Text(
-                            hasQrisDiscount
-                                ? 'Total Pembayaran QRIS'
+                            (hasQrisDiscount || _deliveryDiscountFor(cart) > 0)
+                                ? 'Total Setelah Diskon'
                                 : 'Total Pembayaran',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textSecondary),

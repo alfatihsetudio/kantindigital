@@ -34,7 +34,8 @@ class TenantProvider extends InheritedWidget {
         oldWidget.tenant.openingHours != tenant.openingHours ||
         oldWidget.tenant.isStoreOpen != tenant.isStoreOpen ||
         oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
-        oldWidget.tenant.promoMessage != tenant.promoMessage;
+        oldWidget.tenant.promoMessage != tenant.promoMessage ||
+        oldWidget.tenant.orderNotificationSound != tenant.orderNotificationSound;
   }
 }
 

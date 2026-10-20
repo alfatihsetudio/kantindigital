@@ -18,6 +18,8 @@ class OrderModel {
   final String? deliveryAddress;
   final TableModel? table;
   final int totalAmount;
+  final int discountAmount;
+  final int deliveryDiscountAmount;
   final List<OrderItemModel> items;
   final PaymentModel? payment;
 
@@ -36,6 +38,8 @@ class OrderModel {
     this.deliveryAddress,
     required this.table,
     required this.totalAmount,
+    this.discountAmount = 0,
+    this.deliveryDiscountAmount = 0,
     required this.items,
     this.payment,
   });
@@ -63,6 +67,9 @@ class OrderModel {
           ? TableModel.fromJson(rawTable)
           : null,
       totalAmount: (json['total_amount'] as num).toInt(),
+      discountAmount: (json['discount_amount'] as num?)?.toInt() ?? 0,
+      deliveryDiscountAmount:
+          (json['delivery_discount_amount'] as num?)?.toInt() ?? 0,
       items: rawItems is List
           ? rawItems
                 .map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>))

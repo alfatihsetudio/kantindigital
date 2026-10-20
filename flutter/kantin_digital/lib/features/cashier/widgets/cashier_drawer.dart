@@ -370,6 +370,16 @@ class CashierDrawer extends StatelessWidget {
                     isActive: currentRoute == RouteName.cashierOrders,
                   ),
                   _DrawerItem(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Lapor Uang Kasir (Shift)',
+                    route: '',
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      CashierShiftDialog.show(context);
+                    },
+                  ),
+                  _DrawerItem(
                     icon: Icons.inventory_2_rounded,
                     label: 'Catatan Stok (Buka / Tutup)',
                     route: RouteName.cashierStockCheck,
@@ -381,14 +391,18 @@ class CashierDrawer extends StatelessWidget {
                     route: RouteName.cashierExpenses,
                     isActive: currentRoute == RouteName.cashierExpenses,
                   ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
                   _DrawerItem(
-                    icon: Icons.account_balance_wallet_rounded,
-                    label: 'Laporan Uang Kasir (Shift)',
-                    route: '',
-                    isActive: false,
+                    icon: Icons.restaurant_menu_rounded,
+                    label: 'Lihat Menu Pelanggan',
+                    route: RouteName.customerMenu,
+                    isActive: currentRoute == RouteName.customerMenu,
                     onTap: () {
                       Navigator.pop(context);
-                      CashierShiftDialog.show(context);
+                      Navigator.of(context).pushNamed(RouteName.customerMenu);
                     },
                   ),
                   const Padding(

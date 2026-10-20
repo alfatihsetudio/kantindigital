@@ -369,6 +369,16 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminDashboard,
                     isActive: currentRoute == RouteName.adminDashboard,
                   ),
+                  _DrawerItem(
+                    icon: Icons.storefront_rounded,
+                    label: 'Lihat Menu Pembeli',
+                    route: RouteName.customerMenu,
+                    isActive: currentRoute == RouteName.customerMenu,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).pushNamed(RouteName.customerMenu);
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
@@ -442,6 +452,12 @@ class AdminDrawer extends StatelessWidget {
                     label: 'Profil & Logo Kantin',
                     route: RouteName.adminTenantProfile,
                     isActive: currentRoute == RouteName.adminTenantProfile,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.notifications_active_rounded,
+                    label: 'Suara Pesanan Masuk',
+                    route: RouteName.adminOrderSound,
+                    isActive: currentRoute == RouteName.adminOrderSound,
                   ),
                   _DrawerItem(
                     icon: Icons.confirmation_number_rounded,

@@ -65,6 +65,11 @@ class AppRouter {
       routeName = RouteName.customerMenu;
     }
 
+    // Normalisasi: buang trailing slash (contoh: /cashier/ -> /cashier)
+    if (routeName != null && routeName.length > 1 && routeName.endsWith('/')) {
+      routeName = routeName.substring(0, routeName.length - 1);
+    }
+
     final session = AuthSession();
     if (session.isAuthenticated &&
         session.user?.mustChangePassword == true &&
@@ -169,6 +174,7 @@ class AppRouter {
           builder: (_) => const AdminLoginPage(),
           settings: const RouteSettings(name: RouteName.adminLogin),
         );
+      case RouteName.admin:
       case RouteName.adminDashboard:
         if (!session.isAuthenticated) {
           return MaterialPageRoute(
@@ -258,6 +264,17 @@ class AppRouter {
           builder: (_) => const AdminTenantProfilePage(),
           settings: settings,
         );
+      case RouteName.adminOrderSound:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AdminTenantProfilePage(initialSection: 'sound'),
+          settings: settings,
+        );
       case RouteName.adminVouchers:
         if (!session.isAuthenticated) {
           return MaterialPageRoute(
@@ -315,6 +332,7 @@ class AppRouter {
         );
 
       // cashier
+      case RouteName.cashier:
       case RouteName.cashierOrders:
         return MaterialPageRoute(
           builder: (_) => const CashierOrdersPage(),
@@ -337,6 +355,7 @@ class AppRouter {
         );
 
       // manager/pimpinan (read only)
+      case RouteName.manager:
       case RouteName.managerDashboard:
         return MaterialPageRoute(
           builder: (_) => const ManagerDashboardPage(),
@@ -366,12 +385,153 @@ class AppRouter {
 
       default:
         return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: Center(
-              child: Text('Route tidak ditemukan: ${settings.name}'),
-            ),
-          ),
+          builder: (context) => _NotFoundPage(routeName: settings.name),
+          settings: settings,
         );
     }
+  }
+}
+
+/// Tampilan 404 ketika URL/rute tidak ditemukan, dilengkapi tombol kembali & ke menu.
+class _NotFoundPage extends StatelessWidget {
+  final String? routeName;
+
+  const _NotFoundPage({this.routeName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEFF6FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.alt_route_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 38,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Halaman Tidak Ditemukan',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Alamat "${routeName ?? ""}" tidak tersedia atau sudah dipindahkan.',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF64748B),
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          RouteName.customerMenu,
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.restaurant_menu_rounded, size: 20),
+                      label: const Text(
+                        'Ke Halaman Menu Pembeli',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF16A34A),
+                        side: const BorderSide(color: Color(0xFF86EFAC)),
+                        backgroundColor: const Color(0xFFF0FDF4),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          RouteName.cashierOrders,
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.point_of_sale_rounded, size: 20),
+                      label: const Text(
+                        'Ke Halaman Kasir',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF64748B),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          RouteName.adminDashboard,
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.admin_panel_settings_rounded, size: 18),
+                      label: const Text('Dashboard Admin'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

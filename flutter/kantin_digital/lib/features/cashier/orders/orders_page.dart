@@ -8,13 +8,13 @@ import '../../../core/widgets/top_notification.dart';
 import '../../../shared/auth/auth_session.dart';
 import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
+import '../../../shared/services/tenant_service.dart';
 import '../widgets/cashier_drawer.dart';
 import '../widgets/calculator_widget.dart';
 import '../manual_order/manual_order_page.dart';
 import '../../../router/route_name.dart';
 import 'order_alert_sound.dart';
 import 'orders_service.dart';
-import '../shift/cashier_shift_dialog.dart';
 
 class CashierOrdersPage extends StatefulWidget {
   const CashierOrdersPage({super.key});
@@ -122,6 +122,16 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     }
   }
 
+  String _getActiveSoundType() {
+    final sessionTenant = AuthSession().tenant;
+    if (sessionTenant != null &&
+        sessionTenant.id != 0 &&
+        sessionTenant.name.isNotEmpty) {
+      return sessionTenant.orderNotificationSound;
+    }
+    return TenantService.current.orderNotificationSound;
+  }
+
   Future<void> _toggleOrderSound() async {
     if (_orderAlertSound.isEnabled) {
       _orderAlertSound.disable();
@@ -130,14 +140,16 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     }
 
     try {
-      await _orderAlertSound.enableFromUserGesture();
+      final soundType = _getActiveSoundType();
+      await _orderAlertSound.enableFromUserGesture(soundType: soundType);
       if (!mounted) return;
       setState(() {});
       if (_unacknowledgedOrderIds.isNotEmpty) {
         await _playOrderAlert();
       }
+      final preset = getSoundPresetById(soundType);
       TopNotification.show(
-        message: 'Suara notifikasi pesanan aktif',
+        message: 'Suara notifikasi aktif: ${preset.name}',
         backgroundColor: AppColors.success,
         icon: Icons.volume_up_rounded,
       );
@@ -153,7 +165,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
 
   Future<void> _playOrderAlert() async {
     try {
-      await _orderAlertSound.play();
+      final soundType = _getActiveSoundType();
+      await _orderAlertSound.play(soundType: soundType);
     } catch (e) {
       if (!mounted) return;
       TopNotification.show(
@@ -740,41 +753,30 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           if (!isOperations)
             Row(
               children: [
-                // Lapor Uang Shift Kasir button
+                // Buka Halaman Menu Pembeli
                 Tooltip(
-                  message: 'Laporan Penjualan (Shift Berjalan)',
+                  message: 'Buka Halaman Menu Pembeli',
                   child: GestureDetector(
                     onTap: () {
-                      CashierShiftDialog.show(context);
+                      Navigator.of(context).pushNamed(RouteName.customerMenu);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(50),
                         border: Border.all(
-                          color: const Color(0xFF86EFAC),
+                          color: AppColors.primary.withValues(alpha: 0.2),
                         ),
                         boxShadow: AppTheme.shadowSm,
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.account_balance_wallet_rounded,
-                            color: Color(0xFF16A34A),
-                            size: 16,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Lapor Kas',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF16A34A),
-                            ),
-                          ),
-                        ],
+                      child: const CircleAvatar(
+                        backgroundColor: AppColors.primaryLight,
+                        child: Icon(
+                          Icons.storefront_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -868,8 +870,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
             ),
           IconButton(
             tooltip: _orderAlertSound.isEnabled
-                ? 'Matikan suara pesanan'
-                : 'Aktifkan dan uji suara pesanan',
+                ? 'Suara aktif (${getSoundPresetById(_getActiveSoundType()).name}). Klik untuk matikan.'
+                : 'Aktifkan suara notifikasi (${getSoundPresetById(_getActiveSoundType()).name})',
             onPressed: _toggleOrderSound,
             icon: Icon(
               _orderAlertSound.isEnabled
@@ -1529,6 +1531,40 @@ class _OrderTicketCard extends StatelessWidget {
             padding: EdgeInsets.all(isCompact ? 10 : 16),
             child: Column(
               children: [
+                if (order.deliveryDiscountAmount > 0) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.local_shipping_rounded,
+                            size: isCompact ? 11 : 13,
+                            color: AppColors.success,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Diskon Ongkir',
+                            style: TextStyle(
+                              color: AppColors.success,
+                              fontSize: isCompact ? 10 : 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '- ${CurrencyFormatter.rupiah(order.deliveryDiscountAmount)}',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w700,
+                          fontSize: isCompact ? 10 : 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isCompact ? 4 : 6),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
