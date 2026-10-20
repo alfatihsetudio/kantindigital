@@ -46,18 +46,30 @@ class ExpenseModel {
       created = DateTime.tryParse(json['created_at'].toString())?.toLocal();
     }
 
+    double parseDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? defaultValue;
+    }
+
+    int? parseInt(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
     return ExpenseModel(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      userId: (json['user_id'] as num?)?.toInt(),
+      id: parseInt(json['id']) ?? 0,
+      userId: parseInt(json['user_id']),
       userName: userMap?['name']?.toString() ?? json['user_name']?.toString(),
-      stockItemId: (json['stock_item_id'] as num?)?.toInt(),
-      quantity: (json['quantity'] as num?)?.toDouble(),
+      stockItemId: parseInt(json['stock_item_id']),
+      quantity: json['quantity'] != null ? parseDouble(json['quantity']) : null,
       unit: json['unit']?.toString(),
       stockItem: stockItem,
       expenseDate: json['expense_date']?.toString() ?? '',
       category: json['category']?.toString() ?? 'Lainnya',
       description: json['description']?.toString() ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: parseDouble(json['amount']),
       notes: json['notes']?.toString(),
       createdAt: created,
     );

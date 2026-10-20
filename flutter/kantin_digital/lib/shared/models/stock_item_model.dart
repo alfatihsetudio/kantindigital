@@ -20,15 +20,27 @@ class StockItemModel {
   });
 
   factory StockItemModel.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? defaultValue;
+    }
+
+    int? parseInt(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+
     return StockItemModel(
-      id: json['id'] as int? ?? 0,
+      id: parseInt(json['id']) ?? 0,
       name: json['name'] as String? ?? '',
       unit: json['unit'] as String? ?? 'gram',
       category: json['category'] as String?,
       isActive: json['is_active'] == true || json['is_active'] == 1,
-      todayPurchasedQty: (json['today_purchased_qty'] as num?)?.toDouble() ?? 0.0,
-      todayPurchasedAmount: (json['today_purchased_amount'] as num?)?.toDouble() ?? 0.0,
-      todayPurchasedCount: (json['today_purchased_count'] as num?)?.toInt() ?? 0,
+      todayPurchasedQty: parseDouble(json['today_purchased_qty']),
+      todayPurchasedAmount: parseDouble(json['today_purchased_amount']),
+      todayPurchasedCount: parseInt(json['today_purchased_count']) ?? 0,
     );
   }
 

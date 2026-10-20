@@ -24,8 +24,8 @@ class Expense extends Model
 
     protected $casts = [
         'expense_date' => 'date',
-        'quantity' => 'decimal:2',
-        'amount' => 'decimal:2',
+        'quantity' => 'float',
+        'amount' => 'float',
     ];
 
     public function user()

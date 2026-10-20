@@ -22,12 +22,26 @@ class ExpenseService {
     final summary = res['summary'];
     final summaryMap = summary is Map<String, dynamic> ? summary : const <String, dynamic>{};
 
+    double parseDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? defaultValue;
+    }
+
+    int parseInt(dynamic value, [int defaultValue = 0]) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     return ExpenseListResult(
       expenses: expenses,
-      totalAmount: (summaryMap['total_amount'] as num?)?.toDouble() ??
-          expenses.fold<double>(0, (sum, e) => sum + e.amount),
-      totalTransactions:
-          (summaryMap['total_transactions'] as num?)?.toInt() ?? expenses.length,
+      totalAmount: summaryMap['total_amount'] != null
+          ? parseDouble(summaryMap['total_amount'])
+          : expenses.fold<double>(0, (sum, e) => sum + e.amount),
+      totalTransactions: summaryMap['total_transactions'] != null
+          ? parseInt(summaryMap['total_transactions'], expenses.length)
+          : expenses.length,
     );
   }
 
