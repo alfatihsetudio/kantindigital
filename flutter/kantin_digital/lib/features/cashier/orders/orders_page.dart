@@ -13,6 +13,7 @@ import '../widgets/cashier_drawer.dart';
 import '../widgets/calculator_widget.dart';
 import '../manual_order/manual_order_page.dart';
 import '../../../router/route_name.dart';
+import '../shift/cashier_shift_dialog.dart';
 import 'order_alert_sound.dart';
 import 'orders_service.dart';
 
@@ -28,13 +29,22 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   final OrderAlertSound _orderAlertSound = OrderAlertSound();
   Timer? _refreshTimer;
 
-  // Selected Tab Index: 0=Baru, 1=Proses, 2=Siap, 3=Batal
+  // Selected Tab Index: 0=Baru, 1=Proses, 2=Siap, 3=Batal, 4=Belum Setor
   int _selectedIndex = 0;
 
   List<CashierOrderModel> _pendingOrders = [];
   List<CashierOrderModel> _processingOrders = [];
   List<CashierOrderModel> _completedOrders = [];
   List<CashierOrderModel> _cancelledOrders = [];
+  List<CashierOrderModel> _servedOrders = [];
+  bool _filterOnlyUnsettled = true;
+
+  List<CashierOrderModel> get _unsettledServedOrders =>
+      _servedOrders.where((order) => order.isUnsettled).toList();
+
+  List<CashierOrderModel> get _activeServedList =>
+      _filterOnlyUnsettled ? _unsettledServedOrders : _servedOrders;
+
   final Set<int> _knownPendingOrderIds = {};
   final Set<int> _unacknowledgedOrderIds = {};
   bool _hasLoadedOrders = false;
@@ -76,6 +86,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       final processing = await _service.getOrders(status: 'PROCESSING');
       final completed = await _service.getOrders(status: 'READY');
       final cancelled = await _service.getOrders(status: 'CANCELLED');
+      final served = await _service.getOrders(status: 'SERVED');
 
       if (mounted) {
         final incomingOrders = _hasLoadedOrders
@@ -105,6 +116,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           _processingOrders = processing;
           _completedOrders = completed;
           _cancelledOrders = todayCancelled;
+          _servedOrders = served;
           _loading = false;
         });
       }
@@ -562,6 +574,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
         return _completedOrders;
       case 3:
         return _cancelledOrders;
+      case 4:
+        return _activeServedList;
       default:
         return [];
     }
@@ -582,6 +596,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 if (_unacknowledgedOrderIds.isNotEmpty)
                   _buildIncomingOrderAlert(),
                 _buildTabSelectors(),
+                if (_selectedIndex == 4 && !_loading)
+                  _buildServedOrdersSummaryBar(),
                 Expanded(
                   child: _loading
                       ? Center(
@@ -887,6 +903,286 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     );
   }
 
+  Widget _buildServedOrdersSummaryBar() {
+    final list = _activeServedList;
+    final totalAmount = list.fold<int>(0, (sum, o) => sum + o.totalAmount);
+    final cashOrders = list.where((o) => !o.isQris).toList();
+    final qrisOrders = list.where((o) => o.isQris).toList();
+    final totalCash = cashOrders.fold<int>(0, (sum, o) => sum + o.totalAmount);
+    final totalQris = qrisOrders.fold<int>(0, (sum, o) => sum + o.totalAmount);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 768;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 10 : 16,
+            vertical: 4,
+          ),
+          child: Container(
+            padding: EdgeInsets.all(isCompact ? 10 : 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: AppTheme.shadowSm,
+            ),
+            child: isCompact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: _buildShiftSummaryMetric(
+                              label: 'Total Penjualan (${list.length} Order)',
+                              value: 'Rp ${CurrencyFormatter.rupiah(totalAmount)}',
+                              color: AppColors.success,
+                              icon: Icons.receipt_long_rounded,
+                            ),
+                          ),
+                          _buildShiftReportButton(isCompact: true),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSubMetricItem(
+                              'Tunai',
+                              'Rp ${CurrencyFormatter.rupiah(totalCash)}',
+                              '${cashOrders.length} order',
+                              const Color(0xFF0284C7),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildSubMetricItem(
+                              'QRIS',
+                              'Rp ${CurrencyFormatter.rupiah(totalQris)}',
+                              '${qrisOrders.length} order',
+                              const Color(0xFF7C3AED),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildServedFilterChips(isCompact: true),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            _buildShiftSummaryMetric(
+                              label: 'Total (${list.length} Order)',
+                              value: 'Rp ${CurrencyFormatter.rupiah(totalAmount)}',
+                              color: AppColors.success,
+                              icon: Icons.receipt_long_rounded,
+                            ),
+                            const SizedBox(width: 24),
+                            _buildSubMetricItem(
+                              'Tunai (Cash)',
+                              'Rp ${CurrencyFormatter.rupiah(totalCash)}',
+                              '${cashOrders.length} order',
+                              const Color(0xFF0284C7),
+                            ),
+                            const SizedBox(width: 16),
+                            _buildSubMetricItem(
+                              'QRIS',
+                              'Rp ${CurrencyFormatter.rupiah(totalQris)}',
+                              '${qrisOrders.length} order',
+                              const Color(0xFF7C3AED),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildServedFilterChips(isCompact: false),
+                      const SizedBox(width: 12),
+                      _buildShiftReportButton(isCompact: false),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShiftReportButton({required bool isCompact}) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        await CashierShiftDialog.show(context);
+        _loadOrders(silent: true);
+      },
+      icon: const Icon(Icons.account_balance_wallet_rounded, size: 15),
+      label: Text(
+        isCompact ? 'Setor Shift' : 'Lapor Uang Kasir (Shift)',
+        style: TextStyle(
+          fontSize: isCompact ? 11 : 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 10 : 14,
+          vertical: isCompact ? 8 : 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 1,
+      ),
+    );
+  }
+
+  Widget _buildServedFilterChips({required bool isCompact}) {
+    final unsettledCount = _unsettledServedOrders.length;
+    final allCount = _servedOrders.length;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ChoiceChip(
+          label: Text('Belum Setor ($unsettledCount)'),
+          selected: _filterOnlyUnsettled,
+          onSelected: (val) {
+            if (val) setState(() => _filterOnlyUnsettled = true);
+          },
+          labelStyle: TextStyle(
+            fontSize: isCompact ? 10 : 12,
+            fontWeight: _filterOnlyUnsettled ? FontWeight.bold : FontWeight.w500,
+            color: _filterOnlyUnsettled ? Colors.white : AppColors.textSecondary,
+          ),
+          selectedColor: const Color(0xFF16A34A),
+          backgroundColor: const Color(0xFFF1F5F9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: _filterOnlyUnsettled ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          visualDensity: VisualDensity.compact,
+        ),
+        const SizedBox(width: 6),
+        ChoiceChip(
+          label: Text('Semua Hari Ini ($allCount)'),
+          selected: !_filterOnlyUnsettled,
+          onSelected: (val) {
+            if (val) setState(() => _filterOnlyUnsettled = false);
+          },
+          labelStyle: TextStyle(
+            fontSize: isCompact ? 10 : 12,
+            fontWeight: !_filterOnlyUnsettled ? FontWeight.bold : FontWeight.w500,
+            color: !_filterOnlyUnsettled ? Colors.white : AppColors.textSecondary,
+          ),
+          selectedColor: AppColors.primary,
+          backgroundColor: const Color(0xFFF1F5F9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: !_filterOnlyUnsettled ? AppColors.primary : const Color(0xFFE2E8F0),
+            ),
+          ),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShiftSummaryMetric({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubMetricItem(
+    String label,
+    String value,
+    String subtext,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          Text(
+            subtext,
+            style: TextStyle(
+              fontSize: 10,
+              color: color.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTabSelectors() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -925,6 +1221,13 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 _cancelledOrders.length,
                 Icons.cancel_rounded,
               ),
+            if (!_isOperations)
+              _buildTabItem(
+                4,
+                'Belum Setor',
+                _unsettledServedOrders.length,
+                Icons.receipt_long_rounded,
+              ),
           ],
         ),
       ),
@@ -941,8 +1244,10 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
       activeColor = AppColors.primary;
     } else if (index == 2) {
       activeColor = AppColors.info;
-    } else {
+    } else if (index == 3) {
       activeColor = AppColors.danger;
+    } else {
+      activeColor = AppColors.success;
     }
 
     return Expanded(
@@ -1012,6 +1317,15 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     final orders = _currentList;
 
     if (orders.isEmpty) {
+      String emptyMessage = 'Belum ada pesanan';
+      if (_selectedIndex == 4) {
+        emptyMessage = _filterOnlyUnsettled
+            ? 'Belum ada pesanan selesai yang belum disetor'
+            : 'Belum ada pesanan selesai hari ini';
+      } else if (_selectedIndex == 3) {
+        emptyMessage = 'Belum ada pesanan dibatalkan hari ini';
+      }
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1024,14 +1338,16 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                 boxShadow: AppTheme.shadowMd,
               ),
               child: Icon(
-                Icons.inbox_rounded,
+                _selectedIndex == 4
+                    ? Icons.task_alt_rounded
+                    : Icons.inbox_rounded,
                 size: 64,
                 color: AppColors.textMuted,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Belum ada pesanan',
+              emptyMessage,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 16,
@@ -1148,12 +1464,18 @@ class _OrderTicketCard extends StatelessWidget {
       btnLabel = isCompact ? 'Selesai' : 'Selesai & Antar';
       nextStatus = 'SERVED';
       btnIcon = Icons.check_circle_outline_rounded;
-    } else {
+    } else if (tabIndex == 3) {
       // Batal
       accentColor = AppColors.danger;
       btnLabel = 'Dibatalkan';
       nextStatus = '';
       btnIcon = Icons.cancel_outlined;
+    } else {
+      // Belum Setor / Hari Ini (Selesai)
+      accentColor = AppColors.success;
+      btnLabel = 'Selesai';
+      nextStatus = '';
+      btnIcon = Icons.check_circle_rounded;
     }
 
     return Container(
@@ -1256,6 +1578,36 @@ class _OrderTicketCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (tabIndex == 4) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 4 : 6,
+                            vertical: isCompact ? 2 : 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: order.isUnsettled
+                                ? const Color(0xFFFEF3C7)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: order.isUnsettled
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Text(
+                            order.isUnsettled ? 'Belum Setor' : 'Sudah Setor',
+                            style: TextStyle(
+                              fontSize: isCompact ? 9 : 10,
+                              fontWeight: FontWeight.w700,
+                              color: order.isUnsettled
+                                  ? const Color(0xFFB45309)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1783,7 +2135,7 @@ class _OrderTicketCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                ] else ...[
+                ] else if (tabIndex == 3) ...[
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.symmetric(
@@ -1884,6 +2236,101 @@ class _OrderTicketCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
+                  ],
+                ] else ...[
+                  // Belum Setor / Hari Ini (Selesai)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isCompact ? 8 : 10,
+                      horizontal: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          size: 16,
+                          color: Color(0xFF16A34A),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            order.isUnsettled
+                                ? (isCompact
+                                    ? 'Selesai • Belum Setor'
+                                    : 'Pesanan Selesai (Belum Disetor)')
+                                : (isCompact
+                                    ? 'Selesai • Sudah Setor'
+                                    : 'Pesanan Selesai (Sudah Disetor)'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF15803D),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (actionsEnabled) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => onAction(order, 'READY'),
+                            icon: const Icon(Icons.undo_rounded, size: 14),
+                            label: Text(
+                              isCompact ? 'Kembalikan' : 'Kembalikan ke Siap',
+                              style: TextStyle(
+                                fontSize: isCompact ? 10 : 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              padding: EdgeInsets.symmetric(
+                                vertical: isCompact ? 6 : 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (order.customerPhone != null &&
+                            order.customerPhone!.trim().isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          IconButton(
+                            tooltip: 'Chat WhatsApp konsumen',
+                            onPressed: () => onWhatsApp(order),
+                            icon: const Icon(
+                              Icons.chat_rounded,
+                              color: Color(0xFF16A34A),
+                              size: 18,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFFF0FDF4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(
+                                  color: Color(0xFFBBF7D0),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ],

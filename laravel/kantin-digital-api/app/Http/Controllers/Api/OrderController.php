@@ -482,6 +482,12 @@ class OrderController extends Controller
             $query->where('status', $request->status);
             if ($request->status === 'CANCELLED') {
                 $query->whereDate('created_at', '>=', now()->startOfDay());
+            } elseif ($request->status === 'SERVED') {
+                // Tampilkan pesanan yang hari ini atau yang belum disetor (shift berjalan)
+                $query->where(function ($q) {
+                    $q->whereDate('created_at', '>=', now()->startOfDay())
+                      ->orWhereNull('cashier_shift_report_id');
+                });
             }
         } else {
             $query->where(function ($q) {
@@ -509,6 +515,7 @@ class OrderController extends Controller
                     'voucher_discount_amount' => (int) ($order->voucher_discount_amount ?? 0),
                     'delivery_discount_amount' => (int) ($order->delivery_discount_amount ?? 0),
                     'created_at' => $order->created_at->toIso8601String(),
+                    'cashier_shift_report_id' => $order->cashier_shift_report_id,
                     'order_type' => $order->order_type,
                     'delivery_address' => $order->delivery_address,
                     'table' => $order->table ? [

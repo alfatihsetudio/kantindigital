@@ -13,6 +13,7 @@ class CashierOrderModel {
   final String createdAt;
   final String paymentMethod;
   final List<CashierOrderItem> items;
+  final int? cashierShiftReportId;
 
   CashierOrderModel({
     required this.id,
@@ -29,6 +30,7 @@ class CashierOrderModel {
     required this.createdAt,
     this.paymentMethod = 'qris',
     required this.items,
+    this.cashierShiftReportId,
   });
 
   factory CashierOrderModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,7 @@ class CashierOrderModel {
       createdAt: json['created_at'] as String,
       paymentMethod: (json['payment_method'] ?? 'qris').toString(),
       items: itemsList.map((e) => CashierOrderItem.fromJson(e)).toList(),
+      cashierShiftReportId: (json['cashier_shift_report_id'] as num?)?.toInt(),
     );
   }
 
@@ -65,6 +68,8 @@ class CashierOrderModel {
   };
 
   bool get isQris => paymentMethod.toLowerCase() == 'qris';
+  bool get isUnsettled => cashierShiftReportId == null;
+  bool get isSettled => cashierShiftReportId != null;
 }
 
 class CashierOrderItem {

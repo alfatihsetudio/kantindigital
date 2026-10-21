@@ -1065,6 +1065,9 @@ class DemoSessionManager {
       if (norm == 'CANCELLED') {
         return isToday(o.createdAt);
       }
+      if (norm == 'SERVED') {
+        return isToday(o.createdAt) || o.cashierShiftReportId == null;
+      }
       return true;
     }).toList();
   }
