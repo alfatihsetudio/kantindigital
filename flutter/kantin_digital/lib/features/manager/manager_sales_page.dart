@@ -22,6 +22,9 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
   Map<String, dynamic>? _stats;
   bool _loading = true;
   String? _error;
+  String _selectedPeriod = '7days';
+  DateTimeRange? _customDateRange;
+  String _chartMetric = 'revenue'; // 'revenue' or 'cups'
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -69,16 +72,94 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     return 0;
   }
 
+  String _getPeriodLabel() {
+    switch (_selectedPeriod) {
+      case 'today':
+        return 'Hari Ini';
+      case 'yesterday':
+        return 'Kemarin';
+      case '7days':
+        return '7 Hari Terakhir';
+      case '30days':
+        return '30 Hari Terakhir';
+      case 'this_month':
+        return 'Bulan Ini';
+      case 'custom':
+        if (_customDateRange != null) {
+          final s = _customDateRange!.start;
+          final e = _customDateRange!.end;
+          return '${s.day}/${s.month} - ${e.day}/${e.month}/${e.year}';
+        }
+        return 'Kustom';
+      default:
+        return '7 Hari Terakhir';
+    }
+  }
+
+  Future<void> _pickCustomDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _customDateRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 6)),
+            end: now,
+          ),
+      firstDate: DateTime(2023),
+      lastDate: now,
+      helpText: 'PILIH RENTANG TANGGAL',
+      cancelText: 'BATAL',
+      confirmText: 'TERAPKAN',
+      saveText: 'PILIH',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedPeriod = 'custom';
+        _customDateRange = picked;
+      });
+      _loadStats();
+    }
+  }
+
   Future<void> _loadStats() async {
     setState(() => _loading = true);
     try {
-      final response = await _client.get('/manager/stats');
+      final queryParams = <String, String>{
+        'period': _selectedPeriod,
+      };
+      if (_selectedPeriod == 'custom' && _customDateRange != null) {
+        final start = _customDateRange!.start;
+        final end = _customDateRange!.end;
+        queryParams['start_date'] =
+            '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+        queryParams['end_date'] =
+            '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+      }
+
+      final response = await _client.get(
+        '/manager/stats',
+        queryParameters: queryParams,
+      );
       if (mounted) {
         setState(() {
           _stats = response['data'];
           _loading = false;
         });
-        _animationController.forward();
+        _animationController.forward(from: 0.0);
       }
     } catch (e) {
       if (mounted) {
@@ -308,13 +389,24 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
         (_stats!['busy_days'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final busiestDay = _stats!['busiest_day'] as Map<String, dynamic>? ?? {};
 
+    final periodRevenue = _parseInt(summary['period_revenue'] ?? summary['total_revenue']);
+    final periodOrders = _parseInt(summary['period_orders'] ?? summary['total_orders']);
+    final periodCups = _parseInt(summary['period_cups'] ?? summary['total_cups']);
+
     final todayRevenue = _parseInt(summary['today_revenue']);
     final todayOrders = _parseInt(summary['today_orders']);
+    final todayCups = _parseInt(summary['today_cups']);
+
     final totalRevenue = _parseInt(summary['total_revenue']);
     final totalOrders = _parseInt(summary['total_orders']);
+    final totalCups = _parseInt(summary['total_cups']);
+
     final monthRevenue = _parseInt(summary['month_revenue']);
     final monthOrders = _parseInt(summary['month_orders']);
+    final monthCups = _parseInt(summary['month_cups']);
+
     final averageOrderValue = _parseInt(summary['average_order_value']);
+    final averageCupsPerOrder = _parseDouble(summary['average_cups_per_order']);
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -324,21 +416,33 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Filter Hari / Periode
+            _buildPeriodFilterSection(),
+
+            const SizedBox(height: 14),
+
             // Summary Cards
             _buildSummarySection(
+              periodRevenue: periodRevenue,
+              periodOrders: periodOrders,
+              periodCups: periodCups,
               todayRevenue: todayRevenue,
               todayOrders: todayOrders,
-              totalRevenue: totalRevenue,
-              totalOrders: totalOrders,
+              todayCups: todayCups,
               monthRevenue: monthRevenue,
               monthOrders: monthOrders,
+              monthCups: monthCups,
+              totalRevenue: totalRevenue,
+              totalOrders: totalOrders,
+              totalCups: totalCups,
               averageOrderValue: averageOrderValue,
+              averageCupsPerOrder: averageCupsPerOrder,
             ),
 
             const SizedBox(height: 24),
 
-            // Sales Chart
-            _buildChartSection(dailySales),
+            // Sales & Cup Chart
+            _buildChartSection(dailySales, periodRevenue, periodOrders, periodCups),
 
             const SizedBox(height: 24),
 
@@ -355,69 +459,224 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     );
   }
 
+  Widget _buildPeriodFilterSection() {
+    final filters = [
+      {'key': 'today', 'label': 'Hari Ini', 'icon': Icons.today_rounded},
+      {'key': 'yesterday', 'label': 'Kemarin', 'icon': Icons.history_rounded},
+      {'key': '7days', 'label': '7 Hari', 'icon': Icons.date_range_rounded},
+      {'key': '30days', 'label': '30 Hari', 'icon': Icons.calendar_month_rounded},
+      {'key': 'this_month', 'label': 'Bulan Ini', 'icon': Icons.calendar_today_rounded},
+      {'key': 'custom', 'label': 'Pilih Tanggal', 'icon': Icons.edit_calendar_rounded},
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.filter_alt_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              const Text(
+                'Filter Periode Penjualan',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _getPeriodLabel(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: filters.map((f) {
+                final key = f['key'] as String;
+                final label = f['label'] as String;
+                final icon = f['icon'] as IconData;
+                final isSelected = _selectedPeriod == key;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      if (key == 'custom') {
+                        _pickCustomDateRange();
+                      } else {
+                        if (_selectedPeriod != key) {
+                          setState(() => _selectedPeriod = key);
+                          _loadStats();
+                        }
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : AppColors.background,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : AppColors.border,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            icon,
+                            size: 14,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            key == 'custom' && _customDateRange != null && isSelected
+                                ? '${_customDateRange!.start.day}/${_customDateRange!.start.month} - ${_customDateRange!.end.day}/${_customDateRange!.end.month}'
+                                : label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummarySection({
+    required int periodRevenue,
+    required int periodOrders,
+    required int periodCups,
     required int todayRevenue,
     required int todayOrders,
-    required int totalRevenue,
-    required int totalOrders,
+    required int todayCups,
     required int monthRevenue,
     required int monthOrders,
+    required int monthCups,
+    required int totalRevenue,
+    required int totalOrders,
+    required int totalCups,
     required int averageOrderValue,
+    required double averageCupsPerOrder,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero Card - Today's Revenue
+        // Hero Card - Period Revenue
         _GlassSummaryHero(
-          title: 'Pendapatan Hari Ini',
-          value: CurrencyFormatter.rupiah(todayRevenue),
-          subtitle: '$todayOrders pesanan',
+          title: 'Pendapatan ${_getPeriodLabel()}',
+          value: CurrencyFormatter.rupiah(periodRevenue),
+          subtitle: '$periodOrders pesanan • ☕ $periodCups cup terjual',
           icon: Icons.account_balance_wallet_rounded,
           gradient: AppColors.primaryGradient,
         ),
 
         const SizedBox(height: 16),
 
-        // Small Cards Row
+        // Metrik Utama: Cup Terjual & Total Pesanan
         Row(
           children: [
             Expanded(
               child: _GlassSummaryCard(
-                title: 'Total Pendapatan',
-                value: CurrencyFormatter.rupiah(totalRevenue),
-                icon: Icons.trending_up_rounded,
-                color: const Color(0xFF42A5F5),
+                title: 'Cup Terjual (${_getPeriodLabel()})',
+                value: '$periodCups Cup',
+                subtitle: '$averageCupsPerOrder cup/order',
+                icon: Icons.local_cafe_rounded,
+                color: const Color(0xFFD97706), // Warm coffee amber
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _GlassSummaryCard(
-                title: 'Total Pesanan',
-                value: '$totalOrders',
+                title: 'Total Pesanan (${_getPeriodLabel()})',
+                value: '$periodOrders Order',
                 icon: Icons.receipt_long_rounded,
-                color: const Color(0xFFAB47BC),
+                color: const Color(0xFF8E24AA), // Purple
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
+
+        // Row 2: Rata-rata per order & Realtime Hari Ini
+        Row(
+          children: [
+            Expanded(
+              child: _GlassSummaryCard(
+                title: 'Rata-rata per Transaksi',
+                value: CurrencyFormatter.rupiah(averageOrderValue),
+                icon: Icons.payments_rounded,
+                color: const Color(0xFF00897B), // Teal
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _GlassSummaryCard(
+                title: 'Hari Ini ($todayOrders order)',
+                value: CurrencyFormatter.rupiah(todayRevenue),
+                subtitle: '$todayCups cup',
+                icon: Icons.today_rounded,
+                color: const Color(0xFF1E88E5), // Blue
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Row 3: Bulan Ini & All-Time Total
         Row(
           children: [
             Expanded(
               child: _GlassSummaryCard(
                 title: 'Pemasukan Bulan Ini',
                 value: CurrencyFormatter.rupiah(monthRevenue),
+                subtitle: '$monthOrders order • $monthCups cup',
                 icon: Icons.calendar_month_rounded,
-                color: const Color(0xFFFF9800),
+                color: const Color(0xFFFF9800), // Orange
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _GlassSummaryCard(
-                title: '$monthOrders order, rata-rata',
-                value: CurrencyFormatter.rupiah(averageOrderValue),
-                icon: Icons.payments_rounded,
-                color: const Color(0xFF26A69A),
+                title: 'Total Toko (All Time)',
+                value: CurrencyFormatter.rupiah(totalRevenue),
+                subtitle: '$totalOrders order • $totalCups cup',
+                icon: Icons.storefront_rounded,
+                color: const Color(0xFF5E35B1), // Deep purple
               ),
             ),
           ],
@@ -426,7 +685,14 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
     );
   }
 
-  Widget _buildChartSection(List<Map<String, dynamic>> dailySales) {
+  Widget _buildChartSection(
+    List<Map<String, dynamic>> dailySales,
+    int periodRevenue,
+    int periodOrders,
+    int periodCups,
+  ) {
+    final isCups = _chartMetric == 'cups';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -442,12 +708,12 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: isCups ? const Color(0xFFFEF3C7) : AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.show_chart_rounded,
-                  color: AppColors.primary,
+                  isCups ? Icons.local_cafe_rounded : Icons.show_chart_rounded,
+                  color: isCups ? const Color(0xFFD97706) : AppColors.primary,
                   size: 20,
                 ),
               ),
@@ -457,14 +723,14 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pendapatan 7 Hari Terakhir',
-                      style: TextStyle(
+                      isCups ? 'Grafik Jumlah Cup Terjual' : 'Grafik Pendapatan Penjualan',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      'Grafik pendapatan harian',
+                      '${_getPeriodLabel()} (${dailySales.length} hari riwayat)',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -475,9 +741,92 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Toggle Tab: Omset (Rp) vs Cup Terjual (☕)
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _chartMetric = 'revenue'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !isCups ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: !isCups ? AppTheme.shadowSm : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.monetization_on_outlined,
+                            size: 15,
+                            color: !isCups ? Colors.white : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Omset (Rp)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: !isCups ? FontWeight.w700 : FontWeight.w500,
+                              color: !isCups ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _chartMetric = 'cups'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isCups ? const Color(0xFFD97706) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: isCups ? AppTheme.shadowSm : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.local_cafe_rounded,
+                            size: 15,
+                            color: isCups ? Colors.white : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Cup Terjual (☕)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isCups ? FontWeight.w700 : FontWeight.w500,
+                              color: isCups ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Chart Canvas
           SizedBox(
-            height: 200,
+            height: 210,
             child: dailySales.isEmpty
                 ? Center(
                     child: Column(
@@ -490,7 +839,7 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Belum ada data penjualan',
+                          'Belum ada data penjualan pada periode ini',
                           style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ],
@@ -499,17 +848,45 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                 : BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
-                      maxY: _getMaxValue(dailySales) * 1.2,
+                      maxY: _getMaxValue(dailySales) * 1.25,
                       barTouchData: BarTouchData(
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final item = dailySales[group.x.toInt()];
+                            final day = item['day']?.toString() ?? '';
+                            final date = item['date']?.toString() ?? '';
+                            final total = _parseInt(item['total']);
+                            final cups = _parseInt(item['cups']);
+                            final orders = _parseInt(item['orders']);
+
                             return BarTooltipItem(
-                              CurrencyFormatter.rupiah(rod.toY.toInt()),
+                              '$day ($date)\n',
                               const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.normal,
                               ),
+                              children: [
+                                TextSpan(
+                                  text: isCups
+                                      ? '☕ $cups cup terjual\n'
+                                      : '${CurrencyFormatter.rupiah(total)}\n',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: isCups
+                                      ? 'Omset: ${CurrencyFormatter.rupiah(total)} ($orders order)'
+                                      : '☕ $cups cup terjual ($orders order)',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -522,6 +899,10 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
                               if (index >= 0 && index < dailySales.length) {
+                                // If many days, skip some labels to avoid clutter
+                                if (dailySales.length > 14 && index % 3 != 0) {
+                                  return const Text('');
+                                }
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8),
                                   child: Text(
@@ -542,9 +923,18 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 50,
+                            reservedSize: isCups ? 36 : 52,
                             getTitlesWidget: (value, meta) {
                               if (value == 0) return const Text('');
+                              if (isCups) {
+                                return Text(
+                                  '${value.toInt()}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                );
+                              }
                               return Text(
                                 '${(value / 1000).toStringAsFixed(0)}k',
                                 style: TextStyle(
@@ -566,8 +956,8 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                         show: true,
                         drawVerticalLine: false,
                         horizontalInterval: _getMaxValue(dailySales) > 0
-                            ? _getMaxValue(dailySales) / 4
-                            : 25000,
+                            ? (_getMaxValue(dailySales) / 4)
+                            : 10,
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
                             color: AppColors.border,
@@ -578,16 +968,36 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                       ),
                       borderData: FlBorderData(show: false),
                       barGroups: List.generate(dailySales.length, (index) {
-                        final total = _parseInt(dailySales[index]['total']);
+                        final val = isCups
+                            ? _parseInt(dailySales[index]['cups']).toDouble()
+                            : _parseInt(dailySales[index]['total']).toDouble();
+
+                        // Adjust bar width dynamically based on data length
+                        double barWidth = 22;
+                        if (dailySales.length > 20) {
+                          barWidth = 8;
+                        } else if (dailySales.length > 10) {
+                          barWidth = 14;
+                        }
+
                         return BarChartGroupData(
                           x: index,
                           barRods: [
                             BarChartRodData(
-                              toY: total.toDouble(),
-                              gradient: AppColors.primaryGradient,
-                              width: 24,
+                              toY: val,
+                              gradient: isCups
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFFF59E0B),
+                                        Color(0xFFD97706),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    )
+                                  : AppColors.primaryGradient,
+                              width: barWidth,
                               borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
+                                top: Radius.circular(6),
                               ),
                             ),
                           ],
@@ -596,8 +1006,79 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
                     ),
                   ),
           ),
+          const SizedBox(height: 16),
+
+          // Mini summary bar under chart
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildMiniSummaryItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Total Omset',
+                  value: CurrencyFormatter.rupiah(periodRevenue),
+                  color: AppColors.primary,
+                ),
+                Container(width: 1, height: 24, color: AppColors.border),
+                _buildMiniSummaryItem(
+                  icon: Icons.local_cafe_rounded,
+                  label: 'Total Cup',
+                  value: '$periodCups Cup',
+                  color: const Color(0xFFD97706),
+                ),
+                Container(width: 1, height: 24, color: AppColors.border),
+                _buildMiniSummaryItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Total Order',
+                  value: '$periodOrders Transaksi',
+                  color: const Color(0xFF8E24AA),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMiniSummaryItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
@@ -859,10 +1340,14 @@ class _ManagerSalesPageState extends State<ManagerSalesPage>
   }
 
   double _getMaxValue(List<Map<String, dynamic>> dailySales) {
-    if (dailySales.isEmpty) return 100000;
+    if (dailySales.isEmpty) return _chartMetric == 'cups' ? 20 : 100000;
+    final key = _chartMetric == 'cups' ? 'cups' : 'total';
     final max = dailySales
-        .map((e) => _parseInt(e['total']).toDouble())
-        .reduce((a, b) => a > b ? a : b);
+        .map((e) => _parseInt(e[key]).toDouble())
+        .fold<double>(0, (a, b) => a > b ? a : b);
+    if (_chartMetric == 'cups') {
+      return max > 0 ? max : 10;
+    }
     return max > 0 ? max : 100000;
   }
 }
@@ -982,12 +1467,14 @@ class _GlassSummaryCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final String? subtitle;
 
   const _GlassSummaryCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.subtitle,
   });
 
   @override
@@ -1002,13 +1489,40 @@ class _GlassSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              if (subtitle != null)
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           Text(
@@ -1167,16 +1681,17 @@ class _TopMenuCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 12,
-                        color: AppColors.textSecondary,
+                        Icons.local_cafe_rounded,
+                        size: 13,
+                        color: AppColors.primary,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '$quantity terjual',
+                        '$quantity cup terjual',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (salesShare > 0) ...[

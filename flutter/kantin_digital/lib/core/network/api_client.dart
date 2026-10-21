@@ -253,7 +253,14 @@ class ApiClient {
 
     // 1. STATS (Admin & Manager)
     if (clean.contains('stats')) {
-      return {'status': true, 'data': DemoSessionManager.getMockStats()};
+      return {
+        'status': true,
+        'data': DemoSessionManager.getMockStats(
+          period: queryParameters?['period']?.toString(),
+          startDate: queryParameters?['start_date']?.toString(),
+          endDate: queryParameters?['end_date']?.toString(),
+        ),
+      };
     }
 
     if (clean == 'tenant/store-status' && method == 'POST') {

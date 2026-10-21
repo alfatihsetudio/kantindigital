@@ -637,63 +637,141 @@ class OrderController extends Controller
 
     /**
      * Get sales statistics for manager dashboard
+    /**
+     * Get sales statistics for manager dashboard
+     * Supports period filters (today, yesterday, 7days, 30days, this_month, custom)
+     * and cup count calculations.
      */
-    public function salesStats()
+    public function salesStats(Request $request)
     {
         $paidStatuses = ['PAID', 'PROCESSING', 'READY', 'SERVED'];
 
-        // Get daily sales for the last 7 days
+        $period = $request->get('period', '7days');
+        $now = now();
+
+        switch ($period) {
+            case 'today':
+                $startDate = $now->copy()->startOfDay();
+                $endDate = $now->copy()->endOfDay();
+                break;
+            case 'yesterday':
+                $startDate = $now->copy()->subDay()->startOfDay();
+                $endDate = $now->copy()->subDay()->endOfDay();
+                break;
+            case '30days':
+                $startDate = $now->copy()->subDays(29)->startOfDay();
+                $endDate = $now->copy()->endOfDay();
+                break;
+            case 'this_month':
+                $startDate = $now->copy()->startOfMonth();
+                $endDate = $now->copy()->endOfMonth();
+                break;
+            case 'custom':
+                if ($request->filled('start_date') && $request->filled('end_date')) {
+                    $startDate = \Illuminate\Support\Carbon::parse($request->get('start_date'))->startOfDay();
+                    $endDate = \Illuminate\Support\Carbon::parse($request->get('end_date'))->endOfDay();
+                } else {
+                    $startDate = $now->copy()->subDays(6)->startOfDay();
+                    $endDate = $now->copy()->endOfDay();
+                }
+                break;
+            case '7days':
+            default:
+                $period = '7days';
+                $startDate = $now->copy()->subDays(6)->startOfDay();
+                $endDate = $now->copy()->endOfDay();
+                break;
+        }
+
+        // Daily breakdown between $startDate and $endDate
+        $diffInDays = $startDate->diffInDays($endDate);
+        if ($diffInDays > 60) {
+            $diffInDays = 60; // Max 60 days
+        }
+
+        $dayNamesShort = [
+            0 => 'Min',
+            1 => 'Sen',
+            2 => 'Sel',
+            3 => 'Rab',
+            4 => 'Kam',
+            5 => 'Jum',
+            6 => 'Sab',
+        ];
+
+        // Fetch orders in period with items to calculate total amount & cup quantities
+        $periodOrdersList = Order::whereIn('status', $paidStatuses)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->with(['items:id,order_id,quantity'])
+            ->get(['id', 'total_amount', 'created_at']);
+
+        $groupedByDate = $periodOrdersList->groupBy(function ($order) {
+            return $order->created_at->format('Y-m-d');
+        });
+
         $dailySales = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $dayName = now()->subDays($i)->format('D');
+        for ($i = 0; $i <= $diffInDays; $i++) {
+            $currentDate = $startDate->copy()->addDays($i);
+            $dateStr = $currentDate->format('Y-m-d');
+            $dayOfWeek = $currentDate->dayOfWeek;
+            $dayName = $dayNamesShort[$dayOfWeek] ?? $currentDate->format('D');
 
-            $total = Order::whereDate('created_at', $date)
-                ->whereIn('status', $paidStatuses)
-                ->sum('total_amount');
-
-            $orderCount = Order::whereDate('created_at', $date)
-                ->whereIn('status', $paidStatuses)
-                ->count();
-
+            $ordersOnDate = $groupedByDate->get($dateStr, collect());
             $dailySales[] = [
-                'date' => $date,
+                'date' => $dateStr,
                 'day' => $dayName,
-                'total' => (int) $total,
-                'orders' => $orderCount,
+                'total' => (int) $ordersOnDate->sum('total_amount'),
+                'orders' => $ordersOnDate->count(),
+                'cups' => (int) $ordersOnDate->sum(fn($o) => $o->items->sum('quantity')),
             ];
         }
 
-        // Get total stats
-        $totalRevenue = Order::whereIn('status', $paidStatuses)->sum('total_amount');
-        $totalOrders = Order::whereIn('status', $paidStatuses)->count();
-        $todayRevenue = Order::whereDate('created_at', now()->format('Y-m-d'))
-            ->whereIn('status', $paidStatuses)
-            ->sum('total_amount');
-        $todayOrders = Order::whereDate('created_at', now()->format('Y-m-d'))
-            ->whereIn('status', $paidStatuses)
-            ->count();
-        $monthRevenue = Order::whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)
-            ->whereIn('status', $paidStatuses)
-            ->sum('total_amount');
-        $monthOrders = Order::whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)
-            ->whereIn('status', $paidStatuses)
-            ->count();
-        $averageOrderValue = $totalOrders > 0 ? (int) round($totalRevenue / $totalOrders) : 0;
+        // Period Summary
+        $periodRevenue = (int) $periodOrdersList->sum('total_amount');
+        $periodOrders = $periodOrdersList->count();
+        $periodCups = (int) $periodOrdersList->sum(fn($o) => $o->items->sum('quantity'));
 
-        // Top selling menus (last 30 days)
+        // Today metrics
+        $todayStr = now()->format('Y-m-d');
+        $todayOrdersList = Order::whereIn('status', $paidStatuses)
+            ->whereDate('created_at', $todayStr)
+            ->with(['items:id,order_id,quantity'])
+            ->get(['id', 'total_amount', 'created_at']);
+        $todayRevenue = (int) $todayOrdersList->sum('total_amount');
+        $todayOrders = $todayOrdersList->count();
+        $todayCups = (int) $todayOrdersList->sum(fn($o) => $o->items->sum('quantity'));
+
+        // Month metrics
+        $monthOrdersList = Order::whereIn('status', $paidStatuses)
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->with(['items:id,order_id,quantity'])
+            ->get(['id', 'total_amount', 'created_at']);
+        $monthRevenue = (int) $monthOrdersList->sum('total_amount');
+        $monthOrders = $monthOrdersList->count();
+        $monthCups = (int) $monthOrdersList->sum(fn($o) => $o->items->sum('quantity'));
+
+        // All time stats
+        $totalRevenue = (int) Order::whereIn('status', $paidStatuses)->sum('total_amount');
+        $totalOrders = (int) Order::whereIn('status', $paidStatuses)->count();
+        $totalCups = (int) OrderItem::whereHas('order', function ($q) use ($paidStatuses) {
+            $q->whereIn('status', $paidStatuses);
+        })->sum('quantity');
+
+        $averageOrderValue = $periodOrders > 0 ? (int) round($periodRevenue / $periodOrders) : 0;
+        $averageCupsPerOrder = $periodOrders > 0 ? round($periodCups / $periodOrders, 1) : 0.0;
+
+        // Top selling menus in selected period
         $topMenus = OrderItem::selectRaw(
             'menu_name, SUM(quantity) as total_qty, SUM(price * quantity - discount_amount) as total_sales'
         )
-            ->whereHas('order', function ($query) use ($paidStatuses) {
-                $query->where('created_at', '>=', now()->subDays(30))
+            ->whereHas('order', function ($query) use ($paidStatuses, $startDate, $endDate) {
+                $query->whereBetween('created_at', [$startDate, $endDate])
                     ->whereIn('status', $paidStatuses);
             })
             ->groupBy('menu_name')
             ->orderByDesc('total_qty')
-            ->limit(5)
+            ->limit(10)
             ->get();
 
         $topMenusTotalQty = (int) $topMenus->sum('total_qty');
@@ -733,15 +811,25 @@ class OrderController extends Controller
         return response()->json([
             'status' => true,
             'data' => [
+                'period' => $period,
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
                 'daily_sales' => $dailySales,
                 'summary' => [
-                    'total_revenue' => (int) $totalRevenue,
-                    'total_orders' => $totalOrders,
+                    'period_revenue' => (int) $periodRevenue,
+                    'period_orders' => (int) $periodOrders,
+                    'period_cups' => (int) $periodCups,
                     'today_revenue' => (int) $todayRevenue,
-                    'today_orders' => $todayOrders,
+                    'today_orders' => (int) $todayOrders,
+                    'today_cups' => (int) $todayCups,
                     'month_revenue' => (int) $monthRevenue,
-                    'month_orders' => $monthOrders,
-                    'average_order_value' => $averageOrderValue,
+                    'month_orders' => (int) $monthOrders,
+                    'month_cups' => (int) $monthCups,
+                    'total_revenue' => (int) $totalRevenue,
+                    'total_orders' => (int) $totalOrders,
+                    'total_cups' => (int) $totalCups,
+                    'average_order_value' => (int) $averageOrderValue,
+                    'average_cups_per_order' => (float) $averageCupsPerOrder,
                 ],
                 'top_menus' => $topMenus,
                 'busy_days' => $busyDays,

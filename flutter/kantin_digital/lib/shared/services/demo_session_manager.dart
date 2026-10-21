@@ -1225,50 +1225,88 @@ class DemoSessionManager {
 
   /// Mock Stats untuk Halaman Manager Sales & Admin Dashboard
   /// Format struktur data presisi sesuai OrderController::salesStats
-  static Map<String, dynamic> getMockStats() {
+  static Map<String, dynamic> getMockStats({
+    String? period,
+    String? startDate,
+    String? endDate,
+  }) {
     _initInitialData();
     int todayRevenue = 0;
     int todayOrdersCount = _orders.length;
+    int todayCups = 0;
     for (final o in _orders) {
       todayRevenue += o.totalAmount;
+      for (final item in o.items) {
+        todayCups += item.quantity;
+      }
     }
+    if (todayCups == 0) todayCups = 28;
 
     final totalRevenue = todayRevenue + 12540000;
     final totalOrders = todayOrdersCount + 312;
+    final totalCups = todayCups + 540;
     final monthRevenue = todayRevenue + 18450000;
     final monthOrders = todayOrdersCount + 420;
+    final monthCups = todayCups + 780;
     final averageOrderValue = totalOrders > 0
         ? (totalRevenue / totalOrders).round()
         : 38000;
+    final averageCupsPerOrder = totalOrders > 0
+        ? double.parse((totalCups / totalOrders).toStringAsFixed(1))
+        : 1.8;
 
     final now = DateTime.now();
     final dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
-    // 7 hari riwayat omzet penjualan
+    final selectedPeriod = period ?? '7days';
+    int daysCount = 7;
+    if (selectedPeriod == 'today' || selectedPeriod == 'yesterday') {
+      daysCount = 1;
+    } else if (selectedPeriod == '30days' || selectedPeriod == 'this_month') {
+      daysCount = 30;
+    }
+
     final dailySales = <Map<String, dynamic>>[];
-    for (int i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
+    int periodRevenue = 0;
+    int periodOrders = 0;
+    int periodCups = 0;
+
+    for (int i = daysCount - 1; i >= 0; i--) {
+      DateTime date;
+      if (selectedPeriod == 'yesterday') {
+        date = now.subtract(const Duration(days: 1));
+      } else {
+        date = now.subtract(Duration(days: i));
+      }
       final dayStr = dayNames[date.weekday % 7];
       final dateStr =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       int dayTotal;
       int dayOrderCount;
+      int dayCups;
 
-      if (i == 0) {
+      if (i == 0 && selectedPeriod != 'yesterday') {
         dayTotal = todayRevenue > 0 ? todayRevenue : 650000;
         dayOrderCount = todayOrdersCount > 0 ? todayOrdersCount : 15;
+        dayCups = todayCups;
       } else {
         final multipliers = [1.2, 0.9, 1.4, 1.1, 1.6, 1.8];
-        final mult = multipliers[(i - 1) % multipliers.length];
+        final mult = multipliers[(i - 1).abs() % multipliers.length];
         dayTotal = (1200000 * mult).round();
         dayOrderCount = (28 * mult).round();
+        dayCups = (dayOrderCount * 1.6).round();
       }
+
+      periodRevenue += dayTotal;
+      periodOrders += dayOrderCount;
+      periodCups += dayCups;
 
       dailySales.add({
         'date': dateStr,
         'day': dayStr,
         'total': dayTotal,
         'orders': dayOrderCount,
+        'cups': dayCups,
       });
     }
 
@@ -1320,15 +1358,23 @@ class DemoSessionManager {
     final busiestDay = busyDays.first;
 
     return {
+      'period': selectedPeriod,
       'daily_sales': dailySales,
       'summary': {
+        'period_revenue': periodRevenue,
+        'period_orders': periodOrders,
+        'period_cups': periodCups,
         'total_revenue': totalRevenue,
         'total_orders': totalOrders,
+        'total_cups': totalCups,
         'today_revenue': todayRevenue > 0 ? todayRevenue : 650000,
         'today_orders': todayOrdersCount > 0 ? todayOrdersCount : 15,
+        'today_cups': todayCups,
         'month_revenue': monthRevenue,
         'month_orders': monthOrders,
+        'month_cups': monthCups,
         'average_order_value': averageOrderValue,
+        'average_cups_per_order': averageCupsPerOrder,
       },
       'top_menus': topMenus,
       'busy_days': busyDays,
