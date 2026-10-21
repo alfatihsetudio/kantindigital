@@ -48,6 +48,8 @@ class TenantService {
     // Kasus 1: TLD 2 tingkat seperti .my.id, .co.id, .web.id
     // ekasir.my.id -> 3 parts: ['ekasir', 'my', 'id'] -> Root domain, tidak ada tenant
     // saycoffee.ekasir.my.id -> 4 parts: ['saycoffee', 'ekasir', 'my', 'id'] -> tenant: saycoffee
+    // saycoffee.my.id -> 3 parts: ['saycoffee', 'my', 'id'] -> tenant: saycoffee
+    // www.saycoffee.my.id -> 4 parts -> tenant: saycoffee
     final isTwoLevelTld =
         parts.length >= 2 &&
         (parts[parts.length - 2] == 'my' ||
@@ -60,16 +62,35 @@ class TenantService {
 
     if (isTwoLevelTld) {
       if (parts.length > 3) {
+        if (parts.first == 'www' && parts.length == 4) {
+          final sub = parts[1];
+          if (sub != 'ekasir' && sub != 'kasirdigital') return sub;
+        }
         final sub = parts.first;
         if (sub != 'www') return sub;
+      } else if (parts.length == 3) {
+        final sub = parts.first;
+        if (sub != 'www' && sub != 'ekasir' && sub != 'kasirdigital') {
+          return sub;
+        }
       }
       return null;
     }
 
-    // Kasus 2: Domain standar seperti kasirdigital.com, kasir.test
+    // Kasus 2: Domain standar seperti kasirdigital.com, saycoffee.com
     // kasirdigital.com -> 2 parts -> Root domain
+    // saycoffee.com -> 2 parts -> tenant: saycoffee
     // saycoffee.kasirdigital.com -> 3 parts -> tenant: saycoffee
     if (parts.length >= 3) {
+      if (parts.first == 'www' && parts.length == 3) {
+        final sub = parts[1];
+        if (sub != 'ekasir' && sub != 'kasirdigital') return sub;
+      }
+      final sub = parts.first;
+      if (sub != 'www' && sub != 'ekasir' && sub != 'kasirdigital') {
+        return sub;
+      }
+    } else if (parts.length == 2) {
       final sub = parts.first;
       if (sub != 'www' && sub != 'ekasir' && sub != 'kasirdigital') {
         return sub;

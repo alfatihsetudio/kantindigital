@@ -39,10 +39,18 @@ class MetaController extends Controller
             $host = explode(':', $host)[0];
 
             if (!filter_var($host, FILTER_VALIDATE_IP)) {
-                $parts = explode('.', $host);
+                $parts = explode('.', strtolower($host));
                 if (count($parts) >= 3) {
-                    $first = strtolower($parts[0]);
+                    $first = $parts[0];
+                    if ($first === 'www' && count($parts) >= 4) {
+                        $first = $parts[1];
+                    }
                     if (!in_array($first, ['www', 'kasirdigital', 'ekasir', 'api', 'admin'], true)) {
+                        $subdomain = $first;
+                    }
+                } elseif (count($parts) === 2) {
+                    $first = $parts[0];
+                    if (!in_array($first, ['kasirdigital', 'ekasir', 'api', 'admin'], true)) {
                         $subdomain = $first;
                     }
                 }

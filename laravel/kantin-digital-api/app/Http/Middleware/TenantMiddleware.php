@@ -25,11 +25,19 @@ class TenantMiddleware
         } elseif ($request->has('tenant') && ! empty($request->get('tenant'))) {
             $subdomain = $request->get('tenant');
         } elseif (! filter_var($host, FILTER_VALIDATE_IP)) {
-            // 2. Jika bukan IP, ambil subdomain dari hostname
-            $parts = explode('.', $host);
+            // 2. Jika bukan IP, ambil subdomain/tenant dari hostname
+            $parts = explode('.', strtolower($host));
             if (count($parts) >= 3) {
                 $first = $parts[0];
-                if ($first !== 'www' && $first !== 'kasirdigital' && $first !== 'ekasir') {
+                if ($first === 'www' && count($parts) >= 4) {
+                    $first = $parts[1];
+                }
+                if ($first !== 'www' && $first !== 'kasirdigital' && $first !== 'ekasir' && $first !== 'api' && $first !== 'admin') {
+                    $subdomain = $first;
+                }
+            } elseif (count($parts) === 2) {
+                $first = $parts[0];
+                if ($first !== 'kasirdigital' && $first !== 'ekasir') {
                     $subdomain = $first;
                 }
             }
