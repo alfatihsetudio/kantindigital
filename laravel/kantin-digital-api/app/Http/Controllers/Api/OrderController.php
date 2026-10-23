@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\OrderItemTopping;
 use App\Models\Table;
 use App\Models\Voucher;
+use App\Services\CustomerBonusService;
 use App\Support\StoreOpeningHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -564,6 +565,9 @@ class OrderController extends Controller
 
         if ($order->status === 'CANCELLED') {
             $this->releaseOrderVoucher($order);
+            app(CustomerBonusService::class)->cancelOrderBonus($order);
+        } elseif (in_array($order->status, ['PAID', 'PROCESSING', 'READY', 'SERVED'], true)) {
+            app(CustomerBonusService::class)->recordOrderBonus($order);
         }
 
         return response()->json([
@@ -581,6 +585,7 @@ class OrderController extends Controller
     {
         DB::transaction(function () use ($order) {
             $this->releaseOrderVoucher($order);
+            app(CustomerBonusService::class)->cancelOrderBonus($order);
             foreach ($order->items as $item) {
                 $item->toppings()->delete();
             }
@@ -616,8 +621,10 @@ class OrderController extends Controller
         $deletedCount = $orders->count();
 
         DB::transaction(function () use ($orders) {
+            $bonusService = app(CustomerBonusService::class);
             foreach ($orders as $order) {
                 $this->releaseOrderVoucher($order);
+                $bonusService->cancelOrderBonus($order);
                 foreach ($order->items as $item) {
                     $item->toppings()->delete();
                 }

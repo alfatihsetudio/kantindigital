@@ -15,11 +15,17 @@ class Tenant extends Model
         'phone', 'whatsapp', 'plan', 'expires_at', 'is_active', 'is_store_open', 'store_opened_at',
         'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
         'voucher_promo_mode', 'delivery_discount_tiers', 'order_notification_sound',
+        'is_customer_bonus_active', 'customer_bonus_percent', 'customer_bonus_min_spend',
+        'is_tables_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_store_open' => 'boolean',
+        'is_tables_active' => 'boolean',
+        'is_customer_bonus_active' => 'boolean',
+        'customer_bonus_percent' => 'integer',
+        'customer_bonus_min_spend' => 'integer',
         'expires_at' => 'datetime',
         'promo_discount_percent' => 'integer',
         'promo_menu_ids' => 'array',
@@ -87,5 +93,10 @@ class Tenant extends Model
     public function toppings()
     {
         return $this->hasMany(Topping::class);
+    }
+
+    public function customerBonuses()
+    {
+        return $this->hasMany(CustomerBonus::class);
     }
 }

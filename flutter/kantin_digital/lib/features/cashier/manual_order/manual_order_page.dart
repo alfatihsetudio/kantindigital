@@ -9,6 +9,7 @@ import '../../../shared/models/table_model.dart';
 import '../../../shared/models/topping_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/voucher_service.dart';
+import '../../../shared/services/customer_bonus_service.dart';
 import 'manual_order_service.dart';
 import 'widgets/item_customization_sheet.dart';
 
@@ -47,6 +48,29 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   bool _checkingVoucher = false;
   VoucherCheckResult? _appliedVoucher;
   String? _voucherError;
+  Map<String, dynamic>? _customerBonusData;
+  String _lastCheckedBonusPhone = '';
+
+  Future<void> _checkCustomerBonus(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length < 9) {
+      if (_customerBonusData != null) {
+        setState(() => _customerBonusData = null);
+      }
+      return;
+    }
+    if (clean == _lastCheckedBonusPhone) return;
+    _lastCheckedBonusPhone = clean;
+
+    try {
+      final res = await CustomerBonusService().checkPhoneBonus(clean);
+      if (mounted && _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '') == clean) {
+        setState(() {
+          _customerBonusData = res;
+        });
+      }
+    } catch (_) {}
+  }
   
   // Category filter
   String _selectedCategory = 'Semua';
@@ -674,7 +698,8 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
   }
 
   Future<void> _submitOrder({bool isMobileModal = false}) async {
-    final bool isTableMissing = _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
+    final bool isTablesActive = TenantProvider.of(context).isTablesActive;
+    final bool isTableMissing = isTablesActive && _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
     if (isTableMissing) {
       TopNotification.show(
         message: 'Pilih nomor meja atau opsi Tanpa Meja terlebih dahulu',
@@ -696,7 +721,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
     setState(() => _submitting = true);
 
     try {
-      final String? tableCode = (_isTakeaway || _selectedTable == null) ? null : _selectedTable!.code;
+      final String? tableCode = (!isTablesActive || _isTakeaway || _selectedTable == null) ? null : _selectedTable!.code;
       final String orderType = (tableCode != null && tableCode.isNotEmpty) ? 'dine_in' : 'pickup';
 
       final orderCode = await _service.createOrder(
@@ -1235,8 +1260,8 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                   ),
           ),
 
-          // Table Selection (Hanya tampil jika ada meja aktif/terdaftar)
-          if (_tables.isNotEmpty)
+          // Table Selection (Hanya tampil jika fitur meja aktif & ada meja terdaftar)
+          if (TenantProvider.of(context).isTablesActive && _tables.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Material(
@@ -1332,6 +1357,7 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                 LengthLimitingTextInputFormatter(15),
               ],
               onChanged: (v) {
+                _checkCustomerBonus(v);
                 setState(() {});
                 onStateChanged?.call();
               },
@@ -1345,6 +1371,30 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
               ),
             ),
           ),
+          if (_customerBonusData != null && _customerBonusData!['is_registered'] == true)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '⭐ Member Khusus (' + _customerBonusData!['bonus_percent'].toString() + '% Bonus) | Saldo: ' + CurrencyFormatter.format(_customerBonusData!['bonus']?['bonus_balance'] ?? 0),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Kode Voucher (Optional)
           Padding(
@@ -1496,7 +1546,8 @@ class _ManualOrderPageState extends State<ManualOrderPage> {
                   width: double.infinity,
                   child: Builder(
                     builder: (context) {
-                      final bool isTableMissing = _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
+                      final bool isTablesActive = TenantProvider.of(context).isTablesActive;
+                      final bool isTableMissing = isTablesActive && _tables.isNotEmpty && _selectedTable == null && !_isTakeaway;
                       final bool isFormValid = _cartItems.isNotEmpty && 
                           !isTableMissing && 
                           _nameController.text.trim().isNotEmpty && 

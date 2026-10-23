@@ -391,6 +391,12 @@ class CashierDrawer extends StatelessWidget {
                     route: RouteName.cashierExpenses,
                     isActive: currentRoute == RouteName.cashierExpenses,
                   ),
+                  _DrawerItem(
+                    icon: Icons.stars_rounded,
+                    label: 'Bonus Konsumen (Loyalty)',
+                    route: RouteName.adminCustomerBonus,
+isActive: currentRoute == RouteName.adminCustomerBonus,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

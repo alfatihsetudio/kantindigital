@@ -20,11 +20,17 @@ import '../features/admin/toppings/toppings_page.dart';
 import '../features/admin/users/users_page.dart';
 import '../features/admin/qris/qris_setting_page.dart';
 import '../features/admin/profile/tenant_profile_page.dart';
+import '../features/admin/profile/promo_settings_page.dart';
+import '../features/admin/profile/logo_settings_page.dart';
+import '../features/admin/profile/appearance_settings_page.dart';
+import '../features/admin/profile/social_preview_settings_page.dart';
+import '../features/admin/profile/order_sound_settings_page.dart';
 import '../features/admin/vouchers/vouchers_page.dart';
 import '../features/admin/stock_items/admin_stock_items_page.dart';
 import '../features/admin/stock_report/admin_stock_report_page.dart';
 import '../features/admin/cashier_reports/cashier_reports_page.dart';
 import '../features/expenses/expenses_page.dart';
+import '../features/admin/customer_bonus/customer_bonus_page.dart';
 import '../features/superadmin/superadmin_dashboard_page.dart';
 import '../features/cashier/order_detail/order_detail_page.dart';
 import '../features/cashier/orders/orders_page.dart';
@@ -264,6 +270,50 @@ class AppRouter {
           builder: (_) => const AdminTenantProfilePage(),
           settings: settings,
         );
+      case RouteName.adminPromoSettings:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const PromoSettingsPage(),
+          settings: settings,
+        );
+      case RouteName.adminLogoSettings:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const LogoSettingsPage(),
+          settings: settings,
+        );
+      case RouteName.adminAppearanceSettings:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AppearanceSettingsPage(),
+          settings: settings,
+        );
+      case RouteName.adminSocialPreviewSettings:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const SocialPreviewSettingsPage(),
+          settings: settings,
+        );
       case RouteName.adminOrderSound:
         if (!session.isAuthenticated) {
           return MaterialPageRoute(
@@ -272,7 +322,7 @@ class AppRouter {
           );
         }
         return MaterialPageRoute(
-          builder: (_) => const AdminTenantProfilePage(initialSection: 'sound'),
+          builder: (_) => const OrderSoundSettingsPage(),
           settings: settings,
         );
       case RouteName.adminVouchers:
@@ -328,6 +378,17 @@ class AppRouter {
         }
         return MaterialPageRoute(
           builder: (_) => const ExpensesPage(),
+          settings: settings,
+        );
+      case RouteName.adminCustomerBonus:
+        if (!session.isAuthenticated) {
+          return MaterialPageRoute(
+            builder: (_) => const AdminLoginPage(),
+            settings: const RouteSettings(name: RouteName.adminLogin),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const CustomerBonusPage(),
           settings: settings,
         );
 

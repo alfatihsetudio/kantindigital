@@ -1,26 +1,15 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/currency_formatter.dart';
-import '../../../core/utils/image_upload_helper.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/auth/auth_session.dart';
-import '../../../shared/models/menu_model.dart';
-import '../../../shared/models/tenant_model.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/utils/store_opening_hours.dart';
-import '../../cashier/orders/order_alert_sound.dart';
-import '../../customer/menu/menu_service.dart';
 import '../widgets/admin_drawer.dart';
 
 class AdminTenantProfilePage extends StatefulWidget {
-  final String? initialSection;
-
-  const AdminTenantProfilePage({super.key, this.initialSection});
+  const AdminTenantProfilePage({super.key});
 
   @override
   State<AdminTenantProfilePage> createState() => _AdminTenantProfilePageState();
@@ -28,140 +17,60 @@ class AdminTenantProfilePage extends StatefulWidget {
 
 class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _scrollController = ScrollController();
-  final _infoSectionKey = GlobalKey();
-  final _promoSectionKey = GlobalKey();
-  final _logoSectionKey = GlobalKey();
-  final _appearanceSectionKey = GlobalKey();
-  final _socialPreviewSectionKey = GlobalKey();
-  final _soundSectionKey = GlobalKey();
-  String _selectedSound = 'dingdong';
-  final OrderAlertSound _alertSound = OrderAlertSound();
-  String? _currentlyPlayingSound;
   final _nameCtrl = TextEditingController();
-  final _logoCtrl = TextEditingController();
-  final _colorCtrl = TextEditingController();
+  final _menuCodePrefixCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _openingHoursCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _whatsappCtrl = TextEditingController();
-  final _metaTitleCtrl = TextEditingController();
-  final _metaDescCtrl = TextEditingController();
-  final _metaImageCtrl = TextEditingController();
-  final _menuCodePrefixCtrl = TextEditingController();
-  final _promoBadgeCtrl = TextEditingController();
-  final _promoMessageCtrl = TextEditingController();
-  final _promoDiscountCtrl = TextEditingController();
-  final Set<int> _promoMenuIds = {};
-  final Set<String> _promoPaymentMethods = {'qris'};
-  List<MenuModel> _promoMenus = [];
-  bool _promoAppliesToAll = true;
-  bool _promoMenusLoading = true;
-  String? _promoMenusError;
-  String _voucherPromoMode = 'both';
-  List<DeliveryDiscountTier> _deliveryDiscountTiers = [];
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isCompressing = false;
-  bool _isCompressingMeta = false;
-  bool _clearMetaImage = false;
-  CompressedImageFile? _newLogo;
-  CompressedImageFile? _newMetaImage;
-  String _selectedColor = '#6F4E37';
-
-  // Preset warna populer untuk brand makanan / kafe
-  final List<Map<String, dynamic>> _colorPresets = [
-    {
-      'name': 'Kopi / Espresso',
-      'hex': '#6F4E37',
-      'color': const Color(0xFF6F4E37),
-    },
-    {'name': 'Coklat Tua', 'hex': '#3E2723', 'color': const Color(0xFF3E2723)},
-    {'name': 'Hijau Fresh', 'hex': '#00AA13', 'color': const Color(0xFF00AA13)},
-    {
-      'name': 'Teal Emerald',
-      'hex': '#0D9488',
-      'color': const Color(0xFF0D9488),
-    },
-    {'name': 'Orange Warm', 'hex': '#EA580C', 'color': const Color(0xFFEA580C)},
-    {
-      'name': 'Merah Selera',
-      'hex': '#DC2626',
-      'color': const Color(0xFFDC2626),
-    },
-    {'name': 'Biru Modern', 'hex': '#0284C7', 'color': const Color(0xFF0284C7)},
-    {'name': 'Ungu Royal', 'hex': '#7C3AED', 'color': const Color(0xFF7C3AED)},
-  ];
+  String _logoUrl = '';
+  String _selectedColor = '#00AA13';
 
   @override
   void initState() {
     super.initState();
     _loadTenantData();
-    if (widget.initialSection == 'sound') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToSection(_soundSectionKey);
-      });
-    }
   }
 
   @override
   void dispose() {
-    _alertSound.dispose();
-    _scrollController.dispose();
     _nameCtrl.dispose();
-    _logoCtrl.dispose();
-    _colorCtrl.dispose();
+    _menuCodePrefixCtrl.dispose();
     _addressCtrl.dispose();
     _openingHoursCtrl.dispose();
     _phoneCtrl.dispose();
     _whatsappCtrl.dispose();
-    _metaTitleCtrl.dispose();
-    _metaDescCtrl.dispose();
-    _metaImageCtrl.dispose();
-    _menuCodePrefixCtrl.dispose();
-    _promoBadgeCtrl.dispose();
-    _promoMessageCtrl.dispose();
-    _promoDiscountCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _previewSound(String soundId) async {
-    if (_currentlyPlayingSound == soundId) {
-      _alertSound.stopPreview();
-      setState(() => _currentlyPlayingSound = null);
-      return;
-    }
-    setState(() => _currentlyPlayingSound = soundId);
+  Color _parseColor(String? hexString) {
+    if (hexString == null || hexString.isEmpty) return AppColors.primary;
+    final cleanHex = hexString.replaceAll('#', '');
     try {
-      await _alertSound.preview(soundId);
-      Future.delayed(const Duration(milliseconds: 1700), () {
-        if (mounted && _currentlyPlayingSound == soundId) {
-          setState(() => _currentlyPlayingSound = null);
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _currentlyPlayingSound = null);
-        TopNotification.show(
-          message: 'Gagal memutar audio: $e',
-          backgroundColor: AppColors.danger,
-          icon: Icons.volume_off_rounded,
-        );
+      if (cleanHex.length == 6) {
+        return Color(int.parse('FF$cleanHex', radix: 16));
+      } else if (cleanHex.length == 8) {
+        return Color(int.parse(cleanHex, radix: 16));
       }
-    }
+    } catch (_) {}
+    return AppColors.primary;
   }
 
-  Future<void> _scrollToSection(GlobalKey key) async {
-    final context = key.currentContext;
-    if (context == null) return;
-
-    await Scrollable.ensureVisible(
-      context,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      alignment: 0.08,
-    );
+  ImageProvider? _buildTenantLogoProvider(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('data:image')) {
+      final commaIndex = trimmed.indexOf(',');
+      if (commaIndex != -1) {
+        try {
+          return MemoryImage(base64Decode(trimmed.substring(commaIndex + 1)));
+        } catch (_) {}
+      }
+    }
+    return NetworkImage(trimmed);
   }
 
   Future<void> _loadTenantData() async {
@@ -170,50 +79,36 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       final tenant = await TenantService.fetchTenantInfo(forceRefresh: true);
       _nameCtrl.text = tenant.name;
       _menuCodePrefixCtrl.text = tenant.menuCodePrefix ?? 'SAY';
-      _logoCtrl.text = tenant.logoUrl ?? '';
+      _logoUrl = tenant.logoUrl ?? '';
       _selectedColor = tenant.primaryColor;
-      _colorCtrl.text = tenant.primaryColor;
       _addressCtrl.text = tenant.address ?? '';
       _openingHoursCtrl.text = tenant.openingHours.trim().isNotEmpty
           ? tenant.openingHours
           : 'Setiap hari, 08:00 - 22:00';
       _phoneCtrl.text = tenant.phone ?? '';
       _whatsappCtrl.text = tenant.whatsapp ?? '';
-      _metaTitleCtrl.text = tenant.metaTitle ?? '';
-      _metaDescCtrl.text = tenant.metaDescription ?? '';
-      _metaImageCtrl.text = tenant.metaImageUrl ?? '';
-      _clearMetaImage = false;
-      _promoBadgeCtrl.text = tenant.promoBadgeText;
-      _promoMessageCtrl.text = tenant.promoMessage;
-      _promoDiscountCtrl.text = tenant.promoDiscountPercent.toString();
-      _promoAppliesToAll = tenant.promoScope != 'selected';
-      _promoMenuIds
-        ..clear()
-        ..addAll(tenant.promoMenuIds);
-      _promoPaymentMethods
-        ..clear()
-        ..addAll(
-          tenant.promoPaymentMethods.isEmpty
-              ? const ['qris']
-              : tenant.promoPaymentMethods,
-        );
-      _voucherPromoMode = tenant.voucherPromoMode;
-      _deliveryDiscountTiers = List<DeliveryDiscountTier>.from(tenant.deliveryDiscountTiers);
-      _selectedSound = tenant.orderNotificationSound;
-      try {
-        _promoMenus = await MenuService(
-          ApiClient(),
-        ).fetchMenus(includeUnavailable: true);
-        _promoMenusError = null;
-      } catch (e) {
-        _promoMenusError = e.toString();
-      }
-      _promoMenusLoading = false;
     } catch (e) {
       debugPrint('Error loading tenant: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  TimeOfDay? _parseTimeOfDay(String? text) {
+    if (text == null) return null;
+    final clean = text.replaceAll('.', ':').trim();
+    final parts = clean.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  String _formatTimeOfDay(TimeOfDay t) {
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 
   Future<void> _pickDailyOpeningHours() async {
@@ -290,123 +185,81 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                         'Pilih status tiap hari (Tap untuk ubah Buka / Libur):',
                         style: TextStyle(
                           fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 10),
-
-                      // Grid 7 Hari
+                      const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: dayList.map((entry) {
-                          final dayNum = entry.$1;
-                          final dayName = entry.$2;
+                        children: dayList.map((d) {
+                          final dayNum = d.$1;
+                          final dayName = d.$2;
                           final isOpen = dialogOpenDays.contains(dayNum);
                           final isToday = dayNum == todayWeekday;
 
                           return InkWell(
+                            borderRadius: BorderRadius.circular(10),
                             onTap: () {
                               setModalState(() {
                                 if (isOpen) {
-                                  dialogOpenDays.remove(dayNum);
+                                  if (dialogOpenDays.length > 1) {
+                                    dialogOpenDays.remove(dayNum);
+                                  } else {
+                                    TopNotification.show(
+                                      message:
+                                          'Minimal harus ada 1 hari buka toko!',
+                                      backgroundColor: AppColors.warning,
+                                      icon: Icons.info_outline_rounded,
+                                    );
+                                  }
                                 } else {
                                   dialogOpenDays.add(dayNum);
                                 }
                               });
                             },
-                            borderRadius: BorderRadius.circular(12),
                             child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 96,
+                              duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 10,
+                                horizontal: 12,
+                                vertical: 8,
                               ),
                               decoration: BoxDecoration(
                                 color: isOpen
-                                    ? const Color(0xFFECFDF5)
-                                    : const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(12),
+                                    ? AppColors.primary.withValues(alpha: 0.12)
+                                    : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isOpen
-                                      ? const Color(0xFF10B981)
-                                      : const Color(0xFFEF4444),
-                                  width: isToday ? 2.0 : 1.2,
+                                      ? AppColors.primary
+                                      : Colors.red.shade200,
+                                  width: isToday ? 2 : 1,
                                 ),
-                                boxShadow: [
-                                  if (isToday)
-                                    BoxShadow(
-                                      color: (isOpen
-                                              ? const Color(0xFF10B981)
-                                              : const Color(0xFFEF4444))
-                                          .withValues(alpha: 0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                ],
                               ),
-                              child: Column(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (isToday) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 1.5,
-                                      ),
-                                      margin: const EdgeInsets.only(bottom: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius:
-                                            BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'HARI INI',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  Text(
-                                    dayName,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: isOpen
-                                          ? const Color(0xFF065F46)
-                                          : const Color(0xFF991B1B),
-                                    ),
+                                  Icon(
+                                    isOpen
+                                        ? Icons.check_circle_rounded
+                                        : Icons.cancel_rounded,
+                                    size: 15,
+                                    color: isOpen
+                                        ? AppColors.primary
+                                        : Colors.red.shade600,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isOpen
-                                            ? Icons.check_circle_rounded
-                                            : Icons.do_not_disturb_on_rounded,
-                                        size: 14,
-                                        color: isOpen
-                                            ? const Color(0xFF10B981)
-                                            : const Color(0xFFEF4444),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isOpen ? 'BUKA' : 'LIBUR',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: isOpen
-                                              ? const Color(0xFF047857)
-                                              : const Color(0xFFB91C1C),
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    dayName + (isToday ? ' (Hari ini)' : ''),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isToday
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: isOpen
+                                          ? AppColors.primary
+                                          : Colors.red.shade700,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -414,107 +267,24 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                           );
                         }).toList(),
                       ),
-
-                      const SizedBox(height: 12),
-
-                      // Shortcut buttons
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          ActionChip(
-                            avatar: Icon(
-                              isTodayOpen
-                                  ? Icons.event_busy_rounded
-                                  : Icons.event_available_rounded,
-                              size: 15,
-                              color: isTodayOpen
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF16A34A),
-                            ),
-                            label: Text(
-                              isTodayOpen
-                                  ? 'Libur Hari Ini (Dadakan)'
-                                  : 'Buka Kembali Hari Ini',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                                color: isTodayOpen
-                                    ? const Color(0xFFDC2626)
-                                    : const Color(0xFF16A34A),
-                              ),
-                            ),
-                            onPressed: () {
-                              setModalState(() {
-                                if (isTodayOpen) {
-                                  dialogOpenDays.remove(todayWeekday);
-                                } else {
-                                  dialogOpenDays.add(todayWeekday);
-                                }
-                              });
-                            },
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'Buka Semua Hari',
-                              style: TextStyle(fontSize: 11.5),
-                            ),
-                            onPressed: () {
-                              setModalState(() {
-                                dialogOpenDays.addAll([1, 2, 3, 4, 5, 6, 7]);
-                              });
-                            },
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'Libur Minggu',
-                              style: TextStyle(fontSize: 11.5),
-                            ),
-                            onPressed: () {
-                              setModalState(() {
-                                dialogOpenDays
-                                  ..clear()
-                                  ..addAll([1, 2, 3, 4, 5, 6]);
-                              });
-                            },
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'Libur Sabtu & Minggu',
-                              style: TextStyle(fontSize: 11.5),
-                            ),
-                            onPressed: () {
-                              setModalState(() {
-                                dialogOpenDays
-                                  ..clear()
-                                  ..addAll([1, 2, 3, 4, 5]);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-
                       const SizedBox(height: 16),
                       const Divider(),
-                      const SizedBox(height: 8),
-
+                      const SizedBox(height: 10),
                       const Text(
                         'Jam Operasional (WIB):',
                         style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
-
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () async {
-                                final picked = await _showWibTimePicker(
-                                  title: 'Pilih jam buka (WIB)',
+                                final picked = await showTimePicker(
+                                  context: context,
                                   initialTime: dialogOpen,
                                 );
                                 if (picked != null) {
@@ -522,83 +292,62 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                                 }
                               },
                               icon: const Icon(Icons.wb_sunny_outlined, size: 16),
-                              label: Text(
-                                'Buka: ${_formatTimeOfDay(dialogOpen)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
+                              label: Text('Buka: ${_formatTimeOfDay(dialogOpen)}'),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () async {
-                                final picked = await _showWibTimePicker(
-                                  title: 'Pilih jam tutup (WIB)',
+                                final picked = await showTimePicker(
+                                  context: context,
                                   initialTime: dialogClose,
                                 );
                                 if (picked != null) {
                                   setModalState(() => dialogClose = picked);
                                 }
                               },
-                              icon: const Icon(
-                                Icons.nightlight_outlined,
-                                size: 16,
-                              ),
-                              label: Text(
-                                'Tutup: ${_formatTimeOfDay(dialogClose)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
+                              icon: const Icon(Icons.nightlight_outlined, size: 16),
+                              label: Text('Tutup: ${_formatTimeOfDay(dialogClose)}'),
                             ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 14),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
+                          color: isTodayOpen
+                              ? const Color(0xFFF0FDF4)
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isTodayOpen
+                                ? const Color(0xFFBBF7D0)
+                                : Colors.red.shade200,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Hasil Jadwal:',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  '${dialogOpenDays.length} Hari Buka • ${7 - dialogOpenDays.length} Libur',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
                             Text(
-                              previewStr,
+                              'Hasil Jadwal: $previewStr',
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isTodayOpen
+                                  ? '✅ Toko Anda BUKA pada hari ini.'
+                                  : '⛔ Toko Anda LIBUR / TUTUP pada hari ini.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isTodayOpen
+                                    ? Colors.green.shade800
+                                    : Colors.red.shade800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -613,20 +362,15 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Batal'),
                 ),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx, {
-                    'schedule': previewStr,
-                    'saveNow': false,
-                  }),
-                  child: const Text('Terapkan ke Form'),
-                ),
-                FilledButton.icon(
-                  onPressed: () => Navigator.pop(ctx, {
-                    'schedule': previewStr,
-                    'saveNow': true,
-                  }),
-                  icon: const Icon(Icons.save_rounded, size: 16),
-                  label: const Text('Terapkan & Simpan'),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx, previewStr);
+                  },
+                  child: const Text('Terapkan'),
                 ),
               ],
             );
@@ -635,169 +379,11 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       },
     );
 
-    if (result != null && mounted) {
-      String schedule = '';
-      bool saveNow = false;
-      if (result is Map) {
-        schedule = (result['schedule'] ?? '').toString().trim();
-        saveNow = result['saveNow'] == true;
-      } else {
-        schedule = result.toString().trim();
-      }
-
-      if (schedule.isNotEmpty) {
-        setState(() {
-          _openingHoursCtrl.text = schedule;
-        });
-
-        if (saveNow) {
-          await _saveOpeningHoursDirectly(schedule);
-        } else {
-          TopNotification.show(
-            message:
-                'Jadwal berhasil diterapkan di form: "$schedule". Klik "Simpan Profil Kantin" di bawah untuk menyimpan perubahan.',
-            backgroundColor: AppColors.primary,
-            icon: Icons.check_circle_rounded,
-          );
-        }
-      }
+    if (result != null && result is String) {
+      setState(() {
+        _openingHoursCtrl.text = result;
+      });
     }
-  }
-
-  Future<void> _saveOpeningHoursDirectly(String schedule) async {
-    setState(() => _isSaving = true);
-    try {
-      final client = ApiClient();
-      final response = await client.post(
-        '/tenant/opening-hours',
-        body: {'opening_hours': schedule},
-      );
-
-      final savedOpeningHours =
-          response?['data']?['opening_hours']?.toString() ?? schedule;
-      if (savedOpeningHours.trim().isNotEmpty) {
-        _openingHoursCtrl.text = savedOpeningHours.trim();
-      } else {
-        _openingHoursCtrl.text = schedule;
-      }
-
-      TenantService.clearCache();
-      final savedTenant = await TenantService.fetchTenantInfo(
-        forceRefresh: true,
-      );
-      AuthSession().updateTenant(savedTenant);
-      if (savedTenant.openingHours.trim().isNotEmpty) {
-        _openingHoursCtrl.text = savedTenant.openingHours.trim();
-      }
-
-      if (!mounted) return;
-      TopNotification.show(
-        message: 'Jadwal operasional & hari libur berhasil disimpan!',
-        backgroundColor: AppColors.success,
-        icon: Icons.check_circle_rounded,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      final err = e.toString();
-      if (err.contains('404')) {
-        await _saveTenant();
-        return;
-      }
-      TopNotification.show(
-        message: 'Gagal menyimpan hari libur: $e',
-        backgroundColor: AppColors.danger,
-        icon: Icons.error_rounded,
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<TimeOfDay?> _showWibTimePicker({
-    required String title,
-    required TimeOfDay initialTime,
-  }) {
-    return showTimePicker(
-      context: context,
-      initialTime: initialTime,
-      helpText: title,
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
-    );
-  }
-
-  TimeOfDay? _parseTimeOfDay(String? value) {
-    if (value == null) return null;
-    final normalized = value.replaceAll('.', ':').trim();
-    final parts = normalized.split(':');
-    if (parts.length != 2) return null;
-    final hour = int.tryParse(parts[0].trim());
-    final minute = int.tryParse(parts[1].trim());
-    if (hour == null || minute == null || hour > 23 || minute > 59) {
-      return null;
-    }
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  String _formatTimeOfDay(TimeOfDay time) =>
-      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-
-  Future<void> _pickLogo() async {
-    setState(() => _isCompressing = true);
-    try {
-      final compressedLogo = await ImageUploadHelper.pickAndCompressImage(
-        maxDimension: 400,
-        quality: 82,
-      );
-      if (compressedLogo != null) {
-        setState(() {
-          _newLogo = compressedLogo;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking logo: $e');
-    } finally {
-      if (mounted) setState(() => _isCompressing = false);
-    }
-  }
-
-  Future<void> _pickMetaImage() async {
-    setState(() => _isCompressingMeta = true);
-    try {
-      final compressed = await ImageUploadHelper.pickAndCompressImage(
-        maxDimension: 1200,
-        quality: 82,
-      );
-      if (compressed != null) {
-        setState(() {
-          _newMetaImage = compressed;
-          _clearMetaImage = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking meta image: $e');
-      if (mounted) {
-        try {
-          TopNotification.show(
-            message: 'Gagal memilih gambar: $e',
-            backgroundColor: AppColors.danger,
-            icon: Icons.error_rounded,
-          );
-        } catch (_) {}
-      }
-    } finally {
-      if (mounted) setState(() => _isCompressingMeta = false);
-    }
-  }
-
-  void _resetMetaImageToDefault() {
-    setState(() {
-      _newMetaImage = null;
-      _metaImageCtrl.text = '';
-      _clearMetaImage = true;
-    });
   }
 
   Future<void> _saveTenant() async {
@@ -816,702 +402,63 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       final fields = <String, String>{
         'name': _nameCtrl.text.trim(),
         'menu_code_prefix': _menuCodePrefixCtrl.text.trim().toUpperCase(),
-        'promo_badge_text': _promoBadgeCtrl.text.trim(),
-        'promo_message': _promoMessageCtrl.text.trim(),
-        'promo_discount_percent': _promoDiscountCtrl.text.trim().isEmpty
-            ? '0'
-            : _promoDiscountCtrl.text.trim(),
-        'promo_scope': _promoAppliesToAll ? 'all' : 'selected',
-        'promo_menu_ids': jsonEncode(
-          _promoAppliesToAll ? <int>[] : _promoMenuIds.toList(),
-        ),
-        'promo_payment_methods': jsonEncode(_promoPaymentMethods.toList()),
-        'voucher_promo_mode': _voucherPromoMode,
-        'delivery_discount_tiers': jsonEncode(
-          _deliveryDiscountTiers.map((t) => t.toJson()).toList(),
-        ),
-        'order_notification_sound': _selectedSound,
-        'primary_color': _selectedColor,
         'address': _addressCtrl.text.trim(),
         'opening_hours': _openingHoursCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'whatsapp': _whatsappCtrl.text.trim(),
-        'meta_title': _metaTitleCtrl.text.trim(),
-        'meta_description': _metaDescCtrl.text.trim(),
       };
 
-      if (_newLogo == null) {
-        fields['logo_url'] = _logoCtrl.text.trim();
-      }
-
-      if (_clearMetaImage) {
-        fields['meta_image_url'] = '';
-      } else if (_newMetaImage == null) {
-        fields['meta_image_url'] = _metaImageCtrl.text.trim();
-      }
-
-      final files = <http.MultipartFile>[];
-      if (_newLogo != null) {
-        files.add(
-          http.MultipartFile.fromBytes(
-            'logo',
-            _newLogo!.bytes,
-            filename: _newLogo!.filename,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
-      }
-      if (_newMetaImage != null) {
-        files.add(
-          http.MultipartFile.fromBytes(
-            'meta_image',
-            _newMetaImage!.bytes,
-            filename: _newMetaImage!.filename,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
-      }
-
-      final response = await client.postMultipart(
+      await client.postMultipart(
         '/tenant/update',
         fields: fields,
-        files: files.isNotEmpty ? files : null,
       );
 
-      if (response?['data']?['promo_discount_percent'] != null) {
-        _promoDiscountCtrl.text = response!['data']['promo_discount_percent']
-            .toString();
-      }
-
-      final savedOpeningHours = response?['data']?['opening_hours']?.toString();
-      if (savedOpeningHours != null) {
-        _openingHoursCtrl.text = savedOpeningHours;
-      }
-
-      // Update URL dari server jika baru diupload
-      if (response != null && response['data'] != null) {
-        if (response['data']['logo_url'] != null) {
-          _logoCtrl.text = response['data']['logo_url'].toString();
-          _newLogo = null;
-        }
-        if (response['data']['meta_image'] != null) {
-          _metaImageCtrl.text = response['data']['meta_image'].toString();
-          _newMetaImage = null;
-          _clearMetaImage = false;
-        } else if (_clearMetaImage) {
-          _metaImageCtrl.text = '';
-          _newMetaImage = null;
-          _clearMetaImage = false;
-        }
-      }
-
-      // Clear cache agar data baru diambil kembali
       TenantService.clearCache();
       final savedTenant = await TenantService.fetchTenantInfo(
         forceRefresh: true,
       );
       AuthSession().updateTenant(savedTenant);
-      _openingHoursCtrl.text =
-          (savedOpeningHours != null && savedOpeningHours.isNotEmpty)
-              ? savedOpeningHours
-              : savedTenant.openingHours;
 
       if (!mounted) return;
-      try {
-        TopNotification.show(
-          message: 'Profil kantin, logo, promo, & meta data berhasil disimpan!',
-          backgroundColor: AppColors.success,
-          icon: Icons.check_circle_rounded,
-        );
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Profil kantin, logo, promo, & meta data berhasil disimpan!',
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      }
+      TopNotification.show(
+        message: 'Informasi usaha berhasil disimpan!',
+        backgroundColor: AppColors.success,
+        icon: Icons.check_circle_rounded,
+      );
     } catch (e) {
       if (!mounted) return;
-      final errorStr = e.toString();
-      final isAuthError =
-          errorStr.contains('401') ||
-          errorStr.toLowerCase().contains('unauthenticated') ||
-          errorStr.toLowerCase().contains('unauthorized');
-
       TopNotification.show(
-        message: isAuthError
-            ? 'Anda belum login atau sesi telah berakhir. Silakan login terlebih dahulu sebagai Admin.'
-            : 'Gagal menyimpan: $e',
+        message: 'Gagal menyimpan info usaha: $e',
         backgroundColor: AppColors.danger,
-        icon: isAuthError ? Icons.lock_outline_rounded : Icons.error_rounded,
+        icon: Icons.error_outline_rounded,
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  Color _parseColor(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '');
-      return Color(int.parse('FF$clean', radix: 16));
-    } catch (_) {
-      return AppColors.primary;
-    }
-  }
-
-  Widget _buildPromoDiscountSettings() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _promoDiscountCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Diskon promo (%)',
-            hintText: 'Contoh: 10',
-            prefixIcon: Icon(Icons.percent_rounded),
-            helperText:
-                'Isi 0 jika tidak ada diskon. Diskon berlaku otomatis saat pembayaran.',
-          ),
-          validator: (value) {
-            final percent = int.tryParse(value?.trim() ?? '');
-            if (percent == null || percent < 0 || percent > 100) {
-              return 'Masukkan persentase diskon antara 0 sampai 100.';
-            }
-            if (percent > 0 && !_promoAppliesToAll && _promoMenuIds.isEmpty) {
-              return 'Pilih minimal satu menu untuk promo varian tertentu.';
-            }
-            if (percent > 0 && _promoPaymentMethods.isEmpty) {
-              return 'Pilih minimal satu metode pembayaran untuk mendapat diskon.';
-            }
-            return null;
-          },
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Metode pembayaran yang mendapat diskon',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        CheckboxListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: const Text('QRIS'),
-          subtitle: const Text('Diskon muncul saat pelanggan memilih QRIS.'),
-          value: _promoPaymentMethods.contains('qris'),
-          onChanged: (selected) => setState(() {
-            if (selected == true) {
-              _promoPaymentMethods.add('qris');
-            } else {
-              _promoPaymentMethods.remove('qris');
-            }
-          }),
-        ),
-        CheckboxListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Tunai'),
-          subtitle: const Text(
-            'Centang jika pembayaran tunai juga mendapat diskon.',
-          ),
-          value: _promoPaymentMethods.contains('cash'),
-          onChanged: (selected) => setState(() {
-            if (selected == true) {
-              _promoPaymentMethods.add('cash');
-            } else {
-              _promoPaymentMethods.remove('cash');
-            }
-          }),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Berlaku untuk semua menu'),
-          subtitle: const Text('Matikan untuk memilih menu/varian tertentu.'),
-          value: _promoAppliesToAll,
-          onChanged: (value) => setState(() => _promoAppliesToAll = value),
-        ),
-        if (!_promoAppliesToAll) ...[
-          const SizedBox(height: 4),
-          if (_promoMenusLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_promoMenusError != null)
-            Text(
-              'Daftar menu gagal dimuat: $_promoMenusError',
-              style: const TextStyle(color: AppColors.danger),
-            )
-          else if (_promoMenus.isEmpty)
-            const Text('Belum ada menu yang bisa dipilih.')
-          else
-            Container(
-              constraints: const BoxConstraints(maxHeight: 240),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListView(
-                shrinkWrap: true,
-                children: _promoMenus.map((menu) {
-                  return CheckboxListTile(
-                    dense: true,
-                    title: Text(menu.name),
-                    subtitle: Text(menu.categoryName),
-                    value: _promoMenuIds.contains(menu.id),
-                    onChanged: (selected) => setState(() {
-                      if (selected == true) {
-                        _promoMenuIds.add(menu.id);
-                      } else {
-                        _promoMenuIds.remove(menu.id);
-                      }
-                    }),
-                  );
-                }).toList(),
-              ),
-            ),
-        ],
-        const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 8),
-        const Text(
-          'Kombinasi Potongan Voucher & Diskon Umum',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Atur apakah pelanggan yang memakai kode voucher kerjasama juga tetap mendapat diskon promo umum atau hanya salah satunya.',
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 8),
-        ...[
-          (
-            'both',
-            'Bisa Keduanya (Voucher + Diskon Umum)',
-            'Pelanggan mendapat diskon promo umum sekaligus potongan kode voucher.',
-          ),
-          (
-            'single',
-            'Salah Satu Saja (Voucher Menggantikan Diskon Umum)',
-            'Jika pelanggan memakai kode voucher, maka diskon promo umum otomatis tidak berlaku pada pesanan tersebut.',
-          ),
-          (
-            'voucher_only',
-            'Hanya Voucher Saja',
-            'Hanya potongan kode voucher yang aktif (diskon promo umum dinonaktifkan).',
-          ),
-          (
-            'promo_only',
-            'Hanya Diskon Umum Saja',
-            'Hanya diskon promo umum yang aktif (input kode voucher disembunyikan saat checkout).',
-          ),
-        ].map((opt) {
-          final isSelected = _voucherPromoMode == opt.$1;
-          return RadioListTile<String>(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            value: opt.$1,
-            groupValue: _voucherPromoMode,
-            activeColor: AppColors.primary,
-            title: Text(
-              opt.$2,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-            subtitle: Text(
-              opt.$3,
-              style: const TextStyle(fontSize: 11),
-            ),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() => _voucherPromoMode = val);
-              }
-            },
-          );
-        }),
-        const SizedBox(height: 16),
-        _buildDeliveryDiscountTiersSettings(),
-      ],
-    );
-  }
-
-  Widget _buildDeliveryDiscountTiersSettings() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.local_shipping_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Diskon Pengiriman / Ongkir (Bertingkat)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Color(0xFF166534),
-                      ),
-                    ),
-                    Text(
-                      'Potongan otomatis berdasarkan total jumlah cup/item di keranjang.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF15803D),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_deliveryDiscountTiers.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: const Text(
-                'Belum ada aturan diskon pengiriman. Tekan "+ Tambah Tingkat Diskon" di bawah.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-            )
-          else
-            ...List.generate(_deliveryDiscountTiers.length, (index) {
-              final tier = _deliveryDiscountTiers[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFDCFCE7)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x0A000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Min. ${tier.minQty} Cup / Item',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF166534),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Diskon ${CurrencyFormatter.rupiah(tier.discountAmount)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                      tooltip: 'Hapus Tingkat Diskon',
-                      onPressed: () {
-                        setState(() {
-                          _deliveryDiscountTiers.removeAt(index);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _showAddDeliveryTierDialog,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Tambah Tingkat Diskon'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddDeliveryTierDialog() {
-    final qtyCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
-            Icon(Icons.local_shipping_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Tambah Diskon Pengiriman', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Tentukan batas minimal jumlah pesanan (cup) dan potongan diskonnya:',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: qtyCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Minimal Jumlah Cup / Item',
-                hintText: 'Contoh: 3',
-                prefixIcon: Icon(Icons.shopping_bag_outlined),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Nominal Potongan Diskon (Rp)',
-                hintText: 'Contoh: 5000',
-                prefixIcon: Icon(Icons.money_rounded),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final minQty = int.tryParse(qtyCtrl.text.trim()) ?? 0;
-              final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
-
-              if (minQty <= 0) {
-                TopNotification.show(
-                  message: 'Minimal jumlah cup harus lebih dari 0',
-                  backgroundColor: AppColors.warning,
-                  icon: Icons.warning_amber_rounded,
-                );
-                return;
-              }
-              if (amount <= 0) {
-                TopNotification.show(
-                  message: 'Nominal diskon harus lebih dari 0',
-                  backgroundColor: AppColors.warning,
-                  icon: Icons.warning_amber_rounded,
-                );
-                return;
-              }
-
-              setState(() {
-                _deliveryDiscountTiers.removeWhere((t) => t.minQty == minQty);
-                _deliveryDiscountTiers.add(
-                  DeliveryDiscountTier(minQty: minQty, discountAmount: amount),
-                );
-                _deliveryDiscountTiers.sort((a, b) => a.minQty.compareTo(b.minQty));
-              });
-
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Tambah'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogoPreview(Color activeThemeColor) {
-    if (_newLogo != null) {
-      try {
+  Widget _buildLogoPreview(Color themeColor) {
+    if (_logoUrl.trim().isNotEmpty) {
+      final provider = _buildTenantLogoProvider(_logoUrl);
+      if (provider != null) {
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.memory(
-            _newLogo!.bytes,
+          borderRadius: BorderRadius.circular(14),
+          child: Image(
+            image: provider,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Icon(
+            errorBuilder: (_, __, ___) => Icon(
               Icons.storefront_rounded,
-              color: activeThemeColor,
-              size: 26,
+              color: themeColor,
+              size: 28,
             ),
           ),
         );
-      } catch (_) {}
-    }
-
-    if (_logoCtrl.text.isNotEmpty) {
-      final imageProvider = tenantLogoImageProvider(_logoCtrl.text);
-      if (imageProvider == null) {
-        return Icon(
-          Icons.storefront_rounded,
-          color: activeThemeColor,
-          size: 26,
-        );
-      }
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image(
-          image: imageProvider,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(Icons.storefront_rounded, color: activeThemeColor, size: 26),
-        ),
-      );
-    }
-
-    return Icon(Icons.storefront_rounded, color: activeThemeColor, size: 26);
-  }
-
-  Widget _buildMetaImagePreview(Color activeThemeColor) {
-    if (_newMetaImage != null) {
-      try {
-        return Image.memory(
-          _newMetaImage!.bytes,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) =>
-              _buildLogoPreview(activeThemeColor),
-        );
-      } catch (_) {}
-    }
-
-    if (!_clearMetaImage && _metaImageCtrl.text.isNotEmpty) {
-      final imageProvider = tenantLogoImageProvider(_metaImageCtrl.text);
-      if (imageProvider != null) {
-        return Image(
-          image: imageProvider,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) =>
-              _buildLogoPreview(activeThemeColor),
-        );
       }
     }
-
-    return _buildLogoPreview(activeThemeColor);
-  }
-
-  Widget _buildProfileSubMenu(Color activeThemeColor) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _SubMenuButton(
-              icon: Icons.storefront_rounded,
-              label: 'Info Usaha',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_infoSectionKey),
-            ),
-            _SubMenuButton(
-              icon: Icons.local_fire_department_rounded,
-              label: 'Promo',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_promoSectionKey),
-            ),
-            _SubMenuButton(
-              icon: Icons.image_rounded,
-              label: 'Logo',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_logoSectionKey),
-            ),
-            _SubMenuButton(
-              icon: Icons.palette_rounded,
-              label: 'Tampilan',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_appearanceSectionKey),
-            ),
-            _SubMenuButton(
-              icon: Icons.share_rounded,
-              label: 'Preview Link',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_socialPreviewSectionKey),
-            ),
-            _SubMenuButton(
-              icon: Icons.notifications_active_rounded,
-              label: 'Suara Pesanan',
-              color: activeThemeColor,
-              onTap: () => _scrollToSection(_soundSectionKey),
-            ),
-          ],
-        ),
-      ),
+    return Icon(
+      Icons.storefront_rounded,
+      color: themeColor,
+      size: 28,
     );
   }
 
@@ -1522,7 +469,7 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profil & Logo Kantin'),
+        title: const Text('Info Usaha'),
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         elevation: 0,
@@ -1537,1244 +484,335 @@ class _AdminTenantProfilePageState extends State<AdminTenantProfilePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              controller: _scrollController,
               padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // PREVIEW HEADER PELANGGAN (LIVE PREVIEW)
-                    const Text(
-                      'Preview Tampilan di HP Pelanggan',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // LIVE PREVIEW HEADER
+                        const Text(
+                          'Preview Tampilan di HP Pelanggan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          // Logo / Icon Preview
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: activeThemeColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: activeThemeColor.withValues(alpha: 0.3),
-                                width: 1.5,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                            child: _buildLogoPreview(activeThemeColor),
+                            ],
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _nameCtrl.text.isEmpty
-                                      ? 'Nama Kantin Anda'
-                                      : _nameCtrl.text,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 17,
-                                    color: AppColors.textPrimary,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: activeThemeColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: activeThemeColor.withValues(alpha: 0.3),
+                                    width: 1.5,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
+                                child: _buildLogoPreview(activeThemeColor),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(
-                                      Icons.access_time_rounded,
-                                      size: 14,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Expanded(
-                                      child: Text(
-                                        'Jam buka: ${_openingHoursCtrl.text}',
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 12,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (_addressCtrl.text.isNotEmpty) ...[
-                                  const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on_outlined,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Expanded(
-                                        child: Text(
-                                          _addressCtrl.text,
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    _buildProfileSubMenu(activeThemeColor),
-                    const SizedBox(height: 16),
-
-                    // FORM SETTINGS
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          KeyedSubtree(
-                            key: _infoSectionKey,
-                            child: const Text(
-                              'Informasi Usaha & Tampilan',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 1. NAMA KANTIN
-                          TextFormField(
-                            controller: _nameCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Nama Kantin / Brand *',
-                              hintText: 'Contoh: SAY COFFEE',
-                              prefixIcon: Icon(Icons.storefront_rounded),
-                            ),
-                            validator: (val) =>
-                                val == null || val.trim().isEmpty
-                                ? 'Nama kantin wajib diisi'
-                                : null,
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 1.1 KODE PREFIX MENU
-                          TextFormField(
-                            controller: _menuCodePrefixCtrl,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(
-                              labelText: 'Prefix / Singkatan Kode Menu',
-                              hintText: 'Contoh: SAY (Hasil: SAY-01, SAY-02)',
-                              prefixIcon: Icon(Icons.tag_rounded),
-                              helperText:
-                                  'Awalan kode unik menu di flyer & aplikasi agar pesanan tidak tertukar.',
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 20),
-
-                          KeyedSubtree(
-                            key: _promoSectionKey,
-                            child: const Text(
-                              'Promo di Halaman Menu Pelanggan',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextFormField(
-                            controller: _promoBadgeCtrl,
-                            maxLength: 60,
-                            decoration: const InputDecoration(
-                              labelText: 'Label promo',
-                              hintText: 'Contoh: Promo Hari Ini',
-                              prefixIcon: Icon(
-                                Icons.local_fire_department_rounded,
-                              ),
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _promoMessageCtrl,
-                            maxLength: 180,
-                            maxLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: 'Pesan promo',
-                              hintText:
-                                  'Contoh: Pesan Sekarang, Nikmati Kemudahannya!',
-                              prefixIcon: Icon(Icons.campaign_rounded),
-                              helperText:
-                                  'Teks ini ditampilkan pada banner promo di halaman pelanggan.',
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          _buildPromoDiscountSettings(),
-                          const SizedBox(height: 20),
-
-                          // 2. UPLOAD LOGO KANTIN
-                          KeyedSubtree(
-                            key: _logoSectionKey,
-                            child: const Text(
-                              'Logo Kantin (Upload & Kompres Otomatis)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    // Mini Preview
-                                    Container(
-                                      width: 60,
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: AppColors.border,
-                                        ),
-                                      ),
-                                      child: _buildLogoPreview(
-                                        activeThemeColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          OutlinedButton.icon(
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: activeThemeColor,
-                                              side: BorderSide(
-                                                color: activeThemeColor,
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 12,
-                                                  ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                            ),
-                                            icon: _isCompressing
-                                                ? SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color:
-                                                              activeThemeColor,
-                                                        ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.cloud_upload_rounded,
-                                                    size: 20,
-                                                  ),
-                                            label: Text(
-                                              _isCompressing
-                                                  ? 'Mengompres...'
-                                                  : 'Pilih & Upload Logo',
-                                            ),
-                                            onPressed: _isCompressing
-                                                ? null
-                                                : _pickLogo,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            _newLogo != null
-                                                ? '⚡ Gambar terpilih (Siap disimpan)'
-                                                : (_logoCtrl.text.isNotEmpty
-                                                      ? 'Logo aktif tersimpan di server'
-                                                      : 'Pilih gambar dari HP atau Laptop'),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: _newLogo != null
-                                                  ? AppColors.success
-                                                  : AppColors.textSecondary,
-                                              fontWeight: _newLogo != null
-                                                  ? FontWeight.w600
-                                                  : FontWeight.normal,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (_newLogo != null ||
-                                        _logoCtrl.text.isNotEmpty)
-                                      IconButton(
-                                        tooltip: 'Hapus Logo',
-                                        icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: AppColors.danger,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _newLogo = null;
-                                            _logoCtrl.clear();
-                                          });
-                                        },
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline_rounded,
-                                      size: 14,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Gambar otomatis dikompres ke ukuran optimal (< 50 KB) sebelum disimpan ke server agar loading cepat di HP pelanggan.',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // 3. WARNA BRAND
-                          KeyedSubtree(
-                            key: _appearanceSectionKey,
-                            child: const Text(
-                              'Warna Identitas Brand',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: _colorPresets.map((preset) {
-                              final isSelected =
-                                  _selectedColor.toUpperCase() == preset['hex'];
-                              return InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedColor = preset['hex'];
-                                    _colorCtrl.text = preset['hex'];
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: (preset['color'] as Color)
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? (preset['color'] as Color)
-                                          : Colors.grey.shade300,
-                                      width: isSelected ? 2.5 : 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: BoxDecoration(
-                                          color: preset['color'] as Color,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        preset['name'] as String,
-                                        style: TextStyle(
-                                          fontWeight: isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.w500,
-                                          color: isSelected
-                                              ? Colors.black
-                                              : Colors.grey.shade700,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // 4. WHATSAPP
-                          TextFormField(
-                            controller: _whatsappCtrl,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'Nomor WhatsApp Konfirmasi',
-                              hintText: '628123456789 (format 62)',
-                              prefixIcon: Icon(
-                                Icons.chat_bubble_outline_rounded,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '💡 Nomor WA ini akan dipakai konsumen saat menekan tombol "Konfirmasi Bukti Transfer via WhatsApp".',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 5. ALAMAT
-                          TextFormField(
-                            controller: _addressCtrl,
-                            maxLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: 'Alamat Kantin / Usaha',
-                              hintText: 'Contoh: Lantai 2 Gedung Utama...',
-                              prefixIcon: Icon(Icons.location_on_outlined),
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _openingHoursCtrl,
-                            maxLength: 255,
-                            decoration: const InputDecoration(
-                              labelText: 'Jam buka toko (WIB)',
-                              hintText: 'Contoh: Setiap hari, 08:00 - 22:00',
-                              prefixIcon: Icon(Icons.access_time_rounded),
-                              helperText:
-                                  'Gunakan WIB (Asia/Jakarta). Klik tombol di bawah untuk mengatur jam buka & hari libur toko.',
-                            ),
-                            validator: (value) =>
-                                StoreOpeningHours.isValid(value ?? '')
-                                ? null
-                                : 'Format jam tidak valid. Contoh: Setiap hari, 08:00 - 22:00',
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: OutlinedButton.icon(
-                              onPressed: _pickDailyOpeningHours,
-                              icon: const Icon(Icons.calendar_month_rounded),
-                              label: const Text(
-                                'Atur jam operasional & hari libur (WIB)',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Divider(),
-                          const SizedBox(height: 16),
-
-                          // 6. PREVIEW LINK SOSIAL MEDIA (META TAGS)
-                          KeyedSubtree(
-                            key: _socialPreviewSectionKey,
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: activeThemeColor.withValues(
-                                      alpha: 0.12,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.share_rounded,
-                                    size: 18,
-                                    color: activeThemeColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Text(
-                                  'Preview Link Sosial Media (WhatsApp / FB)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Kustomisasi judul dan teks ringkasan yang muncul saat link website kantin Anda dibagikan ke WhatsApp, Telegram, Facebook, dll.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // WhatsApp Style Link Preview
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F2F5),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.chat_bubble_outline_rounded,
-                                      size: 14,
-                                      color: Color(0xFF25D366),
-                                    ),
-                                    const SizedBox(width: 6),
                                     Text(
-                                      'Simulasi tampilan saat link dibagikan di chat:',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 70,
-                                        height: 70,
-                                        decoration: BoxDecoration(
-                                          color: activeThemeColor.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                          borderRadius:
-                                              const BorderRadius.horizontal(
-                                                left: Radius.circular(10),
-                                              ),
-                                        ),
-                                        child: _buildMetaImagePreview(
-                                          activeThemeColor,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 8,
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                _metaTitleCtrl.text.isNotEmpty
-                                                    ? _metaTitleCtrl.text
-                                                    : (_nameCtrl.text.isNotEmpty
-                                                          ? _nameCtrl.text
-                                                          : 'Nama Kantin'),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13,
-                                                  color: Colors.black87,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Text(
-                                                _metaDescCtrl.text.isNotEmpty
-                                                    ? _metaDescCtrl.text
-                                                    : (_addressCtrl
-                                                              .text
-                                                              .isNotEmpty
-                                                          ? _addressCtrl.text
-                                                          : 'Pesan menu favorit Anda langsung dari smartphone tanpa perlu antre.'),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey.shade600,
-                                                  height: 1.25,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'ekasir.my.id',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: Colors.grey.shade400,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 6a. Upload Gambar Preview Link (Meta Image / OG Image)
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.add_photo_alternate_rounded,
-                                      size: 18,
-                                      color: activeThemeColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'Gambar Preview Link (Meta Image)',
-                                      style: TextStyle(
+                                      _nameCtrl.text.isEmpty
+                                          ? 'Nama Kantin Anda'
+                                          : _nameCtrl.text,
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+                                        fontSize: 17,
                                         color: AppColors.textPrimary,
                                       ),
                                     ),
-                                    const Spacer(),
-                                    if (_isCompressingMeta)
-                                      Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: activeThemeColor,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Mengompres...',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: activeThemeColor,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Gambar thumbnail yang tampil saat link website dibagikan ke WhatsApp, Facebook, dsb. Gambar akan otomatis dikompres ke resolusi optimal (~1200px) agar sangat ringan dan cepat dibuka.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    // Thumbnail preview
-                                    Container(
-                                      width: 68,
-                                      height: 68,
-                                      decoration: BoxDecoration(
-                                        color: activeThemeColor.withValues(
-                                          alpha: 0.08,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(9),
-                                        child: _buildMetaImagePreview(
-                                          activeThemeColor,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              ElevatedButton.icon(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      activeThemeColor,
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 14,
-                                                        vertical: 10,
-                                                      ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                ),
-                                                onPressed: _isCompressingMeta
-                                                    ? null
-                                                    : _pickMetaImage,
-                                                icon: const Icon(
-                                                  Icons.cloud_upload_outlined,
-                                                  size: 16,
-                                                ),
-                                                label: Text(
-                                                  _isCompressingMeta
-                                                      ? 'Mengompres...'
-                                                      : 'Upload & Kompres Gambar',
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (_newMetaImage != null ||
-                                                  (!_clearMetaImage &&
-                                                      _metaImageCtrl
-                                                          .text
-                                                          .isNotEmpty))
-                                                OutlinedButton.icon(
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor:
-                                                        Colors.red.shade700,
-                                                    side: BorderSide(
-                                                      color:
-                                                          Colors.red.shade200,
-                                                    ),
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 10,
-                                                        ),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  onPressed:
-                                                      _resetMetaImageToDefault,
-                                                  icon: const Icon(
-                                                    Icons
-                                                        .delete_outline_rounded,
-                                                    size: 16,
-                                                  ),
-                                                  label: const Text(
-                                                    'Gunakan Logo Saja',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            _newMetaImage != null
-                                                ? '✨ Gambar baru siap disimpan (terkompresi optimal).'
-                                                : ((!_clearMetaImage &&
-                                                          _metaImageCtrl
-                                                              .text
-                                                              .isNotEmpty)
-                                                      ? '✅ Menggunakan gambar preview khusus.'
-                                                      : 'ℹ️ Belum ada gambar khusus (otomatis memakai logo kantin).'),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontStyle: FontStyle.italic,
-                                              color: _newMetaImage != null
-                                                  ? Colors.green.shade700
-                                                  : Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 6b. Judul Preview Link (Meta Title)
-                          TextFormField(
-                            controller: _metaTitleCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Judul Preview Link (Meta Title)',
-                              hintText:
-                                  'Contoh: SAY COFFEE - Ngopi Santai & Nikmat',
-                              prefixIcon: Icon(Icons.title_rounded),
-                              helperText:
-                                  'Judul link saat dibagikan. Kosongkan jika ingin sama dengan Nama Kantin.',
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // 6c. Deskripsi Preview Link (Meta Description)
-                          TextFormField(
-                            controller: _metaDescCtrl,
-                            maxLines: 3,
-                            decoration: const InputDecoration(
-                              labelText:
-                                  'Deskripsi Preview Link (Meta Description)',
-                              hintText:
-                                  'Contoh: Pesan berbagai macam varian kopi susu aren, teh segar, dan camilan nikmat langsung dari smartphone Anda.',
-                              prefixIcon: Icon(Icons.description_outlined),
-                              helperText:
-                                  'Teks deskripsi ringkasan yang muncul di bawah judul saat link dibagikan.',
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // 7. SUARA NOTIFIKASI PESANAN MASUK
-                          _buildOrderSoundSection(activeThemeColor),
-                          const SizedBox(height: 28),
-
-                          // TOMBOL SIMPAN
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: activeThemeColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              onPressed: _isSaving ? null : _saveTenant,
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                    const SizedBox(height: 4),
+                                    Row(
                                       children: [
-                                        Icon(Icons.save_rounded, size: 20),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Simpan Profil Kantin',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                        const Icon(
+                                          Icons.access_time_rounded,
+                                          size: 14,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Expanded(
+                                          child: Text(
+                                            'Jam buka: ${_openingHoursCtrl.text}',
+                                            style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
                                     ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildOrderSoundSection(Color activeThemeColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        KeyedSubtree(
-          key: _soundSectionKey,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: activeThemeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.notifications_active_rounded,
-                  size: 18,
-                  color: activeThemeColor,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Suara Notifikasi Pesanan Masuk',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Pilih nada dering yang berbunyi di Kasir saat ada pesanan baru masuk dari pembeli. Anda dapat menekan tombol Tes Suara untuk mendengarkan setiap nada.',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-            height: 1.3,
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // List kartu nada preset
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: kOrderSoundPresets.map((preset) {
-              final isSelected = _selectedSound == preset.id;
-              final isPlaying = _currentlyPlayingSound == preset.id;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? activeThemeColor.withValues(alpha: 0.06)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected ? activeThemeColor : Colors.grey.shade300,
-                    width: isSelected ? 2 : 1,
-                  ),
-                  boxShadow: [
-                    if (isSelected)
-                      BoxShadow(
-                        color: activeThemeColor.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                  ],
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    setState(() => _selectedSound = preset.id);
-                    _previewSound(preset.id);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Radio button custom
-                        Icon(
-                          isSelected
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_off_rounded,
-                          color: isSelected
-                              ? activeThemeColor
-                              : Colors.grey.shade400,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        // Preset Icon
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? activeThemeColor.withValues(alpha: 0.15)
-                                : Colors.grey.shade100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            preset.icon,
-                            size: 20,
-                            color: isSelected
-                                ? activeThemeColor
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        // Text info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    preset.name,
-                                    style: TextStyle(
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w600,
-                                      fontSize: 14,
-                                      color: isSelected
-                                          ? activeThemeColor
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  if (isSelected) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
+                                    if (_addressCtrl.text.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.location_on_outlined,
+                                            size: 14,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Expanded(
+                                            child: Text(
+                                              _addressCtrl.text,
+                                              style: const TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 12,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: activeThemeColor,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Text(
-                                        'Terpilih',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                preset.description,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isSelected
-                                      ? Colors.grey.shade800
-                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Tombol Play / Preview
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: isPlaying
-                                ? activeThemeColor.withValues(alpha: 0.15)
-                                : Colors.transparent,
-                            foregroundColor: isPlaying
-                                ? activeThemeColor
-                                : Colors.grey.shade800,
-                            side: BorderSide(
-                              color: isPlaying
-                                  ? activeThemeColor
-                                  : Colors.grey.shade400,
-                              width: 1.2,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                        const SizedBox(height: 20),
+
+                        // FORM CARD
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          onPressed: () => _previewSound(preset.id),
-                          icon: Icon(
-                            isPlaying
-                                ? Icons.stop_circle_rounded
-                                : Icons.play_circle_fill_rounded,
-                            size: 18,
-                            color: isPlaying
-                                ? activeThemeColor
-                                : Colors.grey.shade800,
-                          ),
-                          label: Text(
-                            isPlaying ? 'Stop' : 'Tes Suara',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isPlaying
-                                  ? FontWeight.bold
-                                  : FontWeight.w600,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: activeThemeColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.storefront_rounded,
+                                      color: activeThemeColor,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Informasi Usaha & Kontak',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Identitas dasar brand, alamat, jam operasional, dan nomor WhatsApp toko.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+
+                              // 1. NAMA KANTIN
+                              TextFormField(
+                                controller: _nameCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nama Kantin / Brand *',
+                                  hintText: 'Contoh: SAY COFFEE',
+                                  prefixIcon: Icon(Icons.storefront_rounded),
+                                ),
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                        ? 'Nama kantin wajib diisi'
+                                        : null,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 2. PREFIX KODE MENU
+                              TextFormField(
+                                controller: _menuCodePrefixCtrl,
+                                textCapitalization: TextCapitalization.characters,
+                                decoration: const InputDecoration(
+                                  labelText: 'Prefix / Singkatan Kode Menu',
+                                  hintText: 'Contoh: SAY (Hasil: SAY-01, SAY-02)',
+                                  prefixIcon: Icon(Icons.tag_rounded),
+                                  helperText:
+                                      'Awalan kode unik menu di flyer & aplikasi agar pesanan tidak tertukar.',
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 3. WHATSAPP
+                              TextFormField(
+                                controller: _whatsappCtrl,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nomor WhatsApp Konfirmasi',
+                                  hintText: '628123456789 (format 62)',
+                                  prefixIcon: Icon(
+                                    Icons.chat_bubble_outline_rounded,
+                                  ),
+                                  helperText:
+                                      'Nomor WA ini akan dipakai konsumen saat menekan tombol "Konfirmasi Bukti Transfer via WhatsApp".',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 4. TELEPON
+                              TextFormField(
+                                controller: _phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nomor Telepon Toko (Opsional)',
+                                  hintText: 'Contoh: 08123456789',
+                                  prefixIcon: Icon(Icons.phone_outlined),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 5. ALAMAT
+                              TextFormField(
+                                controller: _addressCtrl,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Alamat Kantin / Usaha',
+                                  hintText: 'Contoh: Lantai 2 Gedung Utama...',
+                                  prefixIcon: Icon(Icons.location_on_outlined),
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // 6. JAM BUKA
+                              TextFormField(
+                                controller: _openingHoursCtrl,
+                                maxLength: 255,
+                                decoration: const InputDecoration(
+                                  labelText: 'Jam buka toko (WIB)',
+                                  hintText: 'Contoh: Setiap hari, 08:00 - 22:00',
+                                  prefixIcon: Icon(Icons.access_time_rounded),
+                                  helperText:
+                                      'Gunakan WIB (Asia/Jakarta). Klik tombol di bawah untuk mengatur jam operasional toko.',
+                                ),
+                                validator: (value) =>
+                                    StoreOpeningHours.isValid(value ?? '')
+                                        ? null
+                                        : 'Format jam tidak valid. Contoh: Setiap hari, 08:00 - 22:00',
+                                onChanged: (_) => setState(() {}),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickDailyOpeningHours,
+                                  icon: const Icon(Icons.calendar_month_rounded),
+                                  label: const Text(
+                                    'Atur jam operasional & hari libur (WIB)',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // TOMBOL SIMPAN
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: activeThemeColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  onPressed: _isSaving ? null : _saveTenant,
+                                  child: _isSaving
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.save_rounded, size: 20),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Simpan Info Usaha',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-        // Tips banner
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.shade200),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 18,
-                color: Colors.amber.shade900,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Pengaturan suara ini otomatis diterapkan di akun Kasir. Kasir cukup menekan tombol "Aktifkan suara" satu kali saat membuka kasir agar browser mengizinkan pemutaran audio otomatis.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Colors.amber.shade900,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SubMenuButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _SubMenuButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 17),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.28)),
-          backgroundColor: color.withValues(alpha: 0.06),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        ),
-      ),
+            ),
     );
   }
 }

@@ -15,7 +15,7 @@ class Order extends Model
         'cashier_shift_report_id',
         'payment_method', 'total_amount', 'discount_amount',
         'voucher_code', 'voucher_discount_amount',
-        'delivery_discount_amount',
+        'delivery_discount_amount', 'bonus_amount',
     ];
 
     protected $casts = [
@@ -23,6 +23,7 @@ class Order extends Model
         'discount_amount' => 'integer',
         'voucher_discount_amount' => 'integer',
         'delivery_discount_amount' => 'integer',
+        'bonus_amount' => 'integer',
     ];
 
     public function table()
@@ -43,5 +44,10 @@ class Order extends Model
     public function shiftReport()
     {
         return $this->belongsTo(CashierShiftReport::class, 'cashier_shift_report_id');
+    }
+
+    public function bonusLogs()
+    {
+        return $this->hasMany(CustomerBonusLog::class, 'order_id');
     }
 }

@@ -32,6 +32,10 @@ class TenantModel {
   final String voucherPromoMode;
   final List<DeliveryDiscountTier> deliveryDiscountTiers;
   final String orderNotificationSound;
+  final bool isCustomerBonusActive;
+  final int customerBonusPercent;
+  final int customerBonusMinSpend;
+  final bool isTablesActive;
 
   const TenantModel({
     required this.id,
@@ -60,6 +64,10 @@ class TenantModel {
     this.voucherPromoMode = 'both',
     this.deliveryDiscountTiers = const [],
     this.orderNotificationSound = 'dingdong',
+    this.isCustomerBonusActive = true,
+    this.customerBonusPercent = 0,
+    this.customerBonusMinSpend = 0,
+    this.isTablesActive = true,
   });
 
   bool? isOpenAt(DateTime utcInstant) =>
@@ -146,6 +154,17 @@ class TenantModel {
               json['order_notification_sound'].toString().trim().isNotEmpty)
           ? json['order_notification_sound'].toString().trim()
           : 'dingdong',
+      isCustomerBonusActive: json['is_customer_bonus_active'] == null ||
+          json['is_customer_bonus_active'] == true ||
+          json['is_customer_bonus_active'] == 1,
+      customerBonusPercent:
+          (json['customer_bonus_percent'] as num?)?.toInt() ?? 0,
+      customerBonusMinSpend:
+          (json['customer_bonus_min_spend'] as num?)?.toInt() ?? 0,
+      isTablesActive: json['is_tables_active'] == null ||
+          json['is_tables_active'] == true ||
+          json['is_tables_active'] == 1 ||
+          json['is_tables_active'] == '1',
     );
   }
 
@@ -209,6 +228,10 @@ class TenantModel {
       'delivery_discount_tiers':
           deliveryDiscountTiers.map((t) => t.toJson()).toList(),
       'order_notification_sound': orderNotificationSound,
+      'is_customer_bonus_active': isCustomerBonusActive,
+      'customer_bonus_percent': customerBonusPercent,
+      'customer_bonus_min_spend': customerBonusMinSpend,
+      'is_tables_active': isTablesActive,
     };
   }
 

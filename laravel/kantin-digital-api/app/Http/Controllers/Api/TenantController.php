@@ -65,6 +65,10 @@ class TenantController extends Controller
                 'voucher_promo_mode' => $tenant->voucher_promo_mode ?? 'both',
                 'delivery_discount_tiers' => $tenant->delivery_discount_tiers ?? [],
                 'order_notification_sound' => $tenant->order_notification_sound ?: 'dingdong',
+                'is_customer_bonus_active' => (bool) ($tenant->is_customer_bonus_active ?? true),
+                'customer_bonus_percent' => (int) ($tenant->customer_bonus_percent ?? 0),
+                'customer_bonus_min_spend' => (int) ($tenant->customer_bonus_min_spend ?? 0),
+                'is_tables_active' => (bool) ($tenant->is_tables_active ?? true),
             ],
         ]);
     }
@@ -115,7 +119,7 @@ class TenantController extends Controller
             }
 
             $request->validate([
-                'name' => 'required|string|max:255',
+                'name' => 'sometimes|required|string|max:255',
                 'menu_code_prefix' => 'nullable|string|max:20',
                 'primary_color' => 'nullable|string',
                 'logo_url' => 'nullable|string',
@@ -156,6 +160,10 @@ class TenantController extends Controller
                 'delivery_discount_tiers.*.min_qty' => 'required|integer|min:1',
                 'delivery_discount_tiers.*.discount_amount' => 'required|integer|min:1',
                 'order_notification_sound' => 'nullable|string|max:50',
+                'is_customer_bonus_active' => 'nullable|boolean',
+                'customer_bonus_percent' => 'nullable|integer|min:0|max:100',
+                'customer_bonus_min_spend' => 'nullable|integer|min:0',
+                'is_tables_active' => 'nullable|boolean',
             ]);
 
             if ((int) $request->input('promo_discount_percent', 0) > 0
@@ -170,6 +178,8 @@ class TenantController extends Controller
                 'name', 'menu_code_prefix', 'promo_badge_text', 'promo_message',
                 'promo_discount_percent', 'promo_scope', 'promo_menu_ids', 'promo_payment_methods',
                 'voucher_promo_mode', 'delivery_discount_tiers', 'order_notification_sound',
+                'is_customer_bonus_active', 'customer_bonus_percent', 'customer_bonus_min_spend',
+                'is_tables_active',
                 'logo_url', 'primary_color', 'address', 'opening_hours', 'phone', 'whatsapp',
                 'meta_title', 'meta_description',
             ]);

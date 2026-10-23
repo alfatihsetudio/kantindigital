@@ -8,5 +8,6 @@ class CurrencyFormatter {
   );
 
   static String rupiah(num value) => _rupiah.format(value);
+  static String format(num value) => rupiah(value);
 }
 

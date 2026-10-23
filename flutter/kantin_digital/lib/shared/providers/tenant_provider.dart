@@ -35,7 +35,8 @@ class TenantProvider extends InheritedWidget {
         oldWidget.tenant.isStoreOpen != tenant.isStoreOpen ||
         oldWidget.tenant.promoBadgeText != tenant.promoBadgeText ||
         oldWidget.tenant.promoMessage != tenant.promoMessage ||
-        oldWidget.tenant.orderNotificationSound != tenant.orderNotificationSound;
+        oldWidget.tenant.orderNotificationSound != tenant.orderNotificationSound ||
+        oldWidget.tenant.isTablesActive != tenant.isTablesActive;
   }
 }
 

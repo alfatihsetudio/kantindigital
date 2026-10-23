@@ -25,12 +25,17 @@ class RouteName {
   static const String adminUsers = '/admin/users';
   static const String adminQris = '/admin/qris';
   static const String adminTenantProfile = '/admin/profile';
+  static const String adminPromoSettings = '/admin/promo';
+  static const String adminLogoSettings = '/admin/logo';
+  static const String adminAppearanceSettings = '/admin/appearance';
+  static const String adminSocialPreviewSettings = '/admin/social-preview';
   static const String adminOrderSound = '/admin/order-sound';
   static const String adminVouchers = '/admin/vouchers';
   static const String adminStockItems = '/admin/stock-items';
   static const String adminStockReport = '/admin/stock-report';
   static const String adminCashierReports = '/admin/cashier-reports';
   static const String adminExpenses = '/admin/expenses';
+  static const String adminCustomerBonus = '/admin/customer-bonuses';
 
   // platform superadmin
   static const String superAdminDashboard = '/superadmin/dashboard';

@@ -12,6 +12,7 @@ import '../../../shared/models/tenant_model.dart';
 import '../../../shared/providers/tenant_provider.dart';
 import '../../../shared/services/tenant_service.dart';
 import '../../../shared/services/voucher_service.dart';
+import '../../../shared/services/customer_bonus_service.dart';
 import '../../../shared/utils/promo_discount_calculator.dart';
 import '../../../shared/utils/store_opening_hours.dart';
 import '../../admin/tables/tables_service.dart';
@@ -44,6 +45,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _checkingVoucher = false;
   VoucherCheckResult? _appliedVoucher;
   String? _voucherError;
+  Map<String, dynamic>? _customerBonusData;
+  String _lastCheckedBonusPhone = '';
+
+  Future<void> _checkCustomerBonus(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length < 9) {
+      if (_customerBonusData != null) {
+        setState(() => _customerBonusData = null);
+      }
+      return;
+    }
+    if (clean == _lastCheckedBonusPhone) return;
+    _lastCheckedBonusPhone = clean;
+
+    try {
+      final res = await CustomerBonusService().checkPhoneBonus(clean);
+      if (mounted && _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '') == clean) {
+        setState(() {
+          _customerBonusData = res;
+        });
+      }
+    } catch (_) {}
+  }
 
   bool get _isQrOrder {
     final tableCode = CartController.instance.tableNumber;
@@ -72,6 +96,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       setState(() {});
     });
     _phoneController.addListener(() {
+      _checkCustomerBonus(_phoneController.text.trim());
       setState(() {});
     });
     _addressController.addListener(() {
@@ -256,7 +281,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    if (_isQrOrder && _selectedTable == null) {
+    if (_isQrOrder && _promoTenant.isTablesActive && _selectedTable == null) {
       AppSnackBar.show(context, message: 'Pilih nomor meja terlebih dahulu');
       return;
     }
@@ -368,7 +393,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           const SizedBox(height: 20),
                         ],
 
-                        if (_isQrOrder) ...[
+                        if (_isQrOrder && _promoTenant.isTablesActive) ...[
                           _buildTableSection(),
                         ] else ...[
                           _buildOrderTypeSection(),
@@ -673,6 +698,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         ],
                       ),
                     ),
+                  if (_customerBonusData != null && _customerBonusData!['is_registered'] == true) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '⭐ Selamat! No. HP Anda terdaftar sebagai Member Khusus (Bonus ' + _customerBonusData!['bonus_percent'].toString() + '%). Transaksi ini akan mendapatkan bonus reward!',
+                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   ],
                 ],
               );

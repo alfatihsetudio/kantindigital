@@ -425,6 +425,12 @@ class AdminDrawer extends StatelessWidget {
                     route: RouteName.adminExpenses,
                     isActive: currentRoute == RouteName.adminExpenses,
                   ),
+                  _DrawerItem(
+                    icon: Icons.stars_rounded,
+                    label: 'Bonus Konsumen (Loyalty)',
+                    route: RouteName.adminCustomerBonus,
+isActive: currentRoute == RouteName.adminCustomerBonus,
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
@@ -449,9 +455,33 @@ class AdminDrawer extends StatelessWidget {
                   ),
                   _DrawerItem(
                     icon: Icons.storefront_rounded,
-                    label: 'Profil & Logo Kantin',
+                    label: 'Info Usaha',
                     route: RouteName.adminTenantProfile,
                     isActive: currentRoute == RouteName.adminTenantProfile,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.local_fire_department_rounded,
+                    label: 'Pengaturan Promo',
+                    route: RouteName.adminPromoSettings,
+                    isActive: currentRoute == RouteName.adminPromoSettings,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.image_rounded,
+                    label: 'Logo Kantin',
+                    route: RouteName.adminLogoSettings,
+                    isActive: currentRoute == RouteName.adminLogoSettings,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.palette_rounded,
+                    label: 'Tampilan & Tema',
+                    route: RouteName.adminAppearanceSettings,
+                    isActive: currentRoute == RouteName.adminAppearanceSettings,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.share_rounded,
+                    label: 'Preview Link Medsos',
+                    route: RouteName.adminSocialPreviewSettings,
+                    isActive: currentRoute == RouteName.adminSocialPreviewSettings,
                   ),
                   _DrawerItem(
                     icon: Icons.notifications_active_rounded,

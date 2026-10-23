@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashierShiftReportController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CustomerBonusController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
@@ -27,6 +28,8 @@ Route::get('/menus/{menu}/toppings', [ToppingController::class, 'forMenu']);
 Route::get('/tables', [TableController::class, 'index']);
 Route::get('/toppings', [ToppingController::class, 'index']);
 Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/customer-bonus/check', [CustomerBonusController::class, 'check'])->middleware('throttle:public-orders');
+Route::post('/customer-bonus/check', [CustomerBonusController::class, 'check'])->middleware('throttle:public-orders');
 Route::post('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
 Route::get('/vouchers/check', [VoucherController::class, 'check'])->middleware('throttle:public-orders');
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:public-orders');
@@ -129,6 +132,19 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
             Route::patch('/expenses/{id}', [ExpenseController::class, 'update']);
             Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+        });
+
+        // Program Bonus / Loyalty Pelanggan (Admin, Kasir, Manajer)
+        Route::middleware('role:admin,cashier,manager')->group(function () {
+            Route::get('/customer-bonuses', [CustomerBonusController::class, 'index']);
+            Route::get('/customer-bonuses/{id}/logs', [CustomerBonusController::class, 'logs']);
+        });
+
+        Route::middleware('role:admin,cashier')->group(function () {
+            Route::post('/customer-bonuses', [CustomerBonusController::class, 'store']);
+            Route::put('/customer-bonuses/{id}', [CustomerBonusController::class, 'update']);
+            Route::delete('/customer-bonuses/{id}', [CustomerBonusController::class, 'destroy']);
+            Route::post('/customer-bonuses/{id}/claim', [CustomerBonusController::class, 'claim']);
         });
 
         Route::prefix('superadmin')->middleware('role:superadmin')->group(function () {

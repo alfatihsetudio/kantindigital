@@ -46,6 +46,7 @@ class PaymentWebhookController extends Controller
 
         if ($order) {
             $order->update(['status' => 'PAID']);
+            app(\App\Services\CustomerBonusService::class)->recordOrderBonus($order->fresh());
 
             // Jika ini invoice registrasi toko (#INV-...), aktifkan tenant terkait
             if (str_starts_with($order->code, 'INV-')) {

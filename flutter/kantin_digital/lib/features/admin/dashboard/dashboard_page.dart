@@ -461,6 +461,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         color: const Color(0xFF2563EB), // Blue Royal
         route: RouteName.adminStockReport,
       ),
+      _ActionItem(
+        title: 'Bonus Konsumen',
+        subtitle: 'Loyalty & Klaim',
+        icon: Icons.stars_rounded,
+        color: const Color(0xFFF59E0B),
+        route: RouteName.adminCustomerBonus,
+      ),
     ];
 
     return SliverPadding(
