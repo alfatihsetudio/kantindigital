@@ -583,6 +583,20 @@ class OrderController extends Controller
 
     public function destroy(Order $order)
     {
+        if ($order->cashier_shift_report_id !== null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Transaksi yang sudah disetor ke laporan shift kasir tidak dapat dihapus.',
+            ], 422);
+        }
+
+        if ($order->status !== 'CANCELLED') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Hanya transaksi berstatus batal atau order palsu yang dapat dihapus.',
+            ], 422);
+        }
+
         DB::transaction(function () use ($order) {
             $this->releaseOrderVoucher($order);
             app(CustomerBonusService::class)->cancelOrderBonus($order);
@@ -609,12 +623,11 @@ class OrderController extends Controller
 
         $query = Order::query();
 
+        // Hanya transaksi berstatus CANCELLED dan belum disetor yang boleh dihapus
+        $query->where('status', 'CANCELLED')->whereNull('cashier_shift_report_id');
+
         if ($request->filled('order_ids') && is_array($request->order_ids)) {
             $query->whereIn('id', $request->order_ids);
-        } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
-        } else {
-            $query->where('status', 'CANCELLED');
         }
 
         $orders = $query->with('items')->get();

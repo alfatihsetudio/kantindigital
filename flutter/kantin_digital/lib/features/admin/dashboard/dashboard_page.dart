@@ -1431,12 +1431,40 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 color: AppColors.textSecondary,
               ),
               const SizedBox(width: 4),
-              Text(
-                DateFormatter.formatFriendly(order.createdAt),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              Expanded(
+                child: Text(
+                  DateFormatter.formatFriendly(order.createdAt),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: order.isUnsettled
+                      ? const Color(0xFFFEF3C7)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: order.isUnsettled
+                        ? const Color(0xFFFDE68A)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Text(
+                  order.isUnsettled ? 'Belum Setor' : 'Sudah Setor',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: order.isUnsettled
+                        ? const Color(0xFFB45309)
+                        : const Color(0xFF64748B),
+                  ),
                 ),
               ),
             ],
@@ -1538,25 +1566,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
-              ElevatedButton.icon(
-                onPressed: () => _confirmDeleteOrder(order),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+              // Tombol Hapus HANYA untuk pesanan yang Batal / Palsu dan belum disetor
+              if (isCancelled && order.isUnsettled)
+                ElevatedButton.icon(
+                  onPressed: () => _confirmDeleteOrder(order),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                  label: const Text(
+                    'Hapus Transaksi',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                icon: const Icon(Icons.delete_outline_rounded, size: 15),
-                label: const Text(
-                  'Hapus Transaksi',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-              ),
             ],
           ),
         ],
