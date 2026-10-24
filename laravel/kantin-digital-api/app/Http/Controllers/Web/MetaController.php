@@ -399,21 +399,24 @@ HTML;
             modal.style.display = 'flex';
             setTimeout(function() { modal.style.opacity = '1'; }, 20);
           } else {
-            // Cek jika sedang di mode samaran / belum siap
             actionBtn.innerText = 'Menyiapkan...';
-            setTimeout(function() {
+            var checkCount = 0;
+            var checkTimer = setInterval(function() {
+              checkCount++;
               if (deferredPrompt) {
+                clearInterval(checkTimer);
+                actionBtn.innerText = 'Install';
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function() {
                   hideBanner(true);
                   deferredPrompt = null;
                 });
-              } else {
-                actionBtn.innerText = 'Buka di Tab Biasa';
-                alert('Pemasangan aplikasi tidak diizinkan oleh Chrome di Mode Samaran (Incognito). Silakan buka halaman ini di Tab Biasa Chrome untuk langsung menginstall ke layar utama HP.');
+              } else if (checkCount >= 6) {
+                clearInterval(checkTimer);
+                actionBtn.innerText = 'Install';
                 hideBanner(true);
               }
-            }, 800);
+            }, 300);
           }
         });
       }
