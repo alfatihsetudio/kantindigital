@@ -463,12 +463,16 @@ HTML;
         $primaryColor = '#2563EB';
         $defaultLogo = url('icons/Icon-512.png');
         $logo = $defaultLogo;
+        $id = '/';
+        $startUrl = '/';
 
         if ($tenant) {
             $name = $tenant->name;
             $shortName = $tenant->name;
             $primaryColor = $tenant->primary_color ?: '#6F4E37';
             $logo = $this->resolveTenantLogo($request, $tenant, $defaultLogo);
+            $id = '/?tenant=' . urlencode($tenant->subdomain);
+            $startUrl = '/?tenant=' . urlencode($tenant->subdomain);
         }
 
         $ext = strtolower(pathinfo(parse_url($logo, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION));
@@ -479,10 +483,10 @@ HTML;
         };
 
         $manifest = [
-            'id' => '/',
+            'id' => $id,
             'name' => $name,
             'short_name' => $shortName,
-            'start_url' => '/',
+            'start_url' => $startUrl,
             'scope' => '/',
             'display' => 'standalone',
             'background_color' => '#FFFFFF',
