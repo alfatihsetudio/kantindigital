@@ -340,11 +340,6 @@ HTML;
       function isDismissed() {
         try {
           if (sessionStorage.getItem('pwa_prompt_dismissed') === '1') return true;
-          var dismissedAt = localStorage.getItem('pwa_prompt_dismissed_time');
-          if (dismissedAt) {
-            var hours = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
-            if (hours < 24) return true; // Sembunyikan selama 24 jam jika user memilih batal/nanti
-          }
         } catch (e) {}
         return false;
       }
@@ -366,7 +361,6 @@ HTML;
         if (saveDismiss) {
           try {
             sessionStorage.setItem('pwa_prompt_dismissed', '1');
-            localStorage.setItem('pwa_prompt_dismissed_time', Date.now().toString());
           } catch (e) {}
         }
       }
@@ -375,9 +369,7 @@ HTML;
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        if (!isDismissed()) {
-          setTimeout(showBanner, 600);
-        }
+        showBanner();
       });
 
       // 2. Jika sudah berhasil terinstall
@@ -386,26 +378,42 @@ HTML;
         hideBanner(true);
       });
 
-      // 3. Khusus iOS Safari (karena iOS tidak mendukung event beforeinstallprompt)
-      if (isIos && !isStandalone && !isDismissed()) {
-        setTimeout(showBanner, 1500);
-      }
+      // 3. Tampilkan banner setelah halaman termuat
+      setTimeout(showBanner, 1200);
+      window.addEventListener('flutter-first-frame', function() {
+        setTimeout(showBanner, 800);
+      });
 
-      // 4. Tombol "Install" diklik: Langsung munculkan dialog instalasi resmi browser (1-klik tanpa manual)
+      // 4. Tombol "Install" diklik
       if (actionBtn) {
         actionBtn.addEventListener('click', function() {
           if (deferredPrompt) {
+            // Langsung munculkan dialog instalasi resmi browser (1-klik tanpa manual)
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(choice) {
               hideBanner(true);
               deferredPrompt = null;
             });
           } else if (isIos && modal) {
+            // Khusus iOS Safari (Apple tidak mendukung event auto-install)
             modal.style.display = 'flex';
             setTimeout(function() { modal.style.opacity = '1'; }, 20);
           } else {
-            // Jika prompt belum siap atau ditolak sistem, sembunyikan banner
-            hideBanner(true);
+            // Cek jika sedang di mode samaran / belum siap
+            actionBtn.innerText = 'Menyiapkan...';
+            setTimeout(function() {
+              if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function() {
+                  hideBanner(true);
+                  deferredPrompt = null;
+                });
+              } else {
+                actionBtn.innerText = 'Buka di Tab Biasa';
+                alert('Pemasangan aplikasi tidak diizinkan oleh Chrome di Mode Samaran (Incognito). Silakan buka halaman ini di Tab Biasa Chrome untuk langsung menginstall ke layar utama HP.');
+                hideBanner(true);
+              }
+            }, 800);
           }
         });
       }
