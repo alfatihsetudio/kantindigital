@@ -202,9 +202,9 @@ class MetaController extends Controller
         $html = preg_replace('/<link\s+rel=["\']icon["\'][^>]*>/is', "<link rel=\"icon\" href=\"{$safeLogo}\">\n  <link rel=\"shortcut icon\" href=\"{$safeLogo}\">", $html);
         $html = preg_replace('/<link\s+rel=["\']apple-touch-icon["\'][^>]*>/is', "<link rel=\"apple-touch-icon\" href=\"{$safeLogo}\">", $html);
 
-        // 2b. Hubungkan link manifest ke dynamic manifest per tenant (/app-manifest.json agar tidak di-intercept static file Nginx)
+        // 2b. Hubungkan link manifest ke dynamic manifest per tenant (/api/app-manifest.json agar dilayani langsung oleh Laravel dengan status 200 OK)
         $manifestQuery = $tenant ? '?tenant=' . urlencode($tenant->subdomain) : '';
-        $manifestUrl = "/app-manifest.json{$manifestQuery}";
+        $manifestUrl = "/api/app-manifest.json{$manifestQuery}";
         $html = preg_replace('/<link\s+rel=["\']manifest["\'][^>]*>/is', "<link rel=\"manifest\" href=\"{$manifestUrl}\">", $html);
 
         // 3. Siapkan Meta Tags OpenGraph & Twitter Card
@@ -399,22 +399,26 @@ HTML;
             modal.style.display = 'flex';
             setTimeout(function() { modal.style.opacity = '1'; }, 20);
           } else {
-            actionBtn.innerText = 'Menyiapkan...';
-            var checkCount = 0;
-            var checkTimer = setInterval(function() {
-              checkCount++;
+            actionBtn.innerText = 'Memproses...';
+            var attempts = 0;
+            var checkInterval = setInterval(function() {
+              attempts++;
               if (deferredPrompt) {
-                clearInterval(checkTimer);
+                clearInterval(checkInterval);
                 actionBtn.innerText = 'Install';
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function() {
                   hideBanner(true);
                   deferredPrompt = null;
                 });
-              } else if (checkCount >= 6) {
-                clearInterval(checkTimer);
+              } else if (attempts >= 10) {
+                clearInterval(checkInterval);
                 actionBtn.innerText = 'Install';
-                hideBanner(true);
+                if (modal && modalSteps) {
+                  modalSteps.innerHTML = '<div style="font-size:13px;line-height:1.6;color:#334155;">Jika dialog otomatis tidak muncul, aplikasi mungkin sudah terpasang di HP Anda, atau dapat dipasang melalui menu <strong>titik tiga (⋮)</strong> di pojok kanan atas browser > pilih <strong>Install aplikasi</strong>.</div>';
+                  modal.style.display = 'flex';
+                  setTimeout(function() { modal.style.opacity = '1'; }, 20);
+                }
               }
             }, 300);
           }

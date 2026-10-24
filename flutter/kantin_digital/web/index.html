@@ -22,7 +22,7 @@
   <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>kantin_digital</title>
-  <link rel="manifest" href="/app-manifest.json">
+  <link rel="manifest" href="/api/app-manifest.json">
 </head>
 
 <body>
@@ -37,7 +37,7 @@
         }
         var mLink = document.querySelector('link[rel="manifest"]');
         if (mLink) {
-          mLink.href = '/app-manifest.json' + (sub ? '?tenant=' + encodeURIComponent(sub) : '');
+          mLink.href = '/api/app-manifest.json' + (sub ? '?tenant=' + encodeURIComponent(sub) : '');
         }
       } catch (e) {}
     })();
