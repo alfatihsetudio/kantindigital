@@ -58,7 +58,11 @@ class MetaController extends Controller
         }
 
         if (!empty($subdomain)) {
-            return Tenant::where('subdomain', $subdomain)->first();
+            try {
+                return Tenant::where('subdomain', $subdomain)->first();
+            } catch (\Throwable $e) {
+                return null;
+            }
         }
 
         return null;
@@ -237,8 +241,205 @@ HTML;
   </script>
 HTML;
 
+        // 4b. Interactive PWA Install Prompt Banner & Guide Modal untuk Konsumen
+        $pwaHtml = <<<HTML
+  <!-- Banner Anjuran Install Aplikasi PWA -->
+  <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(140%);width:calc(100% - 32px);max-width:480px;background:#ffffff;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,0.16), 0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;padding:12px 16px;z-index:99998;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:46px;height:46px;border-radius:12px;overflow:hidden;flex-shrink:0;background:#f8fafc;box-shadow:0 3px 8px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;">
+        <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          Pasang Aplikasi {$safeAppName}
+        </div>
+        <div style="font-size:12px;color:#64748b;line-height:1.3;margin-top:2px;">
+          Pesan lebih praktis & hemat kuota
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button id="pwa-install-action-btn" type="button" style="background:{$safeColor};color:#ffffff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;outline:none;box-shadow:0 4px 12px {$safeColor}40;">
+          Install
+        </button>
+        <button id="pwa-dismiss-btn" type="button" aria-label="Tutup" style="background:transparent;border:none;color:#94a3b8;font-size:22px;line-height:1;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;padding:0;">
+          &times;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Petunjuk Install iOS & Browser Manual -->
+  <div id="pwa-guide-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:99999;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;opacity:0;transition:opacity 0.25s ease;">
+    <div style="background:#ffffff;border-radius:24px;max-width:380px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.25);position:relative;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="width:60px;height:60px;border-radius:16px;overflow:hidden;margin:0 auto 12px;background:#f8fafc;box-shadow:0 4px 14px rgba(0,0,0,0.1);">
+          <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
+        </div>
+        <div style="font-size:17px;font-weight:800;color:#0f172a;">Pasang ke Layar Utama</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Akses {$safeAppName} langsung dari HP tanpa buka browser!</div>
+      </div>
+      <div id="pwa-guide-steps" style="font-size:13px;color:#334155;line-height:1.6;margin-bottom:20px;">
+      </div>
+      <button id="pwa-guide-close-btn" type="button" style="width:100%;background:{$safeColor};color:#ffffff;border:none;border-radius:14px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;outline:none;">
+        Saya Mengerti
+      </button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var deferredPrompt = null;
+      var banner = document.getElementById('pwa-install-banner');
+      var actionBtn = document.getElementById('pwa-install-action-btn');
+      var dismissBtn = document.getElementById('pwa-dismiss-btn');
+      var modal = document.getElementById('pwa-guide-modal');
+      var modalSteps = document.getElementById('pwa-guide-steps');
+      var modalCloseBtn = document.getElementById('pwa-guide-close-btn');
+
+      var isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+      var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone === true ||
+                         document.referrer.includes('android-app://');
+
+      var path = window.location.pathname.toLowerCase();
+      var isStaffRoute = path.startsWith('/admin') || path.startsWith('/cashier') || path.startsWith('/manager') || path.startsWith('/superadmin');
+
+      if (isStandalone || isStaffRoute) {
+        return;
+      }
+
+      function isDismissed() {
+        try {
+          if (sessionStorage.getItem('pwa_prompt_dismissed') === '1') return true;
+          var dismissedAt = localStorage.getItem('pwa_prompt_dismissed_time');
+          if (dismissedAt) {
+            var hours = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
+            if (hours < 24) return true;
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      function showBanner() {
+        if (!banner || isDismissed()) return;
+        banner.style.display = 'block';
+        setTimeout(function() {
+          banner.style.transform = 'translateX(-50%) translateY(0)';
+        }, 50);
+      }
+
+      function hideBanner(saveDismiss) {
+        if (!banner) return;
+        banner.style.transform = 'translateX(-50%) translateY(140%)';
+        setTimeout(function() {
+          banner.style.display = 'none';
+        }, 400);
+        if (saveDismiss) {
+          try {
+            sessionStorage.setItem('pwa_prompt_dismissed', '1');
+            localStorage.setItem('pwa_prompt_dismissed_time', Date.now().toString());
+          } catch (e) {}
+        }
+      }
+
+      function showModal(contentHtml) {
+        if (!modal || !modalSteps) return;
+        modalSteps.innerHTML = contentHtml;
+        modal.style.display = 'flex';
+        setTimeout(function() {
+          modal.style.opacity = '1';
+        }, 20);
+      }
+
+      function hideModal() {
+        if (!modal) return;
+        modal.style.opacity = '0';
+        setTimeout(function() {
+          modal.style.display = 'none';
+        }, 250);
+      }
+
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        showBanner();
+      });
+
+      window.addEventListener('appinstalled', function() {
+        deferredPrompt = null;
+        hideBanner(true);
+      });
+
+      window.addEventListener('flutter-first-frame', function() {
+        setTimeout(showBanner, 1500);
+      });
+      setTimeout(showBanner, 2800);
+
+      if (dismissBtn) {
+        dismissBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          hideBanner(true);
+        });
+      }
+
+      if (actionBtn) {
+        actionBtn.addEventListener('click', function() {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+              if (choice.outcome === 'accepted') {
+                hideBanner(true);
+              }
+              deferredPrompt = null;
+            });
+          } else if (isIos) {
+            showModal(
+              '<div style="display:flex;flex-direction:column;gap:12px;">' +
+              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</span>' +
+                '<span>Ketuk tombol <strong>Bagikan / Share</strong> (ikon kotak dengan panah ke atas ⎋) di menu bawah Safari.</span>' +
+              '</div>' +
+              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</span>' +
+                '<span>Gulir ke bawah dan pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</span>' +
+              '</div>' +
+              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">3</span>' +
+                '<span>Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas.</span>' +
+              '</div>' +
+              '</div>'
+            );
+          } else {
+            showModal(
+              '<div style="display:flex;flex-direction:column;gap:12px;">' +
+              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</span>' +
+                '<span>Ketuk tombol menu <strong>titik tiga (⋮)</strong> di pojok kanan atas browser Anda.</span>' +
+              '</div>' +
+              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</span>' +
+                '<span>Pilih menu <strong>"Install aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</span>' +
+              '</div>' +
+              '</div>'
+            );
+          }
+        });
+      }
+
+      if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', hideModal);
+      }
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) hideModal();
+        });
+      }
+    })();
+  </script>
+HTML;
+
         if (str_contains($html, '<body>')) {
-            $html = str_replace('<body>', "<body>\n{$splashHtml}", $html);
+            $html = str_replace('<body>', "<body>\n{$splashHtml}\n{$pwaHtml}", $html);
         }
 
         // 5. Dynamic Cache-Busting for flutter_bootstrap.js (always existing in public/)
@@ -278,6 +479,7 @@ HTML;
         };
 
         $manifest = [
+            'id' => '/',
             'name' => $name,
             'short_name' => $shortName,
             'start_url' => '/',
@@ -316,6 +518,24 @@ HTML;
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0')
             ->header('Access-Control-Allow-Origin', '*');
+    }
+
+    public function serviceWorker(Request $request)
+    {
+        $swPath = public_path('sw.js');
+        if (!File::exists($swPath)) {
+            $swPath = base_path('../flutter/kantin_digital/web/sw.js');
+        }
+
+        $content = File::exists($swPath)
+            ? File::get($swPath)
+            : "self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));";
+
+        return response($content, 200)
+            ->header('Content-Type', 'application/javascript; charset=UTF-8')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     private function defaultHtmlTemplate(): string

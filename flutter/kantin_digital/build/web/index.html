@@ -42,16 +42,18 @@
       } catch (e) {}
     })();
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var registration of registrations) {
-          registration.unregister();
-        }
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+          console.warn('SW registration failed:', err);
+        });
       });
     }
     if ('caches' in window) {
       caches.keys().then(function(names) {
         for (var name of names) {
-          caches.delete(name);
+          if (name.indexOf('flutter') !== -1) {
+            caches.delete(name);
+          }
         }
       });
     }
