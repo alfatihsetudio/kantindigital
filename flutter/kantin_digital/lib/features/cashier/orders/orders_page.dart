@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/top_notification.dart';
 import '../../../shared/auth/auth_session.dart';
 import '../../../shared/models/tenant_model.dart';
@@ -295,6 +296,24 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Waktu:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                      Text(
+                        DateFormatter.formatFriendly(order.createdAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
                   const Divider(height: 12),
                   const Text(
                     '⚠️ Pesanan ini akan dipindahkan ke tab Batal dan TIDAK akan diproses oleh dapur.',
@@ -417,6 +436,17 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                     children: [
                       const Text('Metode:', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                       Text(order.paymentMethodLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0369A1))),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Waktu:', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        DateFormatter.formatFriendly(order.createdAt),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0369A1)),
+                      ),
                     ],
                   ),
                 ],
@@ -1370,7 +1400,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio:
-                  0.50, // Taller aspect ratio for 2 compact mobile columns with WA & Cancel actions
+                  0.48, // Taller aspect ratio for 2 compact mobile columns with time/date, WA & Cancel actions
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -1395,7 +1425,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 380,
-            childAspectRatio: 0.76,
+            childAspectRatio: 0.74,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
@@ -1496,7 +1526,7 @@ class _OrderTicketCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: isCompact ? 10 : 16,
-              vertical: isCompact ? 10 : 14,
+              vertical: isCompact ? 8 : 12,
             ),
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.1),
@@ -1504,7 +1534,11 @@ class _OrderTicketCard extends StatelessWidget {
                 top: Radius.circular(isCompact ? 16 : 20),
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
@@ -1615,13 +1649,38 @@ class _OrderTicketCard extends StatelessWidget {
                 Text(
                   '#${order.code}',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: isCompact ? 10 : 12,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isCompact ? 11 : 13,
                   ),
                 ),
               ],
             ),
+            SizedBox(height: isCompact ? 5 : 7),
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  size: isCompact ? 11 : 13,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    DateFormatter.formatFriendly(order.createdAt),
+                    style: TextStyle(
+                      fontSize: isCompact ? 10 : 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
           ),
 
           // Customer info
