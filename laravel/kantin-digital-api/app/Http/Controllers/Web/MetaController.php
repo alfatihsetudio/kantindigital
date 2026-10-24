@@ -80,12 +80,19 @@ class MetaController extends Controller
         }
 
         $base = $request->getSchemeAndHttpHost();
+        if (($request->header('X-Forwarded-Proto') === 'https' || $request->isSecure()) && str_starts_with($base, 'http://')) {
+            $base = 'https://' . substr($base, 7);
+        }
+
         $path = parse_url($rawImg, PHP_URL_PATH);
         if (!empty($path) && str_starts_with($path, '/uploads/')) {
             return $base . $path;
         }
 
         if (str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://')) {
+            if (($request->header('X-Forwarded-Proto') === 'https' || $request->isSecure()) && str_starts_with($rawImg, 'http://')) {
+                return 'https://' . substr($rawImg, 7);
+            }
             return $rawImg;
         }
 
@@ -104,12 +111,19 @@ class MetaController extends Controller
         }
 
         $base = $request->getSchemeAndHttpHost();
+        if (($request->header('X-Forwarded-Proto') === 'https' || $request->isSecure()) && str_starts_with($base, 'http://')) {
+            $base = 'https://' . substr($base, 7);
+        }
+
         $path = parse_url($rawImg, PHP_URL_PATH);
         if (!empty($path) && str_starts_with($path, '/uploads/')) {
             return $base . $path;
         }
 
         if (str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://')) {
+            if (($request->header('X-Forwarded-Proto') === 'https' || $request->isSecure()) && str_starts_with($rawImg, 'http://')) {
+                return 'https://' . substr($rawImg, 7);
+            }
             return $rawImg;
         }
 
@@ -244,7 +258,7 @@ HTML;
         // 4b. Interactive PWA Install Prompt Banner & Guide Modal untuk Konsumen
         $pwaHtml = <<<HTML
   <!-- Banner Anjuran Install Aplikasi PWA -->
-  <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(140%);width:calc(100% - 32px);max-width:480px;background:#ffffff;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,0.16), 0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;padding:12px 16px;z-index:99998;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);">
+  <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(140%);width:calc(100% - 32px);max-width:480px;background:#ffffff;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,0.16), 0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;padding:12px 14px;z-index:99998;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);">
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="width:46px;height:46px;border-radius:12px;overflow:hidden;flex-shrink:0;background:#f8fafc;box-shadow:0 3px 8px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;">
         <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
@@ -257,18 +271,21 @@ HTML;
           Pesan lebih praktis & hemat kuota
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <button id="pwa-install-action-btn" type="button" style="background:{$safeColor};color:#ffffff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;outline:none;box-shadow:0 4px 12px {$safeColor}40;">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button id="pwa-install-action-btn" type="button" style="background:{$safeColor};color:#ffffff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;outline:none;box-shadow:0 4px 12px {$safeColor}40;">
           Install
         </button>
-        <button id="pwa-dismiss-btn" type="button" aria-label="Tutup" style="background:transparent;border:none;color:#94a3b8;font-size:22px;line-height:1;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;padding:0;">
+        <button id="pwa-later-btn" type="button" style="background:#f1f5f9;color:#64748b;border:none;border-radius:12px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;outline:none;">
+          Nanti
+        </button>
+        <button id="pwa-dismiss-btn" type="button" aria-label="Tutup" style="background:transparent;border:none;color:#94a3b8;font-size:20px;line-height:1;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;padding:0;">
           &times;
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Petunjuk Install iOS & Browser Manual -->
+  <!-- Modal Petunjuk Khusus iOS Safari (karena iOS tidak mendukung 1-klik API) -->
   <div id="pwa-guide-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:99999;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;opacity:0;transition:opacity 0.25s ease;">
     <div style="background:#ffffff;border-radius:24px;max-width:380px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.25);position:relative;">
       <div style="text-align:center;margin-bottom:18px;">
@@ -278,7 +295,19 @@ HTML;
         <div style="font-size:17px;font-weight:800;color:#0f172a;">Pasang ke Layar Utama</div>
         <div style="font-size:13px;color:#64748b;margin-top:4px;">Akses {$safeAppName} langsung dari HP tanpa buka browser!</div>
       </div>
-      <div id="pwa-guide-steps" style="font-size:13px;color:#334155;line-height:1.6;margin-bottom:20px;">
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:#334155;line-height:1.6;margin-bottom:20px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</span>
+          <span>Ketuk tombol <strong>Bagikan / Share</strong> (ikon <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>) di bilah bawah Safari.</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</span>
+          <span>Gulir dan pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">3</span>
+          <span>Ketuk <strong>Tambah</strong> di pojok kanan atas.</span>
+        </div>
       </div>
       <button id="pwa-guide-close-btn" type="button" style="width:100%;background:{$safeColor};color:#ffffff;border:none;border-radius:14px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;outline:none;">
         Saya Mengerti
@@ -291,9 +320,9 @@ HTML;
       var deferredPrompt = null;
       var banner = document.getElementById('pwa-install-banner');
       var actionBtn = document.getElementById('pwa-install-action-btn');
+      var laterBtn = document.getElementById('pwa-later-btn');
       var dismissBtn = document.getElementById('pwa-dismiss-btn');
       var modal = document.getElementById('pwa-guide-modal');
-      var modalSteps = document.getElementById('pwa-guide-steps');
       var modalCloseBtn = document.getElementById('pwa-guide-close-btn');
 
       var isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
@@ -314,7 +343,7 @@ HTML;
           var dismissedAt = localStorage.getItem('pwa_prompt_dismissed_time');
           if (dismissedAt) {
             var hours = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
-            if (hours < 24) return true;
+            if (hours < 24) return true; // Sembunyikan selama 24 jam jika user memilih batal/nanti
           }
         } catch (e) {}
         return false;
@@ -342,39 +371,54 @@ HTML;
         }
       }
 
-      function showModal(contentHtml) {
-        if (!modal || !modalSteps) return;
-        modalSteps.innerHTML = contentHtml;
-        modal.style.display = 'flex';
-        setTimeout(function() {
-          modal.style.opacity = '1';
-        }, 20);
-      }
-
-      function hideModal() {
-        if (!modal) return;
-        modal.style.opacity = '0';
-        setTimeout(function() {
-          modal.style.display = 'none';
-        }, 250);
-      }
-
+      // 1. Tangkap event instalasi resmi browser (Chrome Android / Edge / Desktop)
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        showBanner();
+        if (!isDismissed()) {
+          setTimeout(showBanner, 600);
+        }
       });
 
+      // 2. Jika sudah berhasil terinstall
       window.addEventListener('appinstalled', function() {
         deferredPrompt = null;
         hideBanner(true);
       });
 
-      window.addEventListener('flutter-first-frame', function() {
+      // 3. Khusus iOS Safari (karena iOS tidak mendukung event beforeinstallprompt)
+      if (isIos && !isStandalone && !isDismissed()) {
         setTimeout(showBanner, 1500);
-      });
-      setTimeout(showBanner, 2800);
+      }
 
+      // 4. Tombol "Install" diklik: Langsung munculkan dialog instalasi resmi browser (1-klik tanpa manual)
+      if (actionBtn) {
+        actionBtn.addEventListener('click', function() {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+              hideBanner(true);
+              deferredPrompt = null;
+            });
+          } else if (isIos && modal) {
+            modal.style.display = 'flex';
+            setTimeout(function() { modal.style.opacity = '1'; }, 20);
+          } else {
+            // Jika prompt belum siap atau ditolak sistem, sembunyikan banner
+            hideBanner(true);
+          }
+        });
+      }
+
+      // 5. Tombol "Nanti" (Menolak install - sembunyikan ajakan)
+      if (laterBtn) {
+        laterBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          hideBanner(true);
+        });
+      }
+
+      // 6. Tombol "✕" (Tutup - sembunyikan ajakan)
       if (dismissBtn) {
         dismissBtn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -382,56 +426,23 @@ HTML;
         });
       }
 
-      if (actionBtn) {
-        actionBtn.addEventListener('click', function() {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choice) {
-              if (choice.outcome === 'accepted') {
-                hideBanner(true);
-              }
-              deferredPrompt = null;
-            });
-          } else if (isIos) {
-            showModal(
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</span>' +
-                '<span>Ketuk tombol <strong>Bagikan / Share</strong> (ikon kotak dengan panah ke atas ⎋) di menu bawah Safari.</span>' +
-              '</div>' +
-              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</span>' +
-                '<span>Gulir ke bawah dan pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</span>' +
-              '</div>' +
-              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">3</span>' +
-                '<span>Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas.</span>' +
-              '</div>' +
-              '</div>'
-            );
-          } else {
-            showModal(
-              '<div style="display:flex;flex-direction:column;gap:12px;">' +
-              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</span>' +
-                '<span>Ketuk tombol menu <strong>titik tiga (⋮)</strong> di pojok kanan atas browser Anda.</span>' +
-              '</div>' +
-              '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                '<span style="background:#eff6ff;color:#2563eb;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</span>' +
-                '<span>Pilih menu <strong>"Install aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</span>' +
-              '</div>' +
-              '</div>'
-            );
-          }
-        });
-      }
-
+      // 7. Tutup modal panduan iOS
       if (modalCloseBtn) {
-        modalCloseBtn.addEventListener('click', hideModal);
+        modalCloseBtn.addEventListener('click', function() {
+          if (modal) {
+            modal.style.opacity = '0';
+            setTimeout(function() { modal.style.display = 'none'; }, 250);
+          }
+          hideBanner(true);
+        });
       }
       if (modal) {
         modal.addEventListener('click', function(e) {
-          if (e.target === modal) hideModal();
+          if (e.target === modal) {
+            modal.style.opacity = '0';
+            setTimeout(function() { modal.style.display = 'none'; }, 250);
+            hideBanner(true);
+          }
         });
       }
     })();
@@ -482,6 +493,50 @@ HTML;
             default => 'image/png',
         };
 
+        $manifestLogo = $logo;
+        $parsedPath = parse_url($logo, PHP_URL_PATH);
+        if (!empty($parsedPath) && (str_starts_with($parsedPath, '/uploads/') || str_starts_with($parsedPath, '/icons/'))) {
+            $manifestLogo = $parsedPath;
+        } elseif (str_starts_with($manifestLogo, 'http://')) {
+            $manifestLogo = 'https://' . substr($manifestLogo, 7);
+        }
+
+        $icons = [
+            [
+                'src' => $manifestLogo,
+                'sizes' => '192x192',
+                'type' => $mimeType,
+                'purpose' => 'any',
+            ],
+            [
+                'src' => $manifestLogo,
+                'sizes' => '512x512',
+                'type' => $mimeType,
+                'purpose' => 'any',
+            ],
+            [
+                'src' => $manifestLogo,
+                'sizes' => '512x512',
+                'type' => $mimeType,
+                'purpose' => 'maskable',
+            ],
+        ];
+
+        if ($manifestLogo !== '/icons/Icon-512.png') {
+            $icons[] = [
+                'src' => '/icons/Icon-192.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'any',
+            ];
+            $icons[] = [
+                'src' => '/icons/Icon-512.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'any',
+            ];
+        }
+
         $manifest = [
             'id' => $id,
             'name' => $name,
@@ -494,26 +549,7 @@ HTML;
             'description' => "Menu digital & pemesanan {$name}",
             'orientation' => 'portrait-primary',
             'prefer_related_applications' => false,
-            'icons' => [
-                [
-                    'src' => $logo,
-                    'sizes' => '192x192',
-                    'type' => $mimeType,
-                    'purpose' => 'any',
-                ],
-                [
-                    'src' => $logo,
-                    'sizes' => '512x512',
-                    'type' => $mimeType,
-                    'purpose' => 'any',
-                ],
-                [
-                    'src' => $logo,
-                    'sizes' => '512x512',
-                    'type' => $mimeType,
-                    'purpose' => 'maskable',
-                ],
-            ],
+            'icons' => $icons,
         ];
 
         return response()->json($manifest)
