@@ -70,6 +70,13 @@ class CashierOrderModel {
   bool get isQris => paymentMethod.toLowerCase() == 'qris';
   bool get isUnsettled => cashierShiftReportId == null;
   bool get isSettled => cashierShiftReportId != null;
+
+  bool get isToday {
+    final dt = DateTime.tryParse(createdAt)?.toLocal();
+    if (dt == null) return false;
+    final now = DateTime.now();
+    return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  }
 }
 
 class CashierOrderItem {

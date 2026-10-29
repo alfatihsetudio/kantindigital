@@ -17,6 +17,7 @@ import '../../../router/route_name.dart';
 import '../shift/cashier_shift_dialog.dart';
 import 'order_alert_sound.dart';
 import 'orders_service.dart';
+import 'delivery_dispatch_helper.dart';
 
 class CashierOrdersPage extends StatefulWidget {
   const CashierOrdersPage({super.key});
@@ -38,13 +39,23 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   List<CashierOrderModel> _completedOrders = [];
   List<CashierOrderModel> _cancelledOrders = [];
   List<CashierOrderModel> _servedOrders = [];
-  bool _filterOnlyUnsettled = true;
+  // Filter mode untuk tab SERVED: 'today' (Hari Ini), 'unsettled' (Belum Setor), 'all' (Semua)
+  String _servedFilterMode = 'today';
+
+  List<CashierOrderModel> get _todayServedOrders =>
+      _servedOrders.where((order) => order.isToday).toList();
 
   List<CashierOrderModel> get _unsettledServedOrders =>
       _servedOrders.where((order) => order.isUnsettled).toList();
 
-  List<CashierOrderModel> get _activeServedList =>
-      _filterOnlyUnsettled ? _unsettledServedOrders : _servedOrders;
+  List<CashierOrderModel> get _activeServedList {
+    if (_servedFilterMode == 'unsettled') {
+      return _unsettledServedOrders;
+    } else if (_servedFilterMode == 'all') {
+      return _servedOrders;
+    }
+    return _todayServedOrders;
+  }
 
   final Set<int> _knownPendingOrderIds = {};
   final Set<int> _unacknowledgedOrderIds = {};
@@ -941,6 +952,12 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     final totalCash = cashOrders.fold<int>(0, (sum, o) => sum + o.totalAmount);
     final totalQris = qrisOrders.fold<int>(0, (sum, o) => sum + o.totalAmount);
 
+    final summaryLabel = _servedFilterMode == 'today'
+        ? 'Penjualan Hari Ini (${list.length} Order)'
+        : (_servedFilterMode == 'unsettled'
+            ? 'Total Belum Setor (${list.length} Order)'
+            : 'Total Penjualan (${list.length} Order)');
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 768;
@@ -967,8 +984,8 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                         children: [
                           Expanded(
                             child: _buildShiftSummaryMetric(
-                              label: 'Total Penjualan (${list.length} Order)',
-                              value: 'Rp ${CurrencyFormatter.rupiah(totalAmount)}',
+                              label: summaryLabel,
+                              value: CurrencyFormatter.rupiah(totalAmount),
                               color: AppColors.success,
                               icon: Icons.receipt_long_rounded,
                             ),
@@ -982,7 +999,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                           Expanded(
                             child: _buildSubMetricItem(
                               'Tunai',
-                              'Rp ${CurrencyFormatter.rupiah(totalCash)}',
+                              CurrencyFormatter.rupiah(totalCash),
                               '${cashOrders.length} order',
                               const Color(0xFF0284C7),
                             ),
@@ -991,7 +1008,7 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                           Expanded(
                             child: _buildSubMetricItem(
                               'QRIS',
-                              'Rp ${CurrencyFormatter.rupiah(totalQris)}',
+                              CurrencyFormatter.rupiah(totalQris),
                               '${qrisOrders.length} order',
                               const Color(0xFF7C3AED),
                             ),
@@ -1008,22 +1025,22 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
                         child: Row(
                           children: [
                             _buildShiftSummaryMetric(
-                              label: 'Total (${list.length} Order)',
-                              value: 'Rp ${CurrencyFormatter.rupiah(totalAmount)}',
+                              label: summaryLabel,
+                              value: CurrencyFormatter.rupiah(totalAmount),
                               color: AppColors.success,
                               icon: Icons.receipt_long_rounded,
                             ),
                             const SizedBox(width: 24),
                             _buildSubMetricItem(
                               'Tunai (Cash)',
-                              'Rp ${CurrencyFormatter.rupiah(totalCash)}',
+                              CurrencyFormatter.rupiah(totalCash),
                               '${cashOrders.length} order',
                               const Color(0xFF0284C7),
                             ),
                             const SizedBox(width: 16),
                             _buildSubMetricItem(
                               'QRIS',
-                              'Rp ${CurrencyFormatter.rupiah(totalQris)}',
+                              CurrencyFormatter.rupiah(totalQris),
                               '${qrisOrders.length} order',
                               const Color(0xFF7C3AED),
                             ),
@@ -1071,56 +1088,85 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
   }
 
   Widget _buildServedFilterChips({required bool isCompact}) {
+    final todayCount = _todayServedOrders.length;
     final unsettledCount = _unsettledServedOrders.length;
     final allCount = _servedOrders.length;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ChoiceChip(
-          label: Text('Belum Setor ($unsettledCount)'),
-          selected: _filterOnlyUnsettled,
-          onSelected: (val) {
-            if (val) setState(() => _filterOnlyUnsettled = true);
-          },
-          labelStyle: TextStyle(
-            fontSize: isCompact ? 10 : 12,
-            fontWeight: _filterOnlyUnsettled ? FontWeight.bold : FontWeight.w500,
-            color: _filterOnlyUnsettled ? Colors.white : AppColors.textSecondary,
-          ),
-          selectedColor: const Color(0xFF16A34A),
-          backgroundColor: const Color(0xFFF1F5F9),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(
-              color: _filterOnlyUnsettled ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ChoiceChip(
+            label: Text('Hari Ini ($todayCount)'),
+            selected: _servedFilterMode == 'today',
+            onSelected: (val) {
+              if (val) setState(() => _servedFilterMode = 'today');
+            },
+            labelStyle: TextStyle(
+              fontSize: isCompact ? 10 : 12,
+              fontWeight: _servedFilterMode == 'today' ? FontWeight.bold : FontWeight.w500,
+              color: _servedFilterMode == 'today' ? Colors.white : AppColors.textSecondary,
             ),
-          ),
-          visualDensity: VisualDensity.compact,
-        ),
-        const SizedBox(width: 6),
-        ChoiceChip(
-          label: Text('Semua Hari Ini ($allCount)'),
-          selected: !_filterOnlyUnsettled,
-          onSelected: (val) {
-            if (val) setState(() => _filterOnlyUnsettled = false);
-          },
-          labelStyle: TextStyle(
-            fontSize: isCompact ? 10 : 12,
-            fontWeight: !_filterOnlyUnsettled ? FontWeight.bold : FontWeight.w500,
-            color: !_filterOnlyUnsettled ? Colors.white : AppColors.textSecondary,
-          ),
-          selectedColor: AppColors.primary,
-          backgroundColor: const Color(0xFFF1F5F9),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(
-              color: !_filterOnlyUnsettled ? AppColors.primary : const Color(0xFFE2E8F0),
+            selectedColor: AppColors.primary,
+            backgroundColor: const Color(0xFFF1F5F9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: _servedFilterMode == 'today' ? AppColors.primary : const Color(0xFFE2E8F0),
+              ),
             ),
+            visualDensity: VisualDensity.compact,
           ),
-          visualDensity: VisualDensity.compact,
-        ),
-      ],
+          const SizedBox(width: 6),
+          ChoiceChip(
+            label: Text('Belum Setor ($unsettledCount)'),
+            selected: _servedFilterMode == 'unsettled',
+            onSelected: (val) {
+              if (val) setState(() => _servedFilterMode = 'unsettled');
+            },
+            labelStyle: TextStyle(
+              fontSize: isCompact ? 10 : 12,
+              fontWeight: _servedFilterMode == 'unsettled' ? FontWeight.bold : FontWeight.w500,
+              color: _servedFilterMode == 'unsettled' ? Colors.white : AppColors.textSecondary,
+            ),
+            selectedColor: const Color(0xFF16A34A),
+            backgroundColor: const Color(0xFFF1F5F9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: _servedFilterMode == 'unsettled' ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            visualDensity: VisualDensity.compact,
+          ),
+          if (allCount > 0 && (allCount != todayCount || allCount != unsettledCount)) ...[
+            const SizedBox(width: 6),
+            ChoiceChip(
+              label: Text('Semua ($allCount)'),
+              selected: _servedFilterMode == 'all',
+              onSelected: (val) {
+                if (val) setState(() => _servedFilterMode = 'all');
+              },
+              labelStyle: TextStyle(
+                fontSize: isCompact ? 10 : 12,
+                fontWeight: _servedFilterMode == 'all' ? FontWeight.bold : FontWeight.w500,
+                color: _servedFilterMode == 'all' ? Colors.white : AppColors.textSecondary,
+              ),
+              selectedColor: const Color(0xFF475569),
+              backgroundColor: const Color(0xFFF1F5F9),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: _servedFilterMode == 'all' ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -1349,9 +1395,11 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     if (orders.isEmpty) {
       String emptyMessage = 'Belum ada pesanan';
       if (_selectedIndex == 4) {
-        emptyMessage = _filterOnlyUnsettled
+        emptyMessage = _servedFilterMode == 'unsettled'
             ? 'Belum ada pesanan selesai yang belum disetor'
-            : 'Belum ada pesanan selesai hari ini';
+            : (_servedFilterMode == 'today'
+                ? 'Belum ada pesanan selesai hari ini'
+                : 'Belum ada pesanan selesai');
       } else if (_selectedIndex == 3) {
         emptyMessage = 'Belum ada pesanan dibatalkan hari ini';
       }
@@ -1645,7 +1693,7 @@ class _OrderTicketCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 Text(
                   '#${order.code}',
                   style: TextStyle(
@@ -1738,18 +1786,144 @@ class _OrderTicketCard extends StatelessWidget {
                           ),
                         if (order.deliveryAddress != null &&
                             order.deliveryAddress!.isNotEmpty)
-                          Text(
-                            order.deliveryAddress!,
-                            style: TextStyle(
-                              fontSize: isCompact ? 10 : 12,
-                              color: AppColors.textSecondary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          Builder(
+                            builder: (context) {
+                              final rawAddr = order.deliveryAddress!;
+                              final mapsUrl =
+                                  DeliveryDispatchHelper.extractMapsUrl(rawAddr);
+                              final cleanAddr =
+                                  DeliveryDispatchHelper.cleanAddress(rawAddr);
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (cleanAddr.isNotEmpty)
+                                    Text(
+                                      cleanAddr,
+                                      style: TextStyle(
+                                        fontSize: isCompact ? 10 : 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  if (mapsUrl != null && mapsUrl.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    InkWell(
+                                      onTap: () =>
+                                          DeliveryDispatchHelper.showDeliveryOptionsModal(
+                                        context,
+                                        order: order,
+                                      ),
+                                      borderRadius: BorderRadius.circular(5),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEFF6FF),
+                                          borderRadius: BorderRadius.circular(5),
+                                          border: Border.all(
+                                            color: const Color(0xFF93C5FD),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.location_on_rounded,
+                                              size: 11,
+                                              color: Color(0xFF1D4ED8),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Flexible(
+                                              child: Text(
+                                                'Google Maps (Klik utk Gojek/Maxim)',
+                                                style: TextStyle(
+                                                  fontSize: isCompact ? 9 : 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF1D4ED8),
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            const Icon(
+                                              Icons.open_in_new_rounded,
+                                              size: 10,
+                                              color: Color(0xFF1D4ED8),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
                       ],
                     ),
                   ),
+                  if (order.deliveryAddress != null &&
+                      order.deliveryAddress!.trim().isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Tooltip(
+                      message: 'Teruskan ke Gojek, Maxim, atau Google Maps',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () =>
+                              DeliveryDispatchHelper.showDeliveryOptionsModal(
+                            context,
+                            order: order,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 6 : 8,
+                              vertical: isCompact ? 3 : 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0284C7),
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF0284C7)
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.two_wheeler_rounded,
+                                  size: 11,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  isCompact ? 'Ojol' : 'Ojol / Peta',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (order.customerPhone != null &&
                       order.customerPhone!.trim().isNotEmpty) ...[
                     const SizedBox(width: 4),

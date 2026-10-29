@@ -1,5 +1,3 @@
-'use strict';
-
 // Service Worker untuk Kantin Digital PWA
 // Mode network pass-through agar update file web Flutter tidak tertahan cache
 const CACHE_NAME = 'kantin-pwa-v1';

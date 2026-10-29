@@ -43,5 +43,25 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <package android:name="com.gojek.app" />
+        <package android:name="com.taximaxim.android" />
+        <package android:name="com.taximaxim.maxim" />
+        <package android:name="com.google.android.apps.maps" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="gojek" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="maximzakaz" />
+        </intent>
     </queries>
 </manifest>
