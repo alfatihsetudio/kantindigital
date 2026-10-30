@@ -559,7 +559,7 @@ class _BuyWebsitePageState extends State<BuyWebsitePage> {
     final qrisMap = data['qris'] as Map<String, dynamic>? ?? {};
     final qrisPayload = qrisMap['payload']?.toString() ??
         '00020101021126570011ID.DANA.WWW011893600915303557205402090355720540303UMI51440014ID.CO.QRIS.WWW0215ID10266058542500303UMI5204581253033605802ID5910Say Coffee6011Kab. Serang6105421176304AB0C';
-    final merchantName = qrisMap['merchant_name']?.toString() ?? 'Say Coffee';
+    final merchantName = qrisMap['merchant_name']?.toString() ?? 'SAYUTIKOPI';
     final merchantCity = qrisMap['merchant_city']?.toString() ?? 'Kab. Serang';
     final nmidMatch = RegExp(r'0215(ID[0-9A-Za-z]+)').firstMatch(qrisPayload);
     final nmid = nmidMatch != null ? nmidMatch.group(1)! : 'ID1026605854250';

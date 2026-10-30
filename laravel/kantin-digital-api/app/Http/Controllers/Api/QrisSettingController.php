@@ -11,7 +11,7 @@ class QrisSettingController extends Controller
     public function show()
     {
         $tenant = app()->has('tenant') ? app('tenant') : null;
-        $defaultMerchant = $tenant ? $tenant->name : 'Say Coffee';
+        $defaultMerchant = $tenant ? $tenant->name : 'SAYUTIKOPI';
         $defaultCity = 'Kab. Serang';
         $defaultWa = $tenant ? ($tenant->whatsapp ?? '087771262100') : '087771262100';
 
@@ -41,7 +41,7 @@ class QrisSettingController extends Controller
         ]);
 
         $tenant = app()->has('tenant') ? app('tenant') : null;
-        $defaultMerchant = $tenant ? $tenant->name : 'Say Coffee';
+        $defaultMerchant = $tenant ? $tenant->name : 'SAYUTIKOPI';
         $defaultCity = 'Kab. Serang';
         $defaultWa = $tenant ? ($tenant->whatsapp ?? '087771262100') : '087771262100';
 

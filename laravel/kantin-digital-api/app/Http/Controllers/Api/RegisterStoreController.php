@@ -211,19 +211,20 @@ class RegisterStoreController extends Controller
         ];
         $amount = $planPrices[$selectedPlan] ?? 30000;
         
-        // QRIS pembayaran aktivasi website platform menggunakan QRIS utama (Say Coffee)
-        $saycoffeeTenant = Tenant::where('subdomain', 'saycoffee')->first();
+        // QRIS pembayaran aktivasi website platform menggunakan QRIS utama (SAYUTIKOPI)
+        $saycoffeeTenant = Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->first() ?? Tenant::find(1);
         $qrisSetting = $saycoffeeTenant
             ? \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', $saycoffeeTenant->id)->first()
             : null;
 
         if (!$qrisSetting) {
             $qrisSetting = \App\Models\QrisSetting::withoutGlobalScopes()->where('tenant_id', 1)->first()
+                ?? \App\Models\QrisSetting::withoutGlobalScopes()->where('merchant_name', 'like', '%SAYUTIKOPI%')->first()
                 ?? \App\Models\QrisSetting::withoutGlobalScopes()->where('merchant_name', 'like', '%Say Coffee%')->first()
                 ?? \App\Models\QrisSetting::withoutGlobalScopes()->first();
         }
 
-        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'Say Coffee');
+        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'SAYUTIKOPI');
         $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'Kab. Serang');
         $basePayload = (!empty($qrisSetting->base_payload))
             ? $qrisSetting->base_payload
@@ -233,8 +234,8 @@ class RegisterStoreController extends Controller
         $qrisService = app(\App\Services\QrisDynamicService::class);
         $qrisPayload = $qrisService->generatePayload($basePayload, $amount);
 
-        // Buat Order pencatatan pembayaran platform (Say Coffee) dengan status UNPAID
-        $platformTenant = Tenant::where('subdomain', 'saycoffee')->first();
+        // Buat Order pencatatan pembayaran platform (SAYUTIKOPI) dengan status UNPAID
+        $platformTenant = Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->first();
         $platformTenantId = $platformTenant?->id ?? 1;
 
         \App\Models\Order::withoutGlobalScopes()->create([

@@ -339,7 +339,7 @@ class OrderController extends Controller
                 ?? \App\Models\QrisSetting::withoutGlobalScopes()->first();
         }
 
-        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'Say Coffee');
+        $merchantName = $qrisSetting->merchant_name ?? env('QRIS_MERCHANT_NAME', 'SAYUTIKOPI');
         $merchantCity = $qrisSetting->merchant_city ?? env('QRIS_MERCHANT_CITY', 'Kab. Serang');
         $basePayload = (! empty($qrisSetting->base_payload))
             ? $qrisSetting->base_payload

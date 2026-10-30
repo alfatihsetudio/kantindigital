@@ -12,11 +12,13 @@ class SayCoffeeSeeder extends Seeder
 {
     public function run(): void
     {
-        // firstOrCreate: jangan menimpa profil tenant yang sudah ada di server.
-        $tenant = Tenant::firstOrCreate(
-            ['subdomain' => 'saycoffee'],
-            [
-                'name' => 'SAY COFFEE',
+        // Cari tenant yang sudah ada (sayutikopi atau saycoffee)
+        $tenant = Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->first();
+        if (!$tenant) {
+            $tenant = Tenant::create([
+                'subdomain' => 'saycoffee',
+                'name' => 'SAYUTIKOPI',
+                'logo_url' => url('uploads/logos/logo_1_sayutikopi.png'),
                 'primary_color' => '#C25E1E',
                 'address' => 'Jl. Kopi Nusantara No. 1',
                 'phone' => '0877-7126-2100',
@@ -24,8 +26,8 @@ class SayCoffeeSeeder extends Seeder
                 'plan' => 'pro',
                 'is_active' => true,
                 'menu_code_prefix' => 'SAY',
-            ]
-        );
+            ]);
+        }
 
         if (empty($tenant->menu_code_prefix)) {
             $tenant->update(['menu_code_prefix' => 'SAY']);

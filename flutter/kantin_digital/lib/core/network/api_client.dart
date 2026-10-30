@@ -763,7 +763,7 @@ class ApiClient {
           },
           'qris': {
             'payload': '00020101021126570011ID.DANA.WWW011893600915303557205402090355720540303UMI51440014ID.CO.QRIS.WWW0215ID10266058542500303UMI5204581253033605802ID5910Say Coffee6011Kab. Serang6105421176304AB0C',
-            'merchant_name': 'Say Coffee',
+            'merchant_name': 'SAYUTIKOPI',
             'merchant_city': 'Kab. Serang',
             'whatsapp_number': '087771262100',
           },

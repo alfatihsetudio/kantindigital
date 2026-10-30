@@ -14,18 +14,20 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $tenant = Tenant::firstOrCreate(
-            ['subdomain' => 'saycoffee'],
-            [
-                'name' => 'SAY COFFEE',
-                'primary_color' => '#6F4E37',
+        $tenant = Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->first();
+        if (!$tenant) {
+            $tenant = Tenant::create([
+                'subdomain' => 'saycoffee',
+                'name' => 'SAYUTIKOPI',
+                'logo_url' => url('uploads/logos/logo_1_sayutikopi.png'),
+                'primary_color' => '#C25E1E',
                 'address' => 'Serang - Banten',
-                'phone' => '08123456789',
+                'phone' => '0877-7126-2100',
                 'whatsapp' => '6287771262100',
                 'plan' => 'pro',
                 'is_active' => true,
-            ]
-        );
+            ]);
+        }
 
         // Admin/Operator
         User::create([

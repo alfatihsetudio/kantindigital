@@ -44,7 +44,14 @@ class TenantMiddleware
         }
 
         if ($subdomain) {
-            $tenant = Tenant::where('subdomain', $subdomain)
+            $lookupSubdomains = [$subdomain];
+            if ($subdomain === 'sayutikopi') {
+                $lookupSubdomains[] = 'saycoffee';
+            } elseif ($subdomain === 'saycoffee') {
+                $lookupSubdomains[] = 'sayutikopi';
+            }
+
+            $tenant = Tenant::whereIn('subdomain', $lookupSubdomains)
                 ->where('is_active', true)
                 ->where(function ($query) {
                     $query->whereNull('expires_at')

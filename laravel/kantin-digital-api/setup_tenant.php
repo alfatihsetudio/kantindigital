@@ -8,22 +8,23 @@ $kernel->bootstrap();
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 
-echo "=== Setup Tenant SAY COFFEE ===\n";
+echo "=== Setup Tenant SAYUTIKOPI ===\n";
 
-// 1. Buat tenant SAY COFFEE
-$tenant = Tenant::firstOrCreate(
-    ['subdomain' => 'saycoffee'],
-    [
-        'name'          => 'SAY COFFEE',
-        'logo_url'      => null,
-        'primary_color' => '#6F4E37',
+// 1. Buat tenant SAYUTIKOPI
+$tenant = Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->first();
+if (!$tenant) {
+    $tenant = Tenant::create([
+        'subdomain'     => 'saycoffee',
+        'name'          => 'SAYUTIKOPI',
+        'logo_url'      => url('uploads/logos/logo_1_sayutikopi.png'),
+        'primary_color' => '#C25E1E',
         'address'       => 'Jl. Kopi Nusantara No. 1',
-        'phone'         => '08123456789',
-        'whatsapp'      => '628123456789',
+        'phone'         => '0877-7126-2100',
+        'whatsapp'      => '6287771262100',
         'plan'          => 'pro',
         'is_active'     => true,
-    ]
-);
+    ]);
+}
 echo "Tenant dibuat: {$tenant->name} (ID: {$tenant->id}, subdomain: {$tenant->subdomain})\n";
 
 $tenantId = $tenant->id;

@@ -65,7 +65,7 @@ class _StoreShowcasePageState extends State<StoreShowcasePage> {
       final fallback = [
         const ShowcaseStoreModel(
           id: 1,
-          name: 'SAY COFFEE',
+          name: 'SAYUTIKOPI',
           subdomain: 'saycoffee',
           storeUrl: 'https://saycoffee.ekasir.my.id',
           primaryColor: '#16A34A',

@@ -631,7 +631,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   Widget _buildQrisPaymentSection(OrderModel order) {
     final payload = order.qrisPayload ?? order.code;
-    final merchant = order.merchantName ?? 'Say Coffee';
+    final merchant = order.merchantName ?? 'SAYUTIKOPI';
     final city = order.merchantCity ?? 'Kab. Serang';
     final nmidMatch = RegExp(r'0215(ID[0-9A-Za-z]+)').firstMatch(payload);
     final nmid = nmidMatch != null ? nmidMatch.group(1)! : 'ID1026605854250';
