@@ -59,9 +59,31 @@ class MetaController extends Controller
 
         if (!empty($subdomain)) {
             try {
-                return Tenant::where('subdomain', $subdomain)->first();
+                $lookup = [$subdomain];
+                if ($subdomain === 'sayutikopi') {
+                    $lookup[] = 'saycoffee';
+                } elseif ($subdomain === 'saycoffee') {
+                    $lookup[] = 'sayutikopi';
+                }
+                $tenant = Tenant::whereIn('subdomain', $lookup)
+                    ->where('is_active', true)
+                    ->first();
+                if ($tenant) {
+                    return $tenant;
+                }
             } catch (\Throwable $e) {
-                return null;
+                // ignore
+            }
+        }
+
+        $rawHost = $request->header('X-Forwarded-Host') ?: $request->getHost();
+        $rawHost = strtolower(explode(':', $rawHost)[0]);
+        if ($rawHost === 'localhost' || filter_var($rawHost, FILTER_VALIDATE_IP) || str_contains($rawHost, 'sayutikopi') || str_contains($rawHost, 'saycoffee')) {
+            try {
+                return Tenant::whereIn('subdomain', ['sayutikopi', 'saycoffee'])->where('is_active', true)->first()
+                    ?? Tenant::where('is_active', true)->first();
+            } catch (\Throwable $e) {
+                // ignore
             }
         }
 
@@ -261,10 +283,10 @@ HTML;
   <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(140%);width:calc(100% - 32px);max-width:480px;background:#ffffff;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,0.16), 0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;padding:12px 14px;z-index:99998;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);">
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="width:46px;height:46px;border-radius:12px;overflow:hidden;flex-shrink:0;background:#f8fafc;box-shadow:0 3px 8px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;">
-        <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
+        <img id="pwa-banner-logo" src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        <div id="pwa-banner-title" style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
           Pasang Aplikasi {$safeAppName}
         </div>
         <div style="font-size:12px;color:#64748b;line-height:1.3;margin-top:2px;">
@@ -290,10 +312,10 @@ HTML;
     <div style="background:#ffffff;border-radius:24px;max-width:380px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.25);position:relative;">
       <div style="text-align:center;margin-bottom:18px;">
         <div style="width:60px;height:60px;border-radius:16px;overflow:hidden;margin:0 auto 12px;background:#f8fafc;box-shadow:0 4px 14px rgba(0,0,0,0.1);">
-          <img src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
+          <img id="pwa-guide-logo" src="{$safeLogo}" alt="{$safeAppName}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/favicon.png'">
         </div>
         <div style="font-size:17px;font-weight:800;color:#0f172a;">Pasang ke Layar Utama</div>
-        <div style="font-size:13px;color:#64748b;margin-top:4px;">Akses {$safeAppName} langsung dari HP tanpa buka browser!</div>
+        <div id="pwa-guide-desc" style="font-size:13px;color:#64748b;margin-top:4px;">Akses {$safeAppName} langsung dari HP tanpa buka browser!</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;color:#334155;line-height:1.6;margin-bottom:20px;">
         <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -344,8 +366,58 @@ HTML;
         return false;
       }
 
+      function syncTenantBranding() {
+        try {
+          var host = window.location.hostname;
+          var parts = host.split('.');
+          var sub = '';
+          if (parts.length >= 3 && !['www', 'kasirdigital', 'ekasir', 'api', 'admin'].includes(parts[0])) {
+            sub = parts[0];
+          } else if (parts.length === 2 && !['kasirdigital', 'ekasir', 'api', 'admin'].includes(parts[0])) {
+            sub = parts[0];
+          }
+          var url = '/api/tenant/info' + (sub ? '?tenant=' + encodeURIComponent(sub) : '');
+          fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+              if (res && res.status && res.data) {
+                var t = res.data;
+                var tenantName = t.name || '';
+                var tenantLogo = t.logo_url || '';
+                var color = t.primary_color || '';
+
+                if (tenantName) {
+                  var bTitle = document.getElementById('pwa-banner-title');
+                  var gDesc = document.getElementById('pwa-guide-desc');
+                  if (bTitle) bTitle.textContent = 'Pasang Aplikasi ' + tenantName;
+                  if (gDesc) gDesc.textContent = 'Akses ' + tenantName + ' langsung dari HP tanpa buka browser!';
+                  document.title = tenantName;
+                }
+                if (tenantLogo) {
+                  var bLogo = document.getElementById('pwa-banner-logo');
+                  var gLogo = document.getElementById('pwa-guide-logo');
+                  if (bLogo) bLogo.src = tenantLogo;
+                  if (gLogo) gLogo.src = tenantLogo;
+                }
+                if (color) {
+                  var actBtn = document.getElementById('pwa-install-action-btn');
+                  var gBtn = document.getElementById('pwa-guide-close-btn');
+                  if (actBtn) {
+                    actBtn.style.background = color;
+                    actBtn.style.boxShadow = '0 4px 12px ' + color + '40';
+                  }
+                  if (gBtn) gBtn.style.background = color;
+                }
+              }
+            })
+            .catch(function() {});
+        } catch (e) {}
+      }
+      syncTenantBranding();
+
       function showBanner() {
         if (!banner || isDismissed()) return;
+        syncTenantBranding();
         banner.style.display = 'block';
         setTimeout(function() {
           banner.style.transform = 'translateX(-50%) translateY(0)';
