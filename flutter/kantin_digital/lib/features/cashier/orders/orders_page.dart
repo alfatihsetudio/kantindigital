@@ -1440,56 +1440,52 @@ class _CashierOrdersPageState extends State<CashierOrdersPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 768;
+        final int columnCount;
+        final double spacing = isMobile ? 10 : 16;
+        final EdgeInsets padding = isMobile
+            ? const EdgeInsets.fromLTRB(10, 0, 10, 100)
+            : const EdgeInsets.fromLTRB(16, 0, 16, 100);
 
         if (isMobile) {
-          // 2 Kolom di Mode HP
-          return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 100),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio:
-                  0.48, // Taller aspect ratio for 2 compact mobile columns with time/date, WA & Cancel actions
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              return _OrderTicketCard(
-                order: orders[index],
-                tabIndex: _selectedIndex,
-                isCompact: true,
-                actionsEnabled: !_isOperations || _selectedIndex == 1,
-                onAction: (order, action) => _updateStatus(order, action),
-                onCancel: (order) => _cancelOrder(order),
-                onWhatsApp: (order) => _sendWhatsAppMessage(order),
-                onRestore: (order) => _restoreOrder(order),
-              );
-            },
-          );
+          // 1 kolom di HP kecil (<360px), 2 kolom untuk HP standar/lebar
+          columnCount = constraints.maxWidth < 360 ? 1 : 2;
+        } else {
+          // Tablet / Desktop: hitung kolom agar lebar kartu tetap proporsional (~330-380px)
+          columnCount = (constraints.maxWidth / 350).floor().clamp(2, 6);
         }
 
-        // Tablet / Desktop Grid
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 380,
-            childAspectRatio: 0.74,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: padding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int c = 0; c < columnCount; c++) ...[
+                if (c > 0) SizedBox(width: spacing),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = c; i < orders.length; i += columnCount) ...[
+                        if (i > c) SizedBox(height: spacing),
+                        _OrderTicketCard(
+                          order: orders[i],
+                          tabIndex: _selectedIndex,
+                          isCompact: isMobile,
+                          actionsEnabled: !_isOperations || _selectedIndex == 1,
+                          onAction: (order, action) =>
+                              _updateStatus(order, action),
+                          onCancel: (order) => _cancelOrder(order),
+                          onWhatsApp: (order) => _sendWhatsAppMessage(order),
+                          onRestore: (order) => _restoreOrder(order),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
-          itemCount: orders.length,
-          itemBuilder: (context, index) {
-            return _OrderTicketCard(
-              order: orders[index],
-              tabIndex: _selectedIndex,
-              isCompact: false,
-              actionsEnabled: !_isOperations || _selectedIndex == 1,
-              onAction: (order, action) => _updateStatus(order, action),
-              onCancel: (order) => _cancelOrder(order),
-              onWhatsApp: (order) => _sendWhatsAppMessage(order),
-              onRestore: (order) => _restoreOrder(order),
-            );
-          },
         );
       },
     );
@@ -1569,6 +1565,8 @@ class _OrderTicketCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
           Container(
@@ -1979,142 +1977,57 @@ class _OrderTicketCard extends StatelessWidget {
             ),
 
           // List Items
-          Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.all(isCompact ? 10 : 16),
-              itemCount: order.items.length,
-              separatorBuilder: (_, _) => Divider(height: isCompact ? 10 : 16),
-              itemBuilder: (context, index) {
-                final item = order.items[index];
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (order.discountAmount > 0)
-                      Padding(
-                        padding: EdgeInsets.only(bottom: isCompact ? 4 : 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Diskon promo',
-                              style: TextStyle(
-                                color: AppColors.success,
-                                fontSize: isCompact ? 10 : 12,
-                              ),
-                            ),
-                            Text(
-                              '- ${CurrencyFormatter.rupiah(order.discountAmount)}',
-                              style: TextStyle(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w700,
-                                fontSize: isCompact ? 10 : 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              isCompact ? 10 : 16,
+              isCompact ? 8 : 12,
+              isCompact ? 10 : 16,
+              isCompact ? 8 : 12,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (order.discountAmount > 0)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: isCompact ? 6 : 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isCompact ? 5 : 8,
-                            vertical: isCompact ? 3 : 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${item.quantity}x',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isCompact ? 11 : 13,
-                            ),
+                        Text(
+                          'Diskon promo',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontSize: isCompact ? 10 : 12,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.menuName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: isCompact ? 12 : 14,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                CurrencyFormatter.rupiah(item.price),
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: isCompact ? 10 : 12,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          '- ${CurrencyFormatter.rupiah(order.discountAmount)}',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w700,
+                            fontSize: isCompact ? 10 : 12,
                           ),
                         ),
                       ],
                     ),
-                    // Toppings if any
-                    if (item.toppings.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: 4,
-                          left: isCompact ? 28 : 40,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: item.toppings
-                              .map(
-                                (topping) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 2),
-                                  child: Text(
-                                    '+ ${topping.toppingName} (x${topping.quantity})',
-                                    style: TextStyle(
-                                      fontSize: isCompact ? 10 : 11,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    // Notes if any
-                    if (item.notes != null && item.notes!.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: 4,
-                          left: isCompact ? 28 : 40,
-                        ),
-                        child: Text(
-                          '"${item.notes!}"',
-                          style: TextStyle(
-                            fontSize: isCompact ? 10 : 11,
-                            color: AppColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                );
-              },
+                  ),
+                for (int i = 0; i < order.items.length; i++) ...[
+                  if (i > 0) Divider(height: isCompact ? 12 : 16),
+                  _buildOrderItem(order.items[i], isCompact),
+                ],
+              ],
             ),
           ),
+
+          // Divider between items and footer
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
           // Footer & Action
           Padding(
             padding: EdgeInsets.all(isCompact ? 10 : 16),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (order.deliveryDiscountAmount > 0) ...[
                   Row(
@@ -2572,6 +2485,107 @@ class _OrderTicketCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildOrderItem(CashierOrderItem item, bool isCompact) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 5 : 8,
+                vertical: isCompact ? 3 : 6,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${item.quantity}x',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isCompact ? 11 : 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.menuName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: isCompact ? 12 : 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    CurrencyFormatter.rupiah(item.price),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: isCompact ? 10 : 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        // Toppings if any
+        if (item.toppings.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(
+              top: 4,
+              left: isCompact ? 28 : 40,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: item.toppings
+                  .map(
+                    (topping) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        '+ ${topping.toppingName} (x${topping.quantity})',
+                        style: TextStyle(
+                          fontSize: isCompact ? 10 : 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        // Notes if any
+        if (item.notes != null && item.notes!.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(
+              top: 4,
+              left: isCompact ? 28 : 40,
+            ),
+            child: Text(
+              '"${item.notes!}"',
+              style: TextStyle(
+                fontSize: isCompact ? 10 : 11,
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
     );
   }
 }
