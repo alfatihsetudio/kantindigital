@@ -152,6 +152,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/tenants', [SuperAdminController::class, 'store']);
             Route::put('/tenants/{id}', [SuperAdminController::class, 'update']);
             Route::patch('/tenants/{id}', [SuperAdminController::class, 'update']);
+            Route::get('/tenants/{id}/users', [SuperAdminController::class, 'getTenantUsers']);
+            Route::post('/users/{id}/reset-password', [SuperAdminController::class, 'resetUserPassword']);
         });
     });
 });

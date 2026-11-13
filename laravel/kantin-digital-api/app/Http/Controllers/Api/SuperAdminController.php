@@ -11,6 +11,7 @@ use Database\Seeders\CategorySeeder;
 use Database\Seeders\MenuSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
@@ -180,6 +181,59 @@ class SuperAdminController extends Controller
                 'menus' => fn ($query) => $query->withoutGlobalScope(\App\Models\Scopes\TenantScope::class),
                 'orders' => fn ($query) => $query->withoutGlobalScope(\App\Models\Scopes\TenantScope::class),
             ]),
+        ]);
+    }
+
+    /**
+     * Dapatkan daftar seluruh akun pengguna milik tenant tertentu.
+     */
+    public function getTenantUsers(int $id)
+    {
+        $tenant = Tenant::findOrFail($id);
+        $users = User::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->select('id', 'tenant_id', 'name', 'email', 'role', 'must_change_password', 'created_at')
+            ->orderBy('role')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'data' => $users,
+        ]);
+    }
+
+    /**
+     * Reset password akun pengguna tenant oleh Superadmin.
+     */
+    public function resetUserPassword(Request $request, int $id)
+    {
+        $user = User::withoutGlobalScopes()->findOrFail($id);
+
+        $data = $request->validate([
+            'new_password' => ['nullable', 'string', 'min:6', 'max:100'],
+            'must_change_password' => ['nullable', 'boolean'],
+        ]);
+
+        $newPassword = ! empty($data['new_password']) ? (string) $data['new_password'] : Str::random(10);
+        $mustChange = isset($data['must_change_password']) ? (bool) $data['must_change_password'] : true;
+
+        $user->password = Hash::make($newPassword);
+        $user->must_change_password = $mustChange;
+        $user->tokens()->delete(); // Logout semua sesi aktif demi keamanan
+        $user->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Password pengguna ' . $user->name . ' berhasil direset.',
+            'data' => [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'new_password' => $newPassword,
+                'must_change_password' => $user->must_change_password,
+            ],
         ]);
     }
 }

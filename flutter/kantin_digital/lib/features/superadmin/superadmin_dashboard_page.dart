@@ -171,7 +171,7 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
                         'Password sementara dibuat otomatis dan hanya ditampilkan satu kali setelah tenant dibuat. Setiap pengguna wajib menggantinya saat login pertama.',
                       ),
                     ),
-                  ] else
+                  ] else ...[
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
@@ -187,6 +187,19 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
                           ? null
                           : (value) => setDialogState(() => isActive = value),
                     ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.manage_accounts_rounded),
+                      label: const Text('Kelola Pengguna & Reset Password'),
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _showManageUsersDialog(tenant);
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -357,6 +370,421 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _showManageUsersDialog(ManagedTenantModel tenant) async {
+    late Future<List<Map<String, dynamic>>> usersFuture;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          usersFuture = _service.fetchTenantUsers(tenant.id);
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Akun Pengguna: ${tenant.name}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: usersFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Gagal memuat pengguna: ${snapshot.error}'),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: () => setDialogState(() {}),
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final users = snapshot.data ?? [];
+                  if (users.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('Belum ada akun terdaftar.')),
+                    );
+                  }
+
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: users.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final user = users[index];
+                        final role = user['role']?.toString() ?? 'user';
+                        final roleName = _roleLabel(role);
+                        final roleColor = _roleColor(role);
+                        final mustChange = user['must_change_password'] == true ||
+                            user['must_change_password'] == 1;
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: roleColor.withValues(alpha: 0.15),
+                            child: Icon(
+                              role == 'admin'
+                                  ? Icons.admin_panel_settings_rounded
+                                  : (role == 'cashier'
+                                      ? Icons.point_of_sale_rounded
+                                      : (role == 'manager'
+                                          ? Icons.badge_rounded
+                                          : Icons.person_rounded)),
+                              color: roleColor,
+                              size: 20,
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  user['name']?.toString() ?? '',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  roleName,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: roleColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user['email']?.toString() ?? '',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              if (mustChange)
+                                const Text(
+                                  '• Wajib ganti password',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                            ),
+                            icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                            label: const Text('Reset', style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              _showResetPasswordDialog(
+                                tenant,
+                                user,
+                                onUserUpdated: () => setDialogState(() {}),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Tutup'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showResetPasswordDialog(
+    ManagedTenantModel tenant,
+    Map<String, dynamic> user, {
+    required VoidCallback onUserUpdated,
+  }) async {
+    final passwordController = TextEditingController();
+    bool mustChangePassword = true;
+    bool isSubmitting = false;
+
+    void generateRandom() {
+      passwordController.text = _generateRandomPassword();
+    }
+
+    generateRandom();
+
+    await showDialog<void>(
+      context: context,
+      builder: (resetDialogContext) => StatefulBuilder(
+        builder: (context, setResetState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Reset Password: ${user['name']}',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Email: ${user['email']} (${_roleLabel(user['role']?.toString() ?? '')})',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: passwordController,
+                        decoration: const InputDecoration(
+                          labelText: 'Password Baru',
+                          hintText: 'Minimal 6 karakter',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Acak password baru',
+                      icon: const Icon(Icons.shuffle_rounded),
+                      onPressed: () {
+                        setResetState(() {
+                          generateRandom();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Wajib ganti password saat login', style: TextStyle(fontSize: 13)),
+                  subtitle: const Text('Pengguna diminta membuat password baru saat login', style: TextStyle(fontSize: 11)),
+                  value: mustChangePassword,
+                  onChanged: isSubmitting
+                      ? null
+                      : (val) => setResetState(() => mustChangePassword = val),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(resetDialogContext),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final newPwd = passwordController.text.trim();
+                      if (newPwd.length < 6) {
+                        _notify('Password minimal 6 karakter', isError: true);
+                        return;
+                      }
+
+                      setResetState(() => isSubmitting = true);
+                      try {
+                        await _service.resetUserPassword(
+                          user['id'],
+                          newPassword: newPwd,
+                          mustChangePassword: mustChangePassword,
+                        );
+
+                        if (!resetDialogContext.mounted) return;
+                        Navigator.pop(resetDialogContext);
+                        onUserUpdated();
+                        _notify('Password ${user['name']} berhasil direset!');
+                        _showResetSuccessDialog(tenant, user, newPwd);
+                      } catch (e) {
+                        if (!resetDialogContext.mounted) return;
+                        setResetState(() => isSubmitting = false);
+                        _notify('Gagal mereset password: $e', isError: true);
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Reset Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+    passwordController.dispose();
+  }
+
+  Future<void> _showResetSuccessDialog(
+    ManagedTenantModel tenant,
+    Map<String, dynamic> user,
+    String newPassword,
+  ) async {
+    final domain = _tenantWebDomain();
+    final loginUrl = 'https://${tenant.subdomain}.$domain';
+    final credentialsText =
+        'Kredensial Akun Baru\n'
+        'Toko: ${tenant.name}\n'
+        'Nama: ${user['name']}\n'
+        'Role: ${_roleLabel(user['role']?.toString() ?? '')}\n'
+        'Email: ${user['email']}\n'
+        'Password Baru: $newPassword\n'
+        'Login di: $loginUrl';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppColors.success),
+            SizedBox(width: 8),
+            Text('Password Berhasil Direset'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Silakan salin kredensial berikut dan kirimkan ke pengguna yang bersangkutan:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SelectableText(
+                credentialsText,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Salin Kredensial'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: credentialsText));
+              if (dialogContext.mounted) {
+                _notify('Kredensial berhasil disalin ke clipboard');
+              }
+            },
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Selesai'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _roleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'Owner';
+      case 'manager':
+        return 'Manager';
+      case 'cashier':
+        return 'Kasir';
+      case 'operations':
+        return 'Operasional';
+      case 'superadmin':
+        return 'Superadmin';
+      default:
+        return role.toUpperCase();
+    }
+  }
+
+  Color _roleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return Colors.purple;
+      case 'manager':
+        return Colors.indigo;
+      case 'cashier':
+        return Colors.teal;
+      case 'operations':
+        return Colors.orange;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  String _generateRandomPassword([int length = 10]) {
+    const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+    final rand = DateTime.now().microsecondsSinceEpoch;
+    final buffer = StringBuffer();
+    int seed = rand;
+    for (int i = 0; i < length; i++) {
+      seed = (seed * 9301 + 49297) % 233280;
+      buffer.write(chars[seed.abs() % chars.length]);
+    }
+    return buffer.toString();
   }
 
   Widget _field(
@@ -601,6 +1029,7 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
                     (tenant) => _TenantCard(
                       tenant: tenant,
                       onEdit: () => _showTenantForm(tenant: tenant),
+                      onManageUsers: () => _showManageUsersDialog(tenant),
                     ),
                   ),
               ],
@@ -653,10 +1082,15 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _TenantCard extends StatelessWidget {
-  const _TenantCard({required this.tenant, required this.onEdit});
+  const _TenantCard({
+    required this.tenant,
+    required this.onEdit,
+    required this.onManageUsers,
+  });
 
   final ManagedTenantModel tenant;
   final VoidCallback onEdit;
+  final VoidCallback onManageUsers;
 
   @override
   Widget build(BuildContext context) {
@@ -694,6 +1128,11 @@ class _TenantCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Kelola akun & reset password',
+                  onPressed: onManageUsers,
+                  icon: const Icon(Icons.manage_accounts_rounded),
                 ),
                 IconButton(
                   tooltip: 'Pengaturan tenant',
