@@ -51,14 +51,12 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         for (var name of names) {
-          if (name.indexOf('flutter') !== -1) {
-            caches.delete(name);
-          }
+          caches.delete(name);
         }
       });
     }
   </script>
-  <script src="flutter_bootstrap.v2.js" async></script>
+  <script src="flutter_bootstrap.v5.js?v=5" async></script>
 </body>
 
 </html>
